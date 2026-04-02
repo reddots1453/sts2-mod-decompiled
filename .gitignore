@@ -1,0 +1,54 @@
+# ============================================================
+#  STS2 Community Stats Project — .gitignore
+#  Only track: _decompiled/, mods/, docs
+#  Exclude: game binaries, Steam runtime, build artifacts
+# ============================================================
+
+# ── Game binaries & runtime (do NOT commit) ─────────────────
+*.exe
+*.pck
+*.dll
+*.so
+*.dylib
+*.bat
+*.sln
+release_info.json
+crashpad_*
+controller_config/
+data_sts2_windows_x86_64/
+
+# ── .NET build artifacts ────────────────────────────────────
+mods/**/bin/
+mods/**/obj/
+mods/**/*.pdb
+
+# ── But DO track the mod DLL (it's our build output) ────────
+!mods/sts2_community_stats/sts2_community_stats.dll
+
+# ── Python artifacts ────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ── Docker / server runtime ────────────────────────────────
+server/.env
+server/pgdata/
+server/redisdata/
+
+# ── IDE & OS files ──────────────────────────────────────────
+.claude/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+Thumbs.db
+.DS_Store
+
+# ── Test artifacts ──────────────────────────────────────────
+mods/**/test/uploaded_runs.json
+
+# ── Godot ignores ───────────────────────────────────────────
+.godot/

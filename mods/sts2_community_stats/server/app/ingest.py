@@ -1,0 +1,163 @@
+"""Run upload ingestion — splits payload into normalized database rows."""
+
+import logging
+import asyncpg
+from .models import RunUploadPayload
+
+logger = logging.getLogger("sts2stats.ingest")
+
+
+async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
+    """Insert a complete run and all sub-records. Returns the run_id."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # ── Main run record ──────────────────────────────
+            run_id: int = await conn.fetchval(
+                """INSERT INTO runs
+                   (game_version, mod_version, character, ascension, win,
+                    num_players, floor_reached)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id""",
+                payload.game_version, payload.mod_version, payload.character,
+                payload.ascension, payload.win, payload.num_players,
+                payload.floor_reached,
+            )
+
+            # ── Card choices ─────────────────────────────────
+            if payload.card_choices:
+                await conn.executemany(
+                    """INSERT INTO card_choices
+                       (run_id, game_version, character, ascension, player_win_rate,
+                        win, num_players, card_id, upgrade_level, was_picked, floor)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.player_win_rate, payload.win,
+                         payload.num_players, c.card_id, c.upgrade_level,
+                         c.was_picked, c.floor)
+                        for c in payload.card_choices
+                    ],
+                )
+
+            # ── Event choices ────────────────────────────────
+            if payload.event_choices:
+                await conn.executemany(
+                    """INSERT INTO event_choices
+                       (run_id, game_version, character, ascension, player_win_rate,
+                        win, event_id, option_index, total_options)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.player_win_rate, payload.win,
+                         e.event_id, e.option_index, e.total_options)
+                        for e in payload.event_choices
+                    ],
+                )
+
+            # ── Relic records ────────────────────────────────
+            if payload.final_relics:
+                await conn.executemany(
+                    """INSERT INTO relic_records
+                       (run_id, game_version, character, ascension, player_win_rate,
+                        win, relic_id)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.player_win_rate, payload.win, r)
+                        for r in payload.final_relics
+                    ],
+                )
+
+            # ── Shop purchases ───────────────────────────────
+            if payload.shop_purchases:
+                await conn.executemany(
+                    """INSERT INTO shop_purchases
+                       (run_id, game_version, character, ascension, player_win_rate,
+                        win, item_id, item_type, cost, floor)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.player_win_rate, payload.win,
+                         s.item_id, s.item_type, s.cost, s.floor)
+                        for s in payload.shop_purchases
+                    ],
+                )
+
+            # ── Card removals ────────────────────────────────
+            if payload.card_removals:
+                await conn.executemany(
+                    """INSERT INTO card_removals
+                       (run_id, game_version, character, ascension, win,
+                        card_id, source, floor)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.win, r.card_id, r.source, r.floor)
+                        for r in payload.card_removals
+                    ],
+                )
+
+            # ── Card upgrades ────────────────────────────────
+            if payload.card_upgrades:
+                await conn.executemany(
+                    """INSERT INTO card_upgrades
+                       (run_id, game_version, character, ascension, win,
+                        card_id, source)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.win, u.card_id, u.source)
+                        for u in payload.card_upgrades
+                    ],
+                )
+
+            # ── Encounter records ────────────────────────────
+            if payload.encounters:
+                await conn.executemany(
+                    """INSERT INTO encounter_records
+                       (run_id, game_version, character, ascension,
+                        encounter_id, encounter_type, damage_taken,
+                        turns_taken, player_died, floor)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, e.encounter_id, e.encounter_type,
+                         e.damage_taken, e.turns_taken, e.player_died, e.floor)
+                        for e in payload.encounters
+                    ],
+                )
+
+            # ── Contributions ────────────────────────────────
+            if payload.contributions:
+                await conn.executemany(
+                    """INSERT INTO contributions
+                       (run_id, game_version, character, ascension,
+                        source_id, source_type, encounter_id,
+                        times_played, direct_damage, attributed_damage,
+                        block_gained, cards_drawn, energy_gained, hp_healed)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, c.source_id, c.source_type,
+                         c.encounter_id, c.times_played, c.direct_damage,
+                         c.attributed_damage, c.block_gained, c.cards_drawn,
+                         c.energy_gained, c.hp_healed)
+                        for c in payload.contributions
+                    ],
+                )
+
+            # ── Register game version ────────────────────────
+            await conn.execute(
+                """INSERT INTO game_versions (version)
+                   VALUES ($1)
+                   ON CONFLICT (version) DO UPDATE SET last_seen = NOW()""",
+                payload.game_version,
+            )
+
+    logger.info(
+        "Ingested run #%d: %s asc%d %s floor=%d cards=%d events=%d encounters=%d",
+        run_id, payload.character, payload.ascension,
+        "WIN" if payload.win else "LOSS", payload.floor_reached,
+        len(payload.card_choices), len(payload.event_choices),
+        len(payload.encounters),
+    )
+    return run_id
