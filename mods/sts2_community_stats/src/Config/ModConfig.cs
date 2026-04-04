@@ -14,6 +14,10 @@ public static class ModConfig
     public static int QueryTimeoutMs { get; set; } = 5000;
     public static int UploadTimeoutMs { get; set; } = 30000;
 
+    // User preferences
+    public static bool EnableUpload { get; set; } = true;
+    public static string Language { get; set; } = "CN"; // "CN" | "EN"
+
     // Cache
     public static int MemoryCacheTtlSeconds { get; set; } = 900;   // 15 min
     public static int DiskCacheTtlHours { get; set; } = 24;
@@ -66,6 +70,10 @@ public static class ModConfig
                 QueryTimeoutMs = qt.GetInt32();
             if (root.TryGetProperty("upload_timeout_ms", out var ut))
                 UploadTimeoutMs = ut.GetInt32();
+            if (root.TryGetProperty("enable_upload", out var eu))
+                EnableUpload = eu.GetBoolean();
+            if (root.TryGetProperty("language", out var lang))
+                Language = lang.GetString() ?? Language;
         }
         catch { /* ignore malformed config */ }
     }

@@ -88,10 +88,14 @@ public class ContributionUpload
     [JsonPropertyName("times_played")]       public int TimesPlayed { get; set; }
     [JsonPropertyName("direct_damage")]      public int DirectDamage { get; set; }
     [JsonPropertyName("attributed_damage")]  public int AttributedDamage { get; set; }
-    [JsonPropertyName("block_gained")]       public int BlockGained { get; set; }
+    [JsonPropertyName("effective_block")]    public int EffectiveBlock { get; set; }
+    [JsonPropertyName("mitigated_by_debuff")]public int MitigatedByDebuff { get; set; }
+    [JsonPropertyName("mitigated_by_buff")]  public int MitigatedByBuff { get; set; }
     [JsonPropertyName("cards_drawn")]        public int CardsDrawn { get; set; }
     [JsonPropertyName("energy_gained")]      public int EnergyGained { get; set; }
     [JsonPropertyName("hp_healed")]          public int HpHealed { get; set; }
+    [JsonPropertyName("stars_contribution")] public int StarsContribution { get; set; }
+    [JsonPropertyName("mitigated_by_str")]   public int MitigatedByStrReduction { get; set; }
 }
 
 // ============================================================

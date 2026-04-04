@@ -13,8 +13,6 @@ namespace CommunityStats.Patches;
 [HarmonyPatch]
 public static class CardRewardScreenPatch
 {
-    private const string StatsLabelMeta = "community_stats_label";
-
     [HarmonyPatch(typeof(NCardRewardSelectionScreen), nameof(NCardRewardSelectionScreen.RefreshOptions))]
     [HarmonyPostfix]
     public static void AfterRefreshOptions(NCardRewardSelectionScreen __instance,
@@ -35,7 +33,7 @@ public static class CardRewardScreenPatch
                 index++;
                 if (cardId == null) continue;
 
-                RemoveExistingLabel(holder);
+                DeckViewPatch.RemoveExistingLabel(holder);
 
                 var stats = StatsProvider.Instance.GetCardStats(cardId);
                 Label label;
@@ -53,7 +51,7 @@ public static class CardRewardScreenPatch
                 }
                 label.Position = new Vector2(0, 200);
                 label.Size = new Vector2(350, 30);
-                label.SetMeta(StatsLabelMeta, true);
+                label.SetMeta(DeckViewPatch.StatsLabelMeta, true);
                 holder.AddChild(label);
             }
         });
@@ -79,14 +77,5 @@ public static class CardRewardScreenPatch
 
             RunDataCollector.RecordCardReward(offeredCards, pickedId, RunDataCollector.CurrentFloor);
         });
-    }
-
-    private static void RemoveExistingLabel(Node parent)
-    {
-        foreach (var child in parent.GetChildren())
-        {
-            if (child is Label label && label.HasMeta(StatsLabelMeta))
-                label.QueueFree();
-        }
     }
 }

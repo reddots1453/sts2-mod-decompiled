@@ -40,6 +40,20 @@ public sealed class RunContributionAggregator
     }
 
     /// <summary>
+    /// Adds healing directly to run totals (for healing that occurs outside combat,
+    /// e.g. BurningBlood.AfterCombatVictory, rest site, events).
+    /// </summary>
+    public void AddHealing(string sourceId, string sourceType, int amount)
+    {
+        if (!_runTotals.TryGetValue(sourceId, out var accum))
+        {
+            accum = new ContributionAccum { SourceId = sourceId, SourceType = sourceType };
+            _runTotals[sourceId] = accum;
+        }
+        accum.HpHealed += amount;
+    }
+
+    /// <summary>
     /// Called by CombatTracker at combat end. Merges combat data into run totals.
     /// </summary>
     public void AddCombat(
@@ -61,10 +75,19 @@ public sealed class RunContributionAggregator
                 TimesPlayed = src.TimesPlayed,
                 DirectDamage = src.DirectDamage,
                 AttributedDamage = src.AttributedDamage,
-                BlockGained = src.BlockGained,
+                ModifierDamage = src.ModifierDamage,
+                EffectiveBlock = src.EffectiveBlock,
+                ModifierBlock = src.ModifierBlock,
+                MitigatedByDebuff = src.MitigatedByDebuff,
+                MitigatedByBuff = src.MitigatedByBuff,
+                MitigatedByStrReduction = src.MitigatedByStrReduction,
                 CardsDrawn = src.CardsDrawn,
                 EnergyGained = src.EnergyGained,
-                HpHealed = src.HpHealed
+                HpHealed = src.HpHealed,
+                StarsContribution = src.StarsContribution,
+                OriginSourceId = src.OriginSourceId,
+                UpgradeDamage = src.UpgradeDamage,
+                UpgradeBlock = src.UpgradeBlock
             };
             snapshot[key] = copy;
         }
@@ -133,10 +156,14 @@ public sealed class RunContributionAggregator
             TimesPlayed = accum.TimesPlayed,
             DirectDamage = accum.DirectDamage,
             AttributedDamage = accum.AttributedDamage,
-            BlockGained = accum.BlockGained,
+            EffectiveBlock = accum.EffectiveBlock,
+            MitigatedByDebuff = accum.MitigatedByDebuff,
+            MitigatedByBuff = accum.MitigatedByBuff,
             CardsDrawn = accum.CardsDrawn,
             EnergyGained = accum.EnergyGained,
-            HpHealed = accum.HpHealed
+            HpHealed = accum.HpHealed,
+            StarsContribution = accum.StarsContribution,
+            MitigatedByStrReduction = accum.MitigatedByStrReduction
         };
     }
 }

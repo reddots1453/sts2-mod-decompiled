@@ -19,6 +19,7 @@ public static class CommunityStatsMod
 {
     private static Harmony? _harmony;
     private static bool _f8Pressed;
+    private static bool _f9Pressed;
 
     public static void Initialize()
     {
@@ -27,6 +28,9 @@ public static class CommunityStatsMod
         // Load config overrides (e.g. api_base_url for local testing)
         ModConfig.LoadOverrides();
         Safe.Info($"API endpoint: {ModConfig.ApiBaseUrl}");
+
+        // Sync language setting
+        L.Current = ModConfig.Language == "EN" ? L.Lang.EN : L.Lang.CN;
 
         // Ensure data directories exist
         ModConfig.EnsureDirectories();
@@ -37,9 +41,30 @@ public static class CommunityStatsMod
             ModConfig.CurrentFilter = FilterSettings.Load() ?? new FilterSettings();
         });
 
-        // Apply Harmony patches
+        // Load bundled test data immediately so stats are available for Neow etc.
+        Safe.Run(() => StatsProvider.Instance.EnsureTestDataLoaded());
+
+        // Apply Harmony patches — patch each class individually so one failure
+        // doesn't prevent the rest from loading.
         _harmony = new Harmony("com.communitystats.sts2");
-        _harmony.PatchAll(typeof(CommunityStatsMod).Assembly);
+        var assembly = typeof(CommunityStatsMod).Assembly;
+        foreach (var type in assembly.GetTypes())
+        {
+            try
+            {
+                var processor = _harmony.CreateClassProcessor(type);
+                processor.Patch();
+            }
+            catch (Exception ex)
+            {
+                Safe.Warn($"[Harmony] Failed to patch {type.Name}: {ex}");
+            }
+        }
+
+        // Apply manual hook context patches (individual try/catch per method)
+        RelicHookContextPatcher.PatchAll(_harmony);
+        PowerHookContextPatcher.PatchAll(_harmony);
+        KillingBlowPatcher.PatchAll(_harmony);
 
         // Register ModManager.OnMetricsUpload hook for run data upload
         RunLifecyclePatch.RegisterMetricsHook();
@@ -68,11 +93,8 @@ public static class CommunityStatsMod
     private static void RegisterHotkeys()
     {
         // Wait for scene tree, then use ProcessFrame signal for input polling.
-        // This avoids subclassing Godot.Node (which requires source generators
-        // that aren't available in mod assemblies).
         Safe.RunAsync(async () =>
         {
-            // Wait for scene tree to be ready
             while (Engine.GetMainLoop() is not SceneTree sceneTree || sceneTree.Root == null)
             {
                 await Task.Delay(100);
@@ -92,14 +114,21 @@ public static class CommunityStatsMod
     {
         Safe.Run(() =>
         {
+            // F8 = Toggle contribution panel
             bool f8Now = Input.IsKeyPressed(Key.F8);
-
             if (f8Now && !_f8Pressed)
             {
                 ContributionPanel.Toggle();
             }
-
             _f8Pressed = f8Now;
+
+            // F9 = Toggle settings/filter panel
+            bool f9Now = Input.IsKeyPressed(Key.F9);
+            if (f9Now && !_f9Pressed)
+            {
+                FilterPanel.Toggle();
+            }
+            _f9Pressed = f9Now;
         });
     }
 }

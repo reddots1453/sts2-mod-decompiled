@@ -133,14 +133,16 @@ async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
                        (run_id, game_version, character, ascension,
                         source_id, source_type, encounter_id,
                         times_played, direct_damage, attributed_damage,
-                        block_gained, cards_drawn, energy_gained, hp_healed)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)""",
+                        effective_block, mitigated_by_debuff, mitigated_by_buff,
+                        cards_drawn, energy_gained, hp_healed)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)""",
                     [
                         (run_id, payload.game_version, payload.character,
                          payload.ascension, c.source_id, c.source_type,
                          c.encounter_id, c.times_played, c.direct_damage,
-                         c.attributed_damage, c.block_gained, c.cards_drawn,
-                         c.energy_gained, c.hp_healed)
+                         c.attributed_damage, c.effective_block,
+                         c.mitigated_by_debuff, c.mitigated_by_buff,
+                         c.cards_drawn, c.energy_gained, c.hp_healed)
                         for c in payload.contributions
                     ],
                 )

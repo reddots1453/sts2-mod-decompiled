@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CommunityStats.Config;
 using CommunityStats.Util;
 
@@ -18,6 +19,21 @@ public sealed class StatsProvider
     public bool IsPreloading => _isPreloading;
     public bool HasBundle => _bundle != null;
     public int TotalRunCount => _bundle?.TotalRuns ?? 0;
+
+    /// <summary>
+    /// Load bundled test data immediately so stats are available before any async preload.
+    /// Called once at mod init.
+    /// </summary>
+    public void EnsureTestDataLoaded()
+    {
+        if (_bundle != null) return;
+        var testBundle = LoadBundledTestData();
+        if (testBundle != null)
+        {
+            _bundle = testBundle;
+            Safe.Info($"[DIAG:StatsProvider] Loaded bundled test data at init: {testBundle.Cards.Count} cards, {testBundle.Relics.Count} relics, {testBundle.Events.Count} events");
+        }
+    }
 
     // ── Preload (Run start) ─────────────────────────────────
 
@@ -61,10 +77,20 @@ public sealed class StatsProvider
         {
             _bundle = cached;
             Safe.Info($"Preload fell back to disk cache for {character}");
+            _isPreloading = false;
+            return;
+        }
+
+        // Disk cache also failed → load bundled test data as fallback
+        var testBundle = LoadBundledTestData();
+        if (testBundle != null)
+        {
+            _bundle = testBundle;
+            Safe.Info($"Preload fell back to bundled test data ({testBundle.Cards.Count} cards, {testBundle.Relics.Count} relics)");
         }
         else
         {
-            Safe.Warn($"No cached data available for {character}");
+            Safe.Warn($"No cached or test data available for {character}");
         }
 
         _isPreloading = false;
@@ -80,6 +106,8 @@ public sealed class StatsProvider
 
         if (character != null)
             await PreloadForRunAsync(character, newFilter);
+        else
+            EnsureTestDataLoaded(); // Restore test data so UI doesn't show "loading"
     }
 
     /// <summary>
@@ -253,4 +281,35 @@ public sealed class StatsProvider
 
     private bool FilterMatches(FilterSettings filter) =>
         _bundleFilter != null && filter.Equals(_bundleFilter);
+
+    /// <summary>
+    /// Loads the bundled test_data.json shipped next to the mod DLL.
+    /// Used as last-resort fallback when both API and disk cache are unavailable.
+    /// </summary>
+    private static BulkStatsBundle? LoadBundledTestData()
+    {
+        try
+        {
+            var asmLocation = typeof(StatsProvider).Assembly.Location;
+            if (string.IsNullOrEmpty(asmLocation)) return null;
+
+            var modDir = Path.GetDirectoryName(asmLocation)!;
+            var testDataPath = Path.Combine(modDir, "test", "test_data.json");
+
+            if (!File.Exists(testDataPath))
+            {
+                Safe.Warn($"Test data not found at: {testDataPath}");
+                return null;
+            }
+
+            var json = File.ReadAllText(testDataPath);
+            var bundle = JsonSerializer.Deserialize<BulkStatsBundle>(json);
+            return bundle;
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"Failed to load bundled test data: {ex.Message}");
+            return null;
+        }
+    }
 }

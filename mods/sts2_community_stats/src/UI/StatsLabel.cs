@@ -1,4 +1,5 @@
 using CommunityStats.Api;
+using CommunityStats.Config;
 using CommunityStats.Util;
 using Godot;
 
@@ -31,48 +32,68 @@ public partial class StatsLabel : Label
 
     public static StatsLabel ForCardStats(CardStats stats)
     {
-        var pickPct = (stats.PickRate * 100).ToString("F0");
-        var winPct = (stats.WinRate * 100).ToString("F0");
-        var text = $"Pick {pickPct}% | Win {winPct}%";
-        var color = WinRateColor(stats.WinRate);
-        return Create(text, color);
+        var text = string.Format(L.Get("stats.pick"),
+            (stats.PickRate * 100).ToString("F0"),
+            (stats.WinRate * 100).ToString("F0"));
+        return Create(text, WinRateColor(stats.WinRate));
     }
 
     public static StatsLabel ForRelicStats(RelicStats stats)
     {
-        var winPct = (stats.WinRate * 100).ToString("F0");
-        var pickPct = (stats.PickRate * 100).ToString("F0");
-        var text = $"Pick {pickPct}% | Win {winPct}%";
-        var color = WinRateColor(stats.WinRate);
-        return Create(text, color);
+        var text = string.Format(L.Get("stats.relic"),
+            (stats.PickRate * 100).ToString("F0"),
+            (stats.WinRate * 100).ToString("F0"));
+        return Create(text, WinRateColor(stats.WinRate));
     }
 
     public static StatsLabel ForEventOption(EventOptionStats stats)
     {
-        var selPct = (stats.SelectionRate * 100).ToString("F0");
-        var winPct = (stats.WinRate * 100).ToString("F0");
-        var text = $"Chosen {selPct}% | Win {winPct}%";
-        var color = WinRateColor(stats.WinRate);
-        return Create(text, color);
+        var text = string.Format(L.Get("stats.event"),
+            (stats.SelectionRate * 100).ToString("F0"),
+            (stats.WinRate * 100).ToString("F0"));
+        return Create(text, WinRateColor(stats.WinRate));
     }
 
     public static StatsLabel ForEncounter(EncounterStats stats)
     {
-        var deathPct = (stats.DeathRate * 100).ToString("F1");
-        var avgDmg = stats.AvgDamageTaken.ToString("F0");
-        var text = $"Death {deathPct}% | Avg DMG {avgDmg}";
-        var color = DeathRateColor(stats.DeathRate);
-        return Create(text, color);
+        var text = string.Format(L.Get("stats.encounter"),
+            (stats.DeathRate * 100).ToString("F1"),
+            stats.AvgDamageTaken.ToString("F0"));
+        return Create(text, DeathRateColor(stats.DeathRate));
+    }
+
+    public static StatsLabel ForUpgradeRate(CardStats stats)
+    {
+        var text = string.Format(L.Get("stats.upgrade"),
+            (stats.UpgradeRate * 100).ToString("F0"),
+            (stats.WinRate * 100).ToString("F0"));
+        return Create(text, WinRateColor(stats.WinRate));
+    }
+
+    public static StatsLabel ForRemovalRate(CardStats stats)
+    {
+        var text = string.Format(L.Get("stats.remove"),
+            (stats.RemovalRate * 100).ToString("F0"),
+            (stats.WinRate * 100).ToString("F0"));
+        return Create(text, WinRateColor(stats.WinRate));
+    }
+
+    public static StatsLabel ForShopBuyRate(float shopBuyRate, float winRate)
+    {
+        var text = string.Format(L.Get("stats.buy"),
+            (shopBuyRate * 100).ToString("F0"),
+            (winRate * 100).ToString("F0"));
+        return Create(text, WinRateColor(winRate));
     }
 
     public static StatsLabel ForLoading()
     {
-        return Create("Loading...", NeutralColor);
+        return Create(L.Get("stats.loading"), NeutralColor);
     }
 
     public static StatsLabel ForUnavailable()
     {
-        return Create("No data", new Color(0.5f, 0.5f, 0.5f));
+        return Create(L.Get("stats.no_data"), new Color(0.5f, 0.5f, 0.5f));
     }
 
     // ── Color helpers ───────────────────────────────────────

@@ -1,34 +1,84 @@
+using CommunityStats.Api;
 using CommunityStats.Collection;
+using CommunityStats.UI;
 using CommunityStats.Util;
+using Godot;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 
 namespace CommunityStats.Patches;
 
 /// <summary>
-/// Patches NDeckCardSelectScreen to record card removals.
+/// Patches NDeckCardSelectScreen to:
+/// 1. Display removal rate labels on each card
+/// 2. Record removed cards
 /// </summary>
 [HarmonyPatch]
 public static class CardRemovalPatch
 {
+    // ── Display removal rate when screen shows cards ────────
+
+    [HarmonyPatch(typeof(NDeckCardSelectScreen), nameof(NDeckCardSelectScreen._Ready))]
+    [HarmonyPostfix]
+    public static void AfterScreenReady(NDeckCardSelectScreen __instance)
+    {
+        Safe.Run(() =>
+        {
+            // Access card grid to attach labels
+            var grid = Traverse.Create(__instance).Field("_grid").GetValue<object>();
+            if (grid == null)
+            {
+                grid = Traverse.Create(__instance).Field("_cardGrid").GetValue<object>();
+            }
+            if (grid == null) return;
+
+            var holders = Traverse.Create(grid).Property("CurrentlyDisplayedCardHolders")
+                .GetValue<System.Collections.IEnumerable>();
+            if (holders == null) return;
+
+            foreach (var holderObj in holders)
+            {
+                if (holderObj is not NGridCardHolder holder) continue;
+
+                var cardModel = holder.CardModel;
+                var cardId = cardModel?.Id.Entry;
+                if (cardId == null) continue;
+
+                DeckViewPatch.RemoveExistingLabel(holder);
+
+                var stats = StatsProvider.Instance.GetCardStats(cardId);
+                Label label;
+                if (stats != null)
+                    label = StatsLabel.ForRemovalRate(stats);
+                else if (!StatsProvider.Instance.HasBundle)
+                    label = StatsLabel.ForLoading();
+                else
+                    label = StatsLabel.ForUnavailable();
+
+                label.Position = new Vector2(0, 200);
+                label.Size = new Vector2(300, 24);
+                label.SetMeta(DeckViewPatch.StatsLabelMeta, true);
+                holder.AddChild(label);
+            }
+        });
+    }
+
+    // ── Record removal on confirm ───────────────────────────
+
     [HarmonyPatch(typeof(NDeckCardSelectScreen), "ConfirmSelection")]
     [HarmonyPostfix]
     public static void AfterConfirmSelection(NDeckCardSelectScreen __instance)
     {
         Safe.Run(() =>
         {
-            // Access the selected cards via Traverse
             var selectedCards = Traverse.Create(__instance).Field("_selectedCards").GetValue<object>();
             if (selectedCards == null) return;
 
-            // Try to iterate selected card holders
             if (selectedCards is System.Collections.IEnumerable enumerable)
             {
-                foreach (var cardHolder in enumerable)
+                foreach (var card in enumerable)
                 {
-                    var card = Traverse.Create(cardHolder).Property("Card").GetValue<object>();
-                    if (card == null) continue;
-
                     var id = Traverse.Create(card).Property("Id").GetValue<object>();
                     var entry = Traverse.Create(id).Property("Entry").GetValue<string>();
 
@@ -40,4 +90,5 @@ public static class CardRemovalPatch
             }
         });
     }
+
 }

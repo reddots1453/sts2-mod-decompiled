@@ -16,6 +16,8 @@ public partial class FilterPanel : PanelContainer
     private SpinBox? _minWinRateSpinBox;
     private Label? _sampleSizeLabel;
     private Button _applyButton = null!;
+    private CheckBox? _uploadCheckbox;
+    private OptionButton? _langDropdown;
 
     public static event Action? FilterApplied;
 
@@ -40,10 +42,10 @@ public partial class FilterPanel : PanelContainer
         };
         panel.AddThemeStyleboxOverride("panel", style);
 
-        panel.CustomMinimumSize = new Vector2(340, 340);
+        panel.CustomMinimumSize = new Vector2(340, 420);
         panel.AnchorLeft = 0.5f;
         panel.AnchorRight = 0.5f;
-        panel.AnchorTop = 0.25f;
+        panel.AnchorTop = 0.2f;
         panel.OffsetLeft = -170;
         panel.OffsetRight = 170;
 
@@ -54,43 +56,61 @@ public partial class FilterPanel : PanelContainer
         // Header with close button
         var header = new HBoxContainer();
         vbox.AddChild(header);
-        var title = new Label { Text = "Community Stats — Filter" };
+        var title = new Label { Text = L.Get("settings.title") };
         title.AddThemeColorOverride("font_color", Colors.White);
         title.AddThemeFontSizeOverride("font_size", 16);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(title);
-        var closeBtn = new Button { Text = "✕", CustomMinimumSize = new Vector2(28, 28) };
+        var closeBtn = new Button { Text = "X", CustomMinimumSize = new Vector2(28, 28) };
         closeBtn.Pressed += () => panel.Visible = false;
         header.AddChild(closeBtn);
 
+        // ── Data Upload Toggle ──────────────────────────────
+        panel._uploadCheckbox = new CheckBox { Text = L.Get("settings.upload") };
+        panel._uploadCheckbox.ButtonPressed = ModConfig.EnableUpload;
+        vbox.AddChild(panel._uploadCheckbox);
+
+        // ── Filter Settings ─────────────────────────────────
+
         // Auto-match ascension
-        panel._autoMatchAscCheckbox = new CheckBox { Text = "Auto-match my Ascension" };
+        panel._autoMatchAscCheckbox = new CheckBox { Text = L.Get("settings.auto_asc") };
         panel._autoMatchAscCheckbox.ButtonPressed = ModConfig.CurrentFilter.AutoMatchAscension;
         vbox.AddChild(panel._autoMatchAscCheckbox);
 
         // Min/Max Ascension
-        var minAscRow = CreateSpinRow("Min Ascension:", 0, 20,
+        var minAscRow = CreateSpinRow(L.Get("settings.min_asc"), 0, 20,
             ModConfig.CurrentFilter.MinAscension ?? 0, out panel._minAscSpinBox);
         vbox.AddChild(minAscRow);
-        var maxAscRow = CreateSpinRow("Max Ascension:", 0, 20,
+        var maxAscRow = CreateSpinRow(L.Get("settings.max_asc"), 0, 20,
             ModConfig.CurrentFilter.MaxAscension ?? 20, out panel._maxAscSpinBox);
         vbox.AddChild(maxAscRow);
 
         // Min Player Win Rate
-        var wrRow = CreateSpinRow("Min Player Win%:", 0, 100,
+        var wrRow = CreateSpinRow(L.Get("settings.min_wr"), 0, 100,
             (int)((ModConfig.CurrentFilter.MinPlayerWinRate ?? 0) * 100), out panel._minWinRateSpinBox);
         panel._minWinRateSpinBox.Suffix = "%";
         vbox.AddChild(wrRow);
 
         // Game version dropdown
         var verRow = new HBoxContainer();
-        verRow.AddChild(new Label { Text = "Version: ", CustomMinimumSize = new Vector2(130, 0) });
+        verRow.AddChild(new Label { Text = L.Get("settings.version"), CustomMinimumSize = new Vector2(130, 0) });
         panel._versionDropdown = new OptionButton();
-        panel._versionDropdown.AddItem("Current", 0);
-        panel._versionDropdown.AddItem("All Versions", 1);
+        panel._versionDropdown.AddItem(L.Get("settings.ver_current"), 0);
+        panel._versionDropdown.AddItem(L.Get("settings.ver_all"), 1);
         panel._versionDropdown.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         verRow.AddChild(panel._versionDropdown);
         vbox.AddChild(verRow);
+
+        // ── Language Switch ─────────────────────────────────
+        var langRow = new HBoxContainer();
+        langRow.AddChild(new Label { Text = L.Get("settings.language"), CustomMinimumSize = new Vector2(130, 0) });
+        panel._langDropdown = new OptionButton();
+        panel._langDropdown.AddItem("中文", 0);
+        panel._langDropdown.AddItem("English", 1);
+        panel._langDropdown.Selected = L.Current == L.Lang.EN ? 1 : 0;
+        panel._langDropdown.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        langRow.AddChild(panel._langDropdown);
+        vbox.AddChild(langRow);
 
         // Sample size indicator
         panel._sampleSizeLabel = new Label { Text = "" };
@@ -100,7 +120,7 @@ public partial class FilterPanel : PanelContainer
         panel.UpdateSampleSizeLabel();
 
         // Apply button
-        panel._applyButton = new Button { Text = "Apply" };
+        panel._applyButton = new Button { Text = L.Get("settings.apply") };
         panel._applyButton.Pressed += panel.OnApplyPressed;
         vbox.AddChild(panel._applyButton);
 
@@ -122,7 +142,10 @@ public partial class FilterPanel : PanelContainer
 
     public static void Toggle()
     {
-        Instance.Visible = !Instance.Visible;
+        var panel = Instance;
+        panel.Visible = !panel.Visible;
+        if (panel.Visible)
+            panel.UpdateSampleSizeLabel();
     }
 
     public void UpdateSampleSizeLabel()
@@ -131,12 +154,12 @@ public partial class FilterPanel : PanelContainer
         var provider = StatsProvider.Instance;
         if (provider.HasBundle)
         {
-            int totalRuns = provider.TotalRunCount;
-            _sampleSizeLabel.Text = $"Filtered data: {totalRuns:N0} runs";
+            _sampleSizeLabel.Text = string.Format(L.Get("settings.sample"),
+                provider.TotalRunCount.ToString("N0"));
         }
         else
         {
-            _sampleSizeLabel.Text = "No data loaded";
+            _sampleSizeLabel.Text = L.Get("settings.no_data");
         }
     }
 
@@ -144,6 +167,15 @@ public partial class FilterPanel : PanelContainer
     {
         Safe.Run(() =>
         {
+            // Save upload preference
+            ModConfig.EnableUpload = _uploadCheckbox?.ButtonPressed ?? true;
+
+            // Save language preference
+            var langIdx = _langDropdown?.Selected ?? 0;
+            L.Current = langIdx == 1 ? L.Lang.EN : L.Lang.CN;
+            ModConfig.Language = langIdx == 1 ? "EN" : "CN";
+
+            // Save filter settings
             var filter = ModConfig.CurrentFilter;
             filter.AutoMatchAscension = _autoMatchAscCheckbox?.ButtonPressed ?? false;
             if (!filter.AutoMatchAscension)
@@ -156,8 +188,26 @@ public partial class FilterPanel : PanelContainer
             var verIdx = _versionDropdown?.Selected ?? 0;
             filter.GameVersion = verIdx == 1 ? "all" : null;
             filter.Save();
+
+            // Save config overrides to disk
+            SaveConfigOverrides();
+
             FilterApplied?.Invoke();
             Visible = false;
+        });
+    }
+
+    private static void SaveConfigOverrides()
+    {
+        Safe.Run(() =>
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                api_base_url = ModConfig.ApiBaseUrl,
+                enable_upload = ModConfig.EnableUpload,
+                language = ModConfig.Language
+            });
+            File.WriteAllText(ModConfig.ConfigPath, json);
         });
     }
 }

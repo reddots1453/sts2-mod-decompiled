@@ -101,6 +101,12 @@ public static class RunDataCollector
     /// </summary>
     public static void OnMetricsUpload(SerializableRun run, bool isVictory, ulong localPlayerId)
     {
+        if (!Config.ModConfig.EnableUpload)
+        {
+            Safe.Info("Data upload disabled by user setting, skipping.");
+            return;
+        }
+
         Safe.RunAsync(async () =>
         {
             var payload = BuildPayload(run, isVictory, localPlayerId);

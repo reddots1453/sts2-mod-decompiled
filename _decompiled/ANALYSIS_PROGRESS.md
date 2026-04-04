@@ -660,6 +660,80 @@ Mod 可以订阅此事件获取:
 1. **遗物胜率悬浮显示**: 新增 `RelicHoverPatch.cs`，Patch `NRelicBasicHolder.OnFocus/OnUnfocus`，鼠标悬停遗物时显示 Pick/Win rate StatsLabel，离开时移除
 2. **地图节点仅已走过显示**: `MapPointPatch.cs` 增加 `__instance.State != MapPointState.Traveled` 检查，只有已经走过的路线节点才显示战损/死亡率统计
 
+### Phase 11 贡献归因全面增强 (v0.10.0, 2026-04-04) ✅
+
+#### 11a. Power 间接效果全覆盖
+- **PowerHookContextPatcher**: 手动 Harmony Patch，为 ~60 个 Power Hook 方法添加 Prefix/Postfix（`SetActivePowerSource`/`ClearActivePowerSource`），每个方法独立 try/catch
+- **RelicHookContextPatcher**: 同模式，为 ~35 个 Relic Hook 方法添加 `SetActiveRelic`/`ClearActiveRelic` 上下文
+- 移除不可 patch 的方法（`ArsenalPower.AfterCardPlayed`、`StampedePower.BeforeTurnEnd` — 抽象/接口方法无法 patch）
+- DynamicVars 安全访问：`.Damage`/`.Block` 改为 `TryGetValue("Damage", out var dmg)` 避免 KeyNotFoundException
+
+#### 11b. 生成卡牌子条显示
+- `TagCardOrigin` 在 `OnCardPlayStarted` 中调用，通过 card hash 查找 origin，设置 `OriginSourceId`
+- 小刀(Shiv)、巨石(GiantRock) 等生成卡牌正确显示为来源卡牌的子条
+
+#### 11c. 治疗统计系统
+- **HealingPatch**: Prefix/Postfix on `CreatureCmd.Heal`，追踪实际 HP 变化量
+- **房间类型回退**: 非战斗中治疗按房间类型归因（火堆 REST_SITE / 事件 EventId / 商店 MERCHANT / 跨层恢复 FLOOR_N_REGEN）
+- **RunContributionAggregator.AddHealing**: 战斗外治疗直接写入 Run 级汇总（解决 AfterCombatVictory 在 OnCombatEnded 之后触发的时序问题）
+- **GainMaxHp 自动追踪**: `GainMaxHp` 内部调用 `Heal(creature, num)`，已被 HealingPatch 自动覆盖
+- 过滤初始 0→满血的虚假治疗（`hpBefore <= 0` 检查）
+- 事件治疗前缀：`[事件]` / `[E]` 清晰标识来源
+
+#### 11d. 药水贡献修复
+- **根因**: `PotionModel.OnUseWrapper` 是 async Task，Harmony Postfix 在第一个 await 处触发（`OnUse()` 之前），导致 `_activePotionId` 被过早清除
+- **修复**: 移除 `PotionContextPatch` 的 Postfix；将 `ClearActivePotion()` 移至 `PotionUsedPatch.AfterPotionUsed`（sync 方法，在 `OnUse()` 完成后触发）
+- 安全清理：`OnCardPlayStarted` 和 `OnCombatStart` 中增加 `_activePotionId = null` 兜底
+
+#### 11e. UI 修复
+- **卡牌移除界面标签重叠**: `CardRemovalPatch` 改用共享 `DeckViewPatch.StatsLabelMeta` 和 `DeckViewPatch.RemoveExistingLabel()`，与升级界面一致
+- **ContributionChart 治疗分类**: 新增 Healing 类别（绿色），仅在 Run 汇总中显示
+- **Localization**: 新增 `chart.healing`、`source.rest_site`、`source.event`、`source.event_prefix`、`source.merchant`、`source.floor_regen` 词条
+
+#### 11f. 新增/修改文件清单
+- `src/Patches/CombatHistoryPatch.cs` — 修改: PowerHookContextPatcher、RelicHookContextPatcher、HealingPatch、PotionContextPatch 修复、PotionUsedPatch 增加 ClearActivePotion
+- `src/Patches/CardRemovalPatch.cs` — 修改: 使用共享 meta key 修复标签重叠
+- `src/Collection/CombatTracker.cs` — 修改: OnHealingReceived、TagCardOrigin 调用、potion 安全清理
+- `src/Collection/RunContributionAggregator.cs` — 修改: AddHealing 方法
+- `src/UI/ContributionChart.cs` — 修改: 治疗分类、事件前缀、isRunLevel 参数
+- `src/UI/ContributionPanel.cs` — 修改: Run 汇总传 isRunLevel: true
+- `src/Config/Localization.cs` — 修改: 新增治疗/来源相关词条
+
+### Phase 12 战斗统计优化 + Dev Tools Mod (v0.11.0, 2026-04-04) ✅
+
+#### 12a. 面板位置 & 自动关闭
+- ContributionPanel 移至屏幕左侧（Anchor 从右到左）
+- 新增 `RunManager.ProceedFromTerminalRewardsScreen` Prefix，点击"前进"按钮自动关闭面板
+
+#### 12b. 击杀最后敌人伤害修复
+- **根因**: `CreatureCmd.Damage` 中 `DamageReceived` 受 `!IsEnding` 保护，最后一击使 `IsEnding` 为 true 后跳过记录
+- **首次修复尝试**: 属性式 Harmony Patch on `Hook.AfterDamageGiven` 失败 — 编译后参数名 `results`/`target` 与反编译名 `damageResult`/`originalTarget` 不一致
+- **最终修复**: `KillingBlowPatcher` 手动 Harmony Patch，参数名匹配编译后 DLL，使用 `RuntimeHelpers.GetHashCode` 对 DamageResult 做身份去重避免双重计数
+
+#### 12c. 自伤卡牌负防御
+- `ContributionAccum.SelfDamage` 新字段，`TotalDefense` 减去 SelfDamage
+- `OnDamageDealt`: 当 `dealerHash == targetHash`（自伤）时记录
+- ContributionChart: 红色 `SelfDmgBarColor` 段 + 负数红色文本
+
+#### 12d. 中毒伤害归因
+- `PoisonPower.AfterSideTurnStart` 加入 PowerHookContextPatcher
+
+#### 12e. 遗物覆盖扩展 (+27 个)
+- 伤害: CharonsAshes, ForgottenSoul, FestivePopper, MercuryHourglass, MrStruggles, Metronome, Tingsha
+- 格挡: ToughBandages, IntimidatingHelmet, HornCleat, CaptainsWheel, GalacticDust
+- 能量: Candelabra, Chandelier, Lantern, HappyFlower, FakeHappyFlower, GremlinHorn
+- 抽牌: Pendulum, BlessedAntler
+- Buff/Debuff: Akabeko, BagOfMarbles, Brimstone, RedMask, SlingOfCourage
+
+#### 12f. Dev Tools Mod (sts2_dev_tools)
+- 独立 Mod (`mods/sts2_dev_tools/`)，F7 打开菜单
+- 解锁角色：设置 Silent/Regent/Necrobinder/Defect 的 Epoch 为 Revealed
+- 解锁卡牌/遗物/药水：所有 57 个 Epoch Revealed + 图鉴标记为已见
+- 解锁进阶：所有角色 MaxAscension = 10 + 多人模式
+- 解锁时间线：所有 Epoch Revealed
+- 一键全部解锁 + 怪物/事件图鉴
+- 调用 `SaveManager.SaveProgressFile()` 持久化，重启后生效
+
 ### 构建状态: ✅ 编译通过 (0 警告 0 错误)
 
 ### 测试基础设施 (Phase 6.5)

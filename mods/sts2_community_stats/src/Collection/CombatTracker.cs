@@ -4,8 +4,8 @@ using CommunityStats.Util;
 namespace CommunityStats.Collection;
 
 /// <summary>
-/// Per-combat tracker. Records card plays, damage, block, draws, and attributes
-/// indirect contributions (poison, powers) back to their source card/relic.
+/// Per-combat tracker. Records card plays, damage, defense (effective block + mitigation),
+/// draws, energy, and attributes indirect contributions back to their source card/relic/potion.
 /// Reset at combat start, flushed to RunContributionAggregator at combat end.
 /// </summary>
 public sealed class CombatTracker
@@ -20,6 +20,17 @@ public sealed class CombatTracker
 
     // The relic currently executing a hook (set/cleared by relic hook tracking patch)
     private string? _activeRelicId;
+
+    // The potion currently being used (set by PotionContextPatch Prefix, cleared by Postfix)
+    private string? _activePotionId;
+
+    // The power whose hook is currently executing (for indirect effects like Rage, FlameBarrier)
+    private string? _activePowerSourceId;
+    private string? _activePowerSourceType;
+
+    // Track DamageResult objects already processed by DamageReceived,
+    // so KillingBlowPatcher doesn't double-count them.
+    private readonly HashSet<int> _processedDamageResults = new();
 
     // Current encounter info
     private string _encounterId = "";
@@ -43,12 +54,16 @@ public sealed class CombatTracker
         _currentCombat.Clear();
         _activeCardId = null;
         _activeRelicId = null;
+        _activePotionId = null;
+        _activePowerSourceId = null;
+        _activePowerSourceType = null;
         _encounterId = encounterId;
         _encounterType = encounterType;
         _damageTakenByPlayer = 0;
         _turnCount = 0;
         _playerDied = false;
         _floor = floor;
+        _processedDamageResults.Clear();
         ContributionMap.Instance.Clear();
     }
 
@@ -68,13 +83,31 @@ public sealed class CombatTracker
         ContributionMap.Instance.Clear();
     }
 
+    // ── Damage dedup (for KillingBlowPatcher) ────────────────
+    public void MarkDamageResultProcessed(int resultHash) => _processedDamageResults.Add(resultHash);
+    public bool IsDamageResultProcessed(int resultHash) => _processedDamageResults.Contains(resultHash);
+
+    // ── Exposed Context (for patches that need to read current state) ──
+
+    public string? ActiveCardId => _activeCardId;
+    public string? ActivePowerSourceId => _activePowerSourceId;
+    public string? ActivePowerSourceType => _activePowerSourceType;
+
     // ── Card Play Tracking ──────────────────────────────────
 
-    public void OnCardPlayStarted(string cardId)
+    public void OnCardPlayStarted(string cardId, int cardHash)
     {
         _activeCardId = cardId;
+        // Safety: clear stale potion context (shouldn't still be set, but guards against
+        // edge cases where PotionUsed didn't fire, e.g. combat ended mid-potion)
+        _activePotionId = null;
         var accum = GetOrCreate(cardId, "card");
         accum.TimesPlayed++;
+        // Tag origin so generated/transformed cards display as sub-bars
+        TagCardOrigin(cardId, cardHash);
+        // Reset orb first-trigger flag so first orb trigger during this card play
+        // goes to channeling source, subsequent triggers go to this card.
+        ContributionMap.Instance.ResetOrbFirstTrigger();
     }
 
     public void OnCardPlayFinished()
@@ -87,99 +120,319 @@ public sealed class CombatTracker
     public void SetActiveRelic(string relicId) => _activeRelicId = relicId;
     public void ClearActiveRelic() => _activeRelicId = null;
 
+    // ── Potion Context Tracking ─────────────────────────────
+
+    public void SetActivePotion(string potionId) => _activePotionId = potionId;
+    public void ClearActivePotion() => _activePotionId = null;
+
+    // ── Power Source Context Tracking ───────────────────────
+    // Set when a Power's hook method is executing (e.g., RagePower.AfterCardPlayed,
+    // FlameBarrierPower.AfterDamageReceived). This lets indirect effects (damage/block
+    // caused by the power) be attributed back to the card that originally applied the power.
+
+    public void SetActivePowerSource(string powerId)
+    {
+        var source = ContributionMap.Instance.GetPowerSource(powerId);
+        if (source != null)
+        {
+            _activePowerSourceId = source.SourceId;
+            _activePowerSourceType = source.SourceType;
+        }
+    }
+
+    public void ClearActivePowerSource()
+    {
+        _activePowerSourceId = null;
+        _activePowerSourceType = null;
+    }
+
     // ── Turn Tracking ───────────────────────────────────────
 
-    public void OnTurnStart() => _turnCount++;
+    public void OnTurnStart()
+    {
+        _turnCount++;
+    }
 
-    // ── Damage ──────────────────────────────────────────────
+    // ── Resolve Source ───────────────────────────────────────
+    // Fallback chain: cardSourceId → _activeCardId → _activePotionId → _activeRelicId → _activePowerSource → _activeOrbContext
+
+    private (string? id, string type) ResolveSource(string? cardSourceId)
+    {
+        if (cardSourceId != null)
+            return (cardSourceId, "card");
+        if (_activeCardId != null)
+            return (_activeCardId, "card");
+        if (_activePotionId != null)
+            return (_activePotionId, "potion");
+        if (_activeRelicId != null)
+            return (_activeRelicId, "relic");
+        if (_activePowerSourceId != null)
+            return (_activePowerSourceId, _activePowerSourceType ?? "card");
+        // Orb context fallback: attribute to the card that channeled the orb
+        var orbCtx = ContributionMap.Instance.ActiveOrbContext;
+        if (orbCtx != null)
+            return (orbCtx.Value.sourceId, orbCtx.Value.sourceType);
+        return (null, "card");
+    }
+
+    // ── Damage Dealt to Enemies ─────────────────────────────
 
     /// <summary>
     /// Called when any creature takes damage.
+    /// For damage to enemies: attributes to card/relic source, with modifier bonuses split out.
+    /// For damage to player: tracks for encounter stats + block attribution + str reduction mitigation.
     /// </summary>
-    public void OnDamageDealt(int totalDamage, string? cardSourceId, bool isPlayerReceiver)
+    public void OnDamageDealt(int totalDamage, int blockedDamage, string? cardSourceId,
+        bool isPlayerReceiver, int targetHash, int dealerHash,
+        bool isOstyDealer = false, bool isOstyReceiver = false)
     {
+        // Osty receiving damage = absorbing for player → defense contribution
+        if (isOstyReceiver && !isPlayerReceiver)
+        {
+            int hpLost = totalDamage; // totalDamage on Osty = HP lost by Osty
+            OnOstyAbsorbedDamage(hpLost);
+            return;
+        }
+
+        // Osty dealing damage to enemies → sub-bar under OSTY parent
+        if (isOstyDealer && !isPlayerReceiver && cardSourceId != null)
+        {
+            OnOstyDamageDealt(totalDamage, cardSourceId);
+            return;
+        }
+
         if (isPlayerReceiver)
         {
             _damageTakenByPlayer += totalDamage;
+
+            // Self-damage: player dealing damage to themselves via a card (Bloodletting, Offering, etc.)
+            // Record as negative defense contribution
+            int unblockedSelf = totalDamage - blockedDamage;
+            if (dealerHash != 0 && dealerHash == targetHash && unblockedSelf > 0)
+            {
+                var (srcId, srcType) = ResolveSource(cardSourceId);
+                if (srcId != null)
+                    GetOrCreate(srcId, srcType).SelfDamage += unblockedSelf;
+            }
+
+            // Attribute blocked damage to block sources via FIFO pool
+            if (blockedDamage > 0)
+            {
+                var consumed = ContributionMap.Instance.ConsumeBlock(blockedDamage);
+                foreach (var (sourceId, sourceType, amount) in consumed)
+                {
+                    GetOrCreate(sourceId, sourceType).EffectiveBlock += amount;
+                }
+            }
+
+            // Attribute enemy strength reduction as defense contribution
+            if (dealerHash != 0)
+            {
+                var reductions = ContributionMap.Instance.GetStrReductions(dealerHash);
+                if (reductions != null && reductions.Count > 0)
+                {
+                    int totalReduction = 0;
+                    foreach (var r in reductions) totalReduction += r.Amount;
+                    if (totalReduction > 0)
+                    {
+                        foreach (var entry in reductions)
+                        {
+                            int share = (int)Math.Round((float)entry.Amount / totalReduction * totalReduction);
+                            if (share > 0)
+                                GetOrCreate(entry.SourceId, entry.SourceType).MitigatedByStrReduction += share;
+                        }
+                    }
+                }
+            }
             return;
         }
 
         // Damage dealt TO enemies — attribute to source
-        if (cardSourceId != null)
+        // First, consume damage modifier context from Hook.ModifyDamageInternal patch
+        var modifiers = ContributionMap.Instance.LastDamageModifiers;
+        int modifierTotal = 0;
+        if (modifiers.Count > 0)
         {
-            // Direct card damage
-            GetOrCreate(cardSourceId, "card").DirectDamage += totalDamage;
+            foreach (var mod in modifiers)
+            {
+                if (mod.Amount > 0)
+                {
+                    modifierTotal += mod.Amount;
+                }
+            }
         }
-        else if (_activeCardId != null)
+
+        int directDamage = Math.Max(0, totalDamage - modifierTotal);
+
+        // SeekingEdge split: non-primary targets get damage attributed to SeekingEdge source
+        bool seekingRedirect = false;
+        if (ContributionMap.Instance.IsSeekingEdgeActive
+            && cardSourceId == "SOVEREIGN_BLADE"
+            && targetHash != ContributionMap.Instance.SeekingEdgePrimaryTarget)
         {
-            // Damage during a card play but no explicit cardSource (e.g., orb triggers)
-            GetOrCreate(_activeCardId, "card").DirectDamage += totalDamage;
+            var seekingSource = ContributionMap.Instance.GetPowerSource("SEEKING_EDGE_POWER");
+            if (seekingSource != null)
+            {
+                GetOrCreate(seekingSource.SourceId, seekingSource.SourceType).DirectDamage += directDamage;
+                // Also redirect modifier damage to SeekingEdge source
+                if (modifiers.Count > 0)
+                {
+                    foreach (var mod in modifiers)
+                    {
+                        if (mod.Amount > 0)
+                            GetOrCreate(seekingSource.SourceId, seekingSource.SourceType).ModifierDamage += mod.Amount;
+                    }
+                }
+                seekingRedirect = true;
+            }
         }
-        else if (_activeRelicId != null)
+
+        if (!seekingRedirect)
         {
-            GetOrCreate(_activeRelicId, "relic").DirectDamage += totalDamage;
+            // Normal attribution
+            if (modifiers.Count > 0)
+            {
+                foreach (var mod in modifiers)
+                {
+                    if (mod.Amount > 0)
+                        GetOrCreate(mod.SourceId, mod.SourceType).ModifierDamage += mod.Amount;
+                }
+            }
+
+            // Focus contribution split: when orb is the source, split Focus bonus as ModifierDamage
+            var focusContrib = ContributionMap.Instance.PendingOrbFocusContrib;
+            if (focusContrib != null && focusContrib.Value.amount > 0)
+            {
+                int focusAmount = Math.Min(focusContrib.Value.amount, directDamage);
+                if (focusAmount > 0)
+                {
+                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType).ModifierDamage += focusAmount;
+                    directDamage -= focusAmount;
+                }
+            }
+
+            var (sourceId2, sourceType2) = ResolveSource(cardSourceId);
+            if (sourceId2 != null)
+            {
+                GetOrCreate(sourceId2, sourceType2).DirectDamage += directDamage;
+            }
         }
-        // else: unattributed (environment damage, etc.)
+
+        modifiers.Clear();
     }
 
-    // ── Block ───────────────────────────────────────────────
+    // ── Defense: Weak on enemies ────────────────────────────
+
+    public void OnWeakMitigation(int actualDamage, int dealerHash)
+    {
+        if (actualDamage <= 0) return;
+
+        int prevented = actualDamage / 3;
+        if (prevented <= 0) return;
+
+        var weakSource = ContributionMap.Instance.GetDebuffSource(dealerHash, "WEAK_POWER");
+        if (weakSource != null)
+        {
+            GetOrCreate(weakSource.SourceId, weakSource.SourceType).MitigatedByDebuff += prevented;
+        }
+    }
+
+    // ── Defense: Buffer / Intangible ────────────────────────
+
+    public void OnBufferPrevention(int preventedDamage)
+    {
+        if (preventedDamage <= 0) return;
+
+        var source = ContributionMap.Instance.GetPlayerBuffSource("BUFFER_POWER");
+        if (source != null)
+        {
+            GetOrCreate(source.SourceId, source.SourceType).MitigatedByBuff += preventedDamage;
+        }
+    }
+
+    public void OnIntangibleReduction(int originalDamage, int reducedTo)
+    {
+        int prevented = originalDamage - reducedTo;
+        if (prevented <= 0) return;
+
+        var source = ContributionMap.Instance.GetPlayerBuffSource("INTANGIBLE_POWER");
+        if (source != null)
+        {
+            GetOrCreate(source.SourceId, source.SourceType).MitigatedByBuff += prevented;
+        }
+    }
+
+    // ── Block Tracking ──────────────────────────────────────
 
     public void OnBlockGained(int amount, string? cardPlayId)
     {
-        if (cardPlayId != null)
+        var (sourceId, sourceType) = ResolveSource(cardPlayId);
+
+        if (sourceId != null && amount > 0)
         {
-            GetOrCreate(cardPlayId, "card").BlockGained += amount;
-        }
-        else if (_activeCardId != null)
-        {
-            GetOrCreate(_activeCardId, "card").BlockGained += amount;
-        }
-        else if (_activeRelicId != null)
-        {
-            GetOrCreate(_activeRelicId, "relic").BlockGained += amount;
+            ContributionMap.Instance.AddBlock(sourceId, sourceType, amount);
+
+            // Focus contribution split for Frost orb: Focus bonus as ModifierBlock
+            var focusContrib = ContributionMap.Instance.PendingOrbFocusContrib;
+            if (focusContrib != null && focusContrib.Value.amount > 0)
+            {
+                int focusAmount = Math.Min(focusContrib.Value.amount, amount);
+                if (focusAmount > 0)
+                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType).ModifierBlock += focusAmount;
+            }
+
+            // Consume block modifier context (Dexterity, etc.)
+            var modifiers = ContributionMap.Instance.LastBlockModifiers;
+            int modifierTotal = 0;
+            if (modifiers.Count > 0)
+            {
+                foreach (var mod in modifiers)
+                {
+                    if (mod.Amount > 0)
+                    {
+                        GetOrCreate(mod.SourceId, mod.SourceType).ModifierBlock += mod.Amount;
+                        modifierTotal += mod.Amount;
+                    }
+                }
+                modifiers.Clear();
+            }
         }
     }
 
     // ── Power Application ───────────────────────────────────
 
-    // Debuff IDs that modify damage and should be attributed
-    private static readonly HashSet<string> DamageModifierDebuffs = new()
+    public void OnPowerSourceRecorded(string powerId)
     {
-        "VULNERABLE_POWER", "WEAK_POWER"
-    };
-
-    public void OnPowerApplied(string powerId, decimal amount, int creatureHash)
-    {
-        // Record which card/relic applied this power for future attribution
         if (_activeCardId != null)
-        {
             ContributionMap.Instance.RecordPowerSource(powerId, _activeCardId, "card");
-            ContributionMap.Instance.RecordDebuffSource(creatureHash, powerId, _activeCardId, "card");
-        }
+        else if (_activePotionId != null)
+            ContributionMap.Instance.RecordPowerSource(powerId, _activePotionId, "potion");
         else if (_activeRelicId != null)
-        {
             ContributionMap.Instance.RecordPowerSource(powerId, _activeRelicId, "relic");
-            ContributionMap.Instance.RecordDebuffSource(creatureHash, powerId, _activeRelicId, "relic");
-        }
+        else if (_activePowerSourceId != null)
+            ContributionMap.Instance.RecordPowerSource(powerId, _activePowerSourceId, _activePowerSourceType ?? "card");
     }
 
-    /// <summary>
-    /// Attribute bonus damage from debuffs (Vulnerable, etc.) to the card that applied them.
-    /// Called after direct damage attribution.
-    /// </summary>
-    public void AttributeDebuffBonuses(int targetHash, int totalDamage, bool hasVulnerable)
+    public void OnPowerApplied(string powerId, decimal amount, int creatureHash, bool isPlayerTarget)
     {
-        if (totalDamage <= 0) return;
+        string? sourceId = _activeCardId ?? _activePotionId ?? _activeRelicId ?? _activePowerSourceId;
+        string sourceType = _activeCardId != null ? "card" :
+                            _activePotionId != null ? "potion" :
+                            _activeRelicId != null ? "relic" :
+                            _activePowerSourceId != null ? (_activePowerSourceType ?? "card") : "card";
 
-        // Vulnerable: 1.5x multiplier → bonus = damage / 3
-        if (hasVulnerable)
+        if (sourceId == null) return;
+
+        // Also record general power source
+        ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType);
+
+        if (isPlayerTarget)
         {
-            var vulnSource = ContributionMap.Instance.GetDebuffSource(targetHash, "VULNERABLE_POWER");
-            if (vulnSource != null)
-            {
-                int bonus = totalDamage / 3;
-                GetOrCreate(vulnSource.SourceId, vulnSource.SourceType).AttributedDamage += bonus;
-            }
+            ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType);
+        }
+        else
+        {
+            ContributionMap.Instance.RecordDebuffSource(creatureHash, powerId, sourceId, sourceType);
         }
     }
 
@@ -201,13 +454,238 @@ public sealed class CombatTracker
     {
         if (fromHandDraw) return; // Normal turn draw, not attributed
 
-        if (_activeCardId != null)
+        var (sourceId, sourceType) = ResolveSource(null);
+        if (sourceId != null)
+            GetOrCreate(sourceId, sourceType).CardsDrawn++;
+    }
+
+    // ── Energy Gained ───────────────────────────────────────
+
+    public void OnEnergyGained(int amount)
+    {
+        if (amount <= 0) return;
+
+        var (sourceId, sourceType) = ResolveSource(null);
+        if (sourceId != null)
+            GetOrCreate(sourceId, sourceType).EnergyGained += amount;
+    }
+
+    // ── Cost Savings ─────────────────────────────────────────
+
+    /// <summary>
+    /// Called when a card is played with reduced cost (VoidForm, BulletTime).
+    /// Consumes pending cost savings recorded during TryModifyEnergyCostInCombat.
+    /// </summary>
+    public void ConsumePendingCostSavings()
+    {
+        var saving = ContributionMap.Instance.ConsumePendingCostSavings();
+        if (saving == null) return;
+        var (sourceId, sourceType, energy, stars) = saving.Value;
+        if (energy > 0) GetOrCreate(sourceId, sourceType).EnergyGained += energy;
+        if (stars > 0) GetOrCreate(sourceId, sourceType).StarsContribution += stars;
+    }
+
+    // ── Extra Hand Draw ──────────────────────────────────────
+
+    /// <summary>
+    /// Called after hand draw completes to attribute extra draws from powers
+    /// (PaleBlueDot, Tyranny) that modify hand draw count.
+    /// </summary>
+    public void FlushPendingHandDrawBonus()
+    {
+        var bonuses = ContributionMap.Instance.ConsumePendingHandDrawBonus();
+        foreach (var (sourceId, sourceType, count) in bonuses)
         {
-            GetOrCreate(_activeCardId, "card").CardsDrawn++;
+            GetOrCreate(sourceId, sourceType).CardsDrawn += count;
         }
-        else if (_activeRelicId != null)
+    }
+
+    // ── SeekingEdge Context ──────────────────────────────────
+
+    public void SetSeekingEdgeContext(int primaryTargetHash)
+        => ContributionMap.Instance.SetSeekingEdgeContext(primaryTargetHash);
+
+    public void ClearSeekingEdgeContext()
+        => ContributionMap.Instance.ClearSeekingEdgeContext();
+
+    // ── Osty Damage Attribution ───────────────────────────────
+    // When Osty deals damage to enemies, attribute to the specific attack card
+    // but set OriginSourceId = "OSTY" for sub-bar display under OSTY parent.
+
+    private const string OstyParentId = "OSTY";
+
+    /// <summary>
+    /// Called when Osty deals damage to an enemy. The cardSourceId is the attack card
+    /// (Unleash, Poke, etc.). Damage is attributed to the card with OSTY as parent.
+    /// </summary>
+    public void OnOstyDamageDealt(int totalDamage, string cardSourceId)
+    {
+        if (totalDamage <= 0 || string.IsNullOrEmpty(cardSourceId)) return;
+
+        // Ensure OSTY parent entry exists
+        GetOrCreate(OstyParentId, "osty");
+
+        // Attribute damage to the specific card
+        var accum = GetOrCreate(cardSourceId, "card");
+        accum.DirectDamage += totalDamage;
+        accum.OriginSourceId = OstyParentId;
+
+        // Also consume modifier context if present
+        var modifiers = ContributionMap.Instance.LastDamageModifiers;
+        if (modifiers.Count > 0)
         {
-            GetOrCreate(_activeRelicId, "relic").CardsDrawn++;
+            foreach (var mod in modifiers)
+            {
+                if (mod.Amount > 0)
+                    GetOrCreate(mod.SourceId, mod.SourceType).ModifierDamage += mod.Amount;
+            }
+            modifiers.Clear();
+        }
+    }
+
+    // ── Osty Defense (HP absorption) ────────────────────────
+    // When Osty absorbs damage for the player, attribute defense to summon sources.
+
+    public void OnOstyAbsorbedDamage(int damage)
+    {
+        if (damage <= 0) return;
+
+        // Ensure OSTY parent entry exists
+        GetOrCreate(OstyParentId, "osty");
+
+        // Consume from LIFO stack to find which summon sources contributed
+        var consumed = ContributionMap.Instance.ConsumeOstyHp(damage);
+        foreach (var (sourceId, sourceType, amount) in consumed)
+        {
+            var accum = GetOrCreate(sourceId, sourceType);
+            accum.EffectiveBlock += amount;
+            accum.OriginSourceId = OstyParentId;
+        }
+
+        // If stack was insufficient (shouldn't normally happen), attribute remainder to OSTY itself
+        int totalConsumed = 0;
+        foreach (var (_, _, amount) in consumed) totalConsumed += amount;
+        int remainder = damage - totalConsumed;
+        if (remainder > 0)
+        {
+            GetOrCreate(OstyParentId, "osty").EffectiveBlock += remainder;
+        }
+    }
+
+    // ── Osty Summon Tracking ────────────────────────────────
+
+    public void OnOstySummoned(string sourceId, string sourceType, int hpAmount)
+    {
+        ContributionMap.Instance.PushOstyHp(sourceId, sourceType, hpAmount);
+    }
+
+    /// <summary>
+    /// Called when Osty is killed (BoneShards sacrifice, Sacrifice card, etc.).
+    /// Subtracts remaining Osty HP from the killer card's defense contribution
+    /// (killing Osty destroys its HP pool, removing that defensive resource).
+    /// Then clears the LIFO stack.
+    /// </summary>
+    public void OnOstyKilled()
+    {
+        int remainingHp = ContributionMap.Instance.GetRemainingOstyHpTotal();
+
+        if (remainingHp > 0 && _activeCardId != null)
+        {
+            // The active card destroyed Osty's HP pool → negative defense
+            GetOrCreate(_activeCardId, "card").EffectiveBlock -= remainingHp;
+        }
+
+        ContributionMap.Instance.ClearOstyHpStack();
+    }
+
+    // ── Doom Damage Attribution ─────────────────────────────
+
+    /// <summary>
+    /// Called before Doom kills enemies. Records each target's current HP.
+    /// </summary>
+    public void OnDoomTargetCapture(int creatureHash, int currentHp)
+    {
+        ContributionMap.Instance.RecordDoomTargetHp(creatureHash, currentHp);
+    }
+
+    /// <summary>
+    /// Called after Doom kills. Attributes total HP as damage to the Doom power source.
+    /// </summary>
+    public void OnDoomKillsCompleted()
+    {
+        var targets = ContributionMap.Instance.ConsumeDoomTargetHp();
+        if (targets.Count == 0) return;
+
+        int totalDamage = 0;
+        foreach (var (_, hp) in targets) totalDamage += hp;
+
+        if (totalDamage <= 0) return;
+
+        // Find what card/relic applied the Doom power
+        var source = ContributionMap.Instance.GetPowerSource("DOOM_POWER");
+        if (source != null)
+        {
+            GetOrCreate(source.SourceId, source.SourceType).AttributedDamage += totalDamage;
+        }
+        else
+        {
+            // Fallback: attribute to generic "DOOM" entry
+            GetOrCreate("DOOM", "card").AttributedDamage += totalDamage;
+        }
+    }
+
+    // ── Card Origin (for sub-bar display) ───────────────────
+
+    public void RecordCardOrigin(int cardHash, string originId, string originType)
+    {
+        ContributionMap.Instance.RecordCardOrigin(cardHash, originId, originType);
+    }
+
+    /// <summary>
+    /// If a card has a known origin (generated/transformed by another card),
+    /// tag its ContributionAccum so the UI can display it as a sub-bar.
+    /// </summary>
+    public void TagCardOrigin(string cardId, int cardHash)
+    {
+        var origin = ContributionMap.Instance.GetCardOrigin(cardHash);
+        if (origin != null && _currentCombat.TryGetValue(cardId, out var accum))
+        {
+            accum.OriginSourceId = origin.Value.originId;
+        }
+    }
+
+    // ── Healing ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Called when player is healed. Attributes to active card/relic/potion/power source.
+    /// Healing can occur both during combat (e.g. Reaper card) and after combat ends
+    /// (e.g. BurningBlood.AfterCombatVictory fires AFTER OnCombatEnded).
+    /// When combat data has been flushed, writes directly to RunContributionAggregator.
+    /// fallbackId/fallbackType: used when no active context (rest site, event, merchant).
+    /// </summary>
+    public void OnHealingReceived(int amount, string? fallbackId = null, string? fallbackType = null)
+    {
+        if (amount <= 0) return;
+        var (sourceId, sourceType) = ResolveSource(null);
+
+        // Use fallback when no active source context
+        if (sourceId == null && fallbackId != null)
+        {
+            sourceId = fallbackId;
+            sourceType = fallbackType ?? "other";
+        }
+        if (sourceId == null) return;
+
+        if (_currentCombat.Count > 0)
+        {
+            // During combat — write to per-combat data
+            GetOrCreate(sourceId, sourceType).HpHealed += amount;
+        }
+        else
+        {
+            // Outside combat (e.g. AfterCombatVictory, rest site, events)
+            // Write directly to run-level aggregator
+            RunContributionAggregator.Instance.AddHealing(sourceId, sourceType, amount);
         }
     }
 

@@ -22,8 +22,15 @@ mods/**/bin/
 mods/**/obj/
 mods/**/*.pdb
 
-# ── But DO track the mod DLL (it's our build output) ────────
+# ── But DO track mod DLLs (build outputs) ───────────────────
 !mods/sts2_community_stats/sts2_community_stats.dll
+!mods/sts2_dev_tools/sts2_dev_tools.dll
+
+# ── Release packages ────────────────────────────────────────
+!sts2_community_stats_*/
+!sts2_community_stats_*/**/*.dll
+!sts2_UnlockALL/
+!sts2_UnlockALL/**/*.dll
 
 # ── Python artifacts ────────────────────────────────────────
 __pycache__/

@@ -1,3 +1,4 @@
+using CommunityStats.Config;
 using CommunityStats.UI;
 using CommunityStats.Util;
 using Godot;
@@ -28,7 +29,7 @@ public static class ModSettingsPatch
             var btn = new Button
             {
                 Name = ButtonName,
-                Text = "Community Stats Settings",
+                Text = L.Get("mod.settings_btn"),
                 CustomMinimumSize = new Vector2(200, 36)
             };
             btn.AddThemeFontSizeOverride("font_size", 14);

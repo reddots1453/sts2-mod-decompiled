@@ -1,5 +1,8 @@
 using CommunityStats.Collection;
+using CommunityStats.Config;
+using CommunityStats.Util;
 using Godot;
+using MegaCrit.Sts2.Core.Localization;
 
 namespace CommunityStats.UI;
 
@@ -34,12 +37,12 @@ public partial class ContributionPanel : PanelContainer
         panel.AddThemeStyleboxOverride("panel", style);
 
         panel.CustomMinimumSize = new Vector2(500, 400);
-        panel.AnchorLeft = 1.0f;
-        panel.AnchorRight = 1.0f;
+        panel.AnchorLeft = 0.0f;
+        panel.AnchorRight = 0.0f;
         panel.AnchorTop = 0.1f;
         panel.AnchorBottom = 0.9f;
-        panel.OffsetLeft = -520;
-        panel.OffsetRight = -10;
+        panel.OffsetLeft = 10;
+        panel.OffsetRight = 520;
 
         // Main layout
         var vbox = new VBoxContainer();
@@ -50,7 +53,7 @@ public partial class ContributionPanel : PanelContainer
         // Header row with title + close button
         var header = new HBoxContainer();
         vbox.AddChild(header);
-        var title = new Label { Text = "Contribution Stats" };
+        var title = new Label { Text = L.Get("contrib.title") };
         title.AddThemeColorOverride("font_color", Colors.White);
         title.AddThemeFontSizeOverride("font_size", 16);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -107,17 +110,31 @@ public partial class ContributionPanel : PanelContainer
         if (combatData != null && combatData.Count > 0)
         {
             var encId = CombatTracker.Instance.LastEncounterId;
-            var title = string.IsNullOrEmpty(encId) ? "Last Combat" : $"vs {encId}";
+            var encName = encId;
+            if (!string.IsNullOrEmpty(encId))
+            {
+                try
+                {
+                    var loc = new LocString("encounters", encId + ".title");
+                    var localized = loc.GetFormattedText();
+                    if (!string.IsNullOrEmpty(localized) && localized != encId + ".title")
+                        encName = localized;
+                }
+                catch { /* keep raw ID */ }
+            }
+            var title = string.IsNullOrEmpty(encId)
+                ? L.Get("contrib.last_combat")
+                : $"{L.Get("contrib.vs")} {encName}";
             var scroll = WrapInScroll(ContributionChart.Create(combatData, title));
-            scroll.Name = "Last Combat";
+            scroll.Name = L.Get("contrib.last_combat");
             tabs.AddChild(scroll);
         }
 
         var runData = RunContributionAggregator.Instance.RunTotals;
         if (runData.Count > 0)
         {
-            var scroll = WrapInScroll(ContributionChart.Create(runData, "Run Summary"));
-            scroll.Name = "Run Summary";
+            var scroll = WrapInScroll(ContributionChart.Create(runData, L.Get("contrib.run_summary"), isRunLevel: true));
+            scroll.Name = L.Get("contrib.run_summary");
             tabs.AddChild(scroll);
         }
     }

@@ -15,7 +15,30 @@ namespace CommunityStats.Patches;
 [HarmonyPatch]
 public static class DeckViewPatch
 {
-    private const string StatsLabelMeta = "community_stats_label";
+    /// <summary>
+    /// Shared meta key used by all card-stats label patches (DeckView, CardUpgrade, CardReward).
+    /// Using a single key ensures cross-patch cleanup works correctly.
+    /// </summary>
+    public const string StatsLabelMeta = "community_stats_label";
+
+    /// <summary>
+    /// Removes all stats labels from a parent node immediately (RemoveChild + QueueFree).
+    /// Shared across patches to ensure no label duplication.
+    /// </summary>
+    public static void RemoveExistingLabel(Node parent)
+    {
+        var toRemove = new List<Node>();
+        foreach (var child in parent.GetChildren())
+        {
+            if (child is Label lbl && lbl.HasMeta(StatsLabelMeta))
+                toRemove.Add(child);
+        }
+        foreach (var node in toRemove)
+        {
+            parent.RemoveChild(node);
+            node.QueueFree();
+        }
+    }
 
     [HarmonyPatch(typeof(NDeckViewScreen), "DisplayCards")]
     [HarmonyPostfix]
@@ -40,12 +63,7 @@ public static class DeckViewPatch
                 var cardId = cardModel?.Id.Entry;
                 if (cardId == null) continue;
 
-                // Remove any existing label
-                foreach (var child in holder.GetChildren())
-                {
-                    if (child is Label lbl && lbl.HasMeta(StatsLabelMeta))
-                        lbl.QueueFree();
-                }
+                RemoveExistingLabel(holder);
 
                 var stats = StatsProvider.Instance.GetCardStats(cardId);
                 Label label;
