@@ -1,9 +1,9 @@
-﻿{
+{
   "BYGONE_EFFIGY_ELITE": {
     "id": "BYGONE_EFFIGY_ELITE",
     "name": {
       "en": "Bygone Effigy",
-      "cn": "\u65E7\u65E5\u96D5\u50CF"
+      "cn": "旧日雕像"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -18,7 +18,7 @@
     "id": "BYRDONIS_ELITE",
     "name": {
       "en": "Byrdonis",
-      "cn": "\u591A\u5C3C\u65AF\u5F02\u9E1F"
+      "cn": "多尼斯异鸟"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -33,7 +33,7 @@
     "id": "CEREMONIAL_BEAST_BOSS",
     "name": {
       "en": "Ceremonial Beast",
-      "cn": "\u4EEA\u5F0F\u517D"
+      "cn": "仪式兽"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -48,7 +48,7 @@
     "id": "CUBEX_CONSTRUCT_NORMAL",
     "name": {
       "en": "Cubex Construct",
-      "cn": "\u65B9\u67F1\u6784\u88C5\u4F53"
+      "cn": "方柱构装体"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -63,7 +63,7 @@
     "id": "FLYCONID_NORMAL",
     "name": {
       "en": "Shroom and Slime",
-      "cn": "\u771F\u83CC\u4E0E\u53F2\u83B1\u59C6"
+      "cn": "真菌与史莱姆"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -80,7 +80,7 @@
     "id": "FOGMOG_NORMAL",
     "name": {
       "en": "Fogmog",
-      "cn": "\u96FE\u83C7"
+      "cn": "雾菇"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -96,7 +96,7 @@
     "id": "FUZZY_WURM_CRAWLER_WEAK",
     "name": {
       "en": "Fuzzy Wurm Crawler",
-      "cn": "\u6BDB\u7ED2\u4F0F\u5730\u866B"
+      "cn": "毛绒伏地虫"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -111,7 +111,7 @@
     "id": "INKLETS_NORMAL",
     "name": {
       "en": "Inklets",
-      "cn": "\u58A8\u5B9D"
+      "cn": "墨宝"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -126,7 +126,7 @@
     "id": "MAWLER_NORMAL",
     "name": {
       "en": "Mawler",
-      "cn": "\u86EE\u517D"
+      "cn": "蛮兽"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -141,7 +141,7 @@
     "id": "NIBBITS_NORMAL",
     "name": {
       "en": "A Pair of Nibbits",
-      "cn": "\u4E24\u53EA\u5C0F\u5543\u517D"
+      "cn": "两只小啃兽"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -156,7 +156,7 @@
     "id": "NIBBITS_WEAK",
     "name": {
       "en": "A Lone Nibbit",
-      "cn": "\u4E00\u53EA\u843D\u5355\u7684\u5C0F\u5543\u517D"
+      "cn": "一只落单的小啃兽"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -171,7 +171,7 @@
     "id": "OVERGROWTH_CRAWLERS",
     "name": {
       "en": "Overgrowth Crawlers",
-      "cn": "\u5BC6\u6797\u722C\u866B"
+      "cn": "密林爬虫"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -187,7 +187,7 @@
     "id": "PHROG_PARASITE_ELITE",
     "name": {
       "en": "Phrog Parasite",
-      "cn": "\u5F02\u86D9\u5BC4\u751F\u866B"
+      "cn": "异蛙寄生虫"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -203,7 +203,7 @@
     "id": "RUBY_RAIDERS_NORMAL",
     "name": {
       "en": "Ruby Raiders",
-      "cn": "\u7EA2\u5B9D\u77F3\u52AB\u63A0\u8005"
+      "cn": "红宝石劫掠者"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -222,7 +222,7 @@
     "id": "SHRINKER_BEETLE_WEAK",
     "name": {
       "en": "Shrinker Beetle",
-      "cn": "\u7F29\u5C0F\u7532\u866B"
+      "cn": "缩小甲虫"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -237,7 +237,7 @@
     "id": "SLIMES_NORMAL",
     "name": {
       "en": "Swarm of Slimes",
-      "cn": "\u4E00\u5927\u7FA4\u53F2\u83B1\u59C6"
+      "cn": "一大群史莱姆"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -255,7 +255,7 @@
     "id": "SLIMES_WEAK",
     "name": {
       "en": "Group of Slimes",
-      "cn": "\u4E00\u7FA4\u53F2\u83B1\u59C6"
+      "cn": "一群史莱姆"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -273,7 +273,7 @@
     "id": "SLITHERING_STRANGLER_NORMAL",
     "name": {
       "en": "Strangler and Friend",
-      "cn": "\u627C\u6740\u8005\u4E0E\u4F19\u4F34"
+      "cn": "扼杀者与伙伴"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -293,7 +293,7 @@
     "id": "SNAPPING_JAXFRUIT_NORMAL",
     "name": {
       "en": "Overgrowth Flora",
-      "cn": "\u5BC6\u6797\u690D\u7269"
+      "cn": "密林植物"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -309,7 +309,7 @@
     "id": "THE_KIN_BOSS",
     "name": {
       "en": "The Kin",
-      "cn": "\u540C\u65CF\u5C0F\u961F"
+      "cn": "同族小队"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -325,7 +325,7 @@
     "id": "VANTOM_BOSS",
     "name": {
       "en": "Vantom",
-      "cn": "\u58A8\u5F71\u5E7B\u7075"
+      "cn": "墨影幻灵"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -340,7 +340,7 @@
     "id": "VINE_SHAMBLER_NORMAL",
     "name": {
       "en": "Vine Shambler",
-      "cn": "\u85E4\u8513\u8E52\u8DDA\u8005"
+      "cn": "藤蔓蹒跚者"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -355,7 +355,7 @@
     "id": "BOWLBUGS_NORMAL",
     "name": {
       "en": "Bowlbug Swarm",
-      "cn": "\u76DB\u7897\u866B\u7FA4"
+      "cn": "盛碗虫群"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -372,7 +372,7 @@
     "id": "BOWLBUGS_WEAK",
     "name": {
       "en": "Bowlbugs",
-      "cn": "\u76DB\u7897\u866B"
+      "cn": "盛碗虫"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -389,7 +389,7 @@
     "id": "CHOMPERS_NORMAL",
     "name": {
       "en": "An Automaton Pair",
-      "cn": "\u4E00\u5BF9\u81EA\u52A8\u673A\u68B0"
+      "cn": "一对自动机械"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -404,7 +404,7 @@
     "id": "DECIMILLIPEDE_ELITE",
     "name": {
       "en": "The Decimillipede",
-      "cn": "\u6B8B\u6740\u5343\u8DB3\u866B"
+      "cn": "残杀千足虫"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -421,7 +421,7 @@
     "id": "ENTOMANCER_ELITE",
     "name": {
       "en": "Entomancer",
-      "cn": "\u8702\u7FA4\u672F\u58EB"
+      "cn": "蜂群术士"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -436,7 +436,7 @@
     "id": "EXOSKELETONS_NORMAL",
     "name": {
       "en": "Many Exoskeletons",
-      "cn": "\u8BB8\u591A\u5916\u9AA8\u9ABC\u866B"
+      "cn": "许多外骨骼虫"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -451,7 +451,7 @@
     "id": "EXOSKELETONS_WEAK",
     "name": {
       "en": "Exoskeletons",
-      "cn": "\u5916\u9AA8\u9ABC\u866B"
+      "cn": "外骨骼虫"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -466,7 +466,7 @@
     "id": "HUNTER_KILLER_NORMAL",
     "name": {
       "en": "Hunter Killer",
-      "cn": "\u730E\u4EBA\u6740\u624B"
+      "cn": "猎人杀手"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -481,7 +481,7 @@
     "id": "KAISER_CRAB_BOSS",
     "name": {
       "en": "Kaiser Crab",
-      "cn": "\u5E1D\u7687\u87F9"
+      "cn": "帝皇蟹"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -497,7 +497,7 @@
     "id": "INFESTED_PRISMS_ELITE",
     "name": {
       "en": "Infested Prism",
-      "cn": "\u611F\u67D3\u68F1\u67F1"
+      "cn": "感染棱柱"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -512,7 +512,7 @@
     "id": "KNOWLEDGE_DEMON_BOSS",
     "name": {
       "en": "Knowledge Demon",
-      "cn": "\u77E5\u8BC6\u6076\u9B54"
+      "cn": "知识恶魔"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -527,7 +527,7 @@
     "id": "LOUSE_PROGENITOR_NORMAL",
     "name": {
       "en": "Louse Progenitor",
-      "cn": "\u8671\u866B\u4E4B\u7956"
+      "cn": "虱虫之祖"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -542,7 +542,7 @@
     "id": "MYTES_NORMAL",
     "name": {
       "en": "Mass of Mytes",
-      "cn": "\u4E00\u7FA4\u5F02\u87A8"
+      "cn": "一群异螨"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -557,7 +557,7 @@
     "id": "OVICOPTER_NORMAL",
     "name": {
       "en": "Ovicopter",
-      "cn": "\u76F4\u98DE\u4EA7\u5375\u866B"
+      "cn": "直飞产卵虫"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -573,7 +573,7 @@
     "id": "SLUMBERING_BEETLE_NORMAL",
     "name": {
       "en": "Slumber Party",
-      "cn": "\u719F\u7761\u6D3E\u5BF9"
+      "cn": "熟睡派对"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -590,7 +590,7 @@
     "id": "SPINY_TOAD_NORMAL",
     "name": {
       "en": "Spiny Toad",
-      "cn": "\u68D8\u523A\u87FE\u870D"
+      "cn": "棘刺蟾蜍"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -605,7 +605,7 @@
     "id": "THE_INSATIABLE_BOSS",
     "name": {
       "en": "The Insatiable",
-      "cn": "\u65E0\u538C\u6C99\u866B"
+      "cn": "无厌沙虫"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -620,7 +620,7 @@
     "id": "THE_OBSCURA_NORMAL",
     "name": {
       "en": "The Obscura",
-      "cn": "\u80E7\u5149\u602A"
+      "cn": "胧光怪"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -635,7 +635,7 @@
     "id": "THIEVING_HOPPER_WEAK",
     "name": {
       "en": "Thieving Hopper",
-      "cn": "\u5077\u7A83\u8349\u8722"
+      "cn": "偷窃草蜢"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -650,7 +650,7 @@
     "id": "TUNNELER_NORMAL",
     "name": {
       "en": "Tunneling Twosome",
-      "cn": "\u5730\u9053\u7EC4\u5408"
+      "cn": "地道组合"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -667,7 +667,7 @@
     "id": "TUNNELER_WEAK",
     "name": {
       "en": "Tunneler",
-      "cn": "\u5730\u9053\u866B"
+      "cn": "地道虫"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -682,7 +682,7 @@
     "id": "AXEBOTS_NORMAL",
     "name": {
       "en": "Bot Buddies",
-      "cn": "\u673A\u68B0\u4F19\u4F34"
+      "cn": "机械伙伴"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -697,7 +697,7 @@
     "id": "CONSTRUCT_MENAGERIE_NORMAL",
     "name": {
       "en": "Construct Menagerie",
-      "cn": "\u4E00\u4E9B\u6784\u88C5\u4F53"
+      "cn": "一些构装体"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -713,7 +713,7 @@
     "id": "DEVOTED_SCULPTOR_WEAK",
     "name": {
       "en": "Devoted Sculptor",
-      "cn": "\u8654\u8BDA\u96D5\u523B\u5E08"
+      "cn": "虔诚雕刻师"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -728,7 +728,7 @@
     "id": "DOORMAKER_BOSS",
     "name": {
       "en": "The Doormaker",
-      "cn": "\u95E8\u6249\u7F14\u9020\u8005"
+      "cn": "门扉缔造者"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -744,7 +744,7 @@
     "id": "FABRICATOR_NORMAL",
     "name": {
       "en": "Fabricator",
-      "cn": "\u7EC4\u88C5\u5E08"
+      "cn": "组装师"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -763,7 +763,7 @@
     "id": "FROG_KNIGHT_NORMAL",
     "name": {
       "en": "Frog Knight",
-      "cn": "\u9752\u86D9\u9A91\u58EB"
+      "cn": "青蛙骑士"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -778,7 +778,7 @@
     "id": "GLOBE_HEAD_NORMAL",
     "name": {
       "en": "A Lone Globe Head",
-      "cn": "\u4E00\u4E2A\u5B64\u5355\u7684\u7535\u7403\u5934"
+      "cn": "一个孤单的电球头"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -793,7 +793,7 @@
     "id": "KNIGHTS_ELITE",
     "name": {
       "en": "Knight Gang",
-      "cn": "\u9A91\u58EB\u56E2\u4F19"
+      "cn": "骑士团伙"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -810,7 +810,7 @@
     "id": "MECHA_KNIGHT_ELITE",
     "name": {
       "en": "Mecha Knight",
-      "cn": "\u673A\u7532\u9A91\u58EB"
+      "cn": "机甲骑士"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -825,7 +825,7 @@
     "id": "OWL_MAGISTRATE_NORMAL",
     "name": {
       "en": "Owl Magistrate",
-      "cn": "\u732B\u5934\u9E70\u6CD5\u5B98"
+      "cn": "猫头鹰法官"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -840,7 +840,7 @@
     "id": "QUEEN_BOSS",
     "name": {
       "en": "Queen",
-      "cn": "\u5973\u738B"
+      "cn": "女王"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -856,7 +856,7 @@
     "id": "SCROLLS_OF_BITING_NORMAL",
     "name": {
       "en": "Many Scrolls of Biting",
-      "cn": "\u8BB8\u591A\u54AC\u4EBA\u5377\u8F74"
+      "cn": "许多咬人卷轴"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -871,7 +871,7 @@
     "id": "SCROLLS_OF_BITING_WEAK",
     "name": {
       "en": "Scrolls of Biting",
-      "cn": "\u54AC\u4EBA\u5377\u8F74"
+      "cn": "咬人卷轴"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -886,7 +886,7 @@
     "id": "SLIMED_BERSERKER_NORMAL",
     "name": {
       "en": "Slimed Berserker",
-      "cn": "\u53F2\u83B1\u59C6\u72C2\u6218\u58EB"
+      "cn": "史莱姆狂战士"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -901,7 +901,7 @@
     "id": "SOUL_NEXUS_ELITE",
     "name": {
       "en": "Soul Nexus",
-      "cn": "\u7075\u9B42\u67A2\u7EBD"
+      "cn": "灵魂枢纽"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -916,7 +916,7 @@
     "id": "TEST_SUBJECT_BOSS",
     "name": {
       "en": "Test Subject",
-      "cn": "\u5B9E\u9A8C\u4F53"
+      "cn": "实验体"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -931,7 +931,7 @@
     "id": "THE_LOST_AND_FORGOTTEN_NORMAL",
     "name": {
       "en": "Lost and Forgotten",
-      "cn": "\u5931\u843D\u4E0E\u9057\u5FD8\u4E4B\u7269"
+      "cn": "失落与遗忘之物"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -947,7 +947,7 @@
     "id": "TURRET_OPERATOR_WEAK",
     "name": {
       "en": "Turret Operator",
-      "cn": "\u9AD8\u5854\u70AE\u624B"
+      "cn": "高塔炮手"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -963,7 +963,7 @@
     "id": "CORPSE_SLUGS_NORMAL",
     "name": {
       "en": "Many Corpse Slugs",
-      "cn": "\u8BB8\u591A\u566C\u5C38\u86DE\u8753"
+      "cn": "许多噬尸蛞蝓"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -978,7 +978,7 @@
     "id": "CORPSE_SLUGS_WEAK",
     "name": {
       "en": "Corpse Slugs",
-      "cn": "\u4E00\u4E9B\u566C\u5C38\u86DE\u8753"
+      "cn": "一些噬尸蛞蝓"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -993,7 +993,7 @@
     "id": "CULTISTS_NORMAL",
     "name": {
       "en": "Cultists",
-      "cn": "\u90AA\u6559\u5F92\u4EEC"
+      "cn": "邪教徒们"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1009,7 +1009,7 @@
     "id": "LIVING_FOG_NORMAL",
     "name": {
       "en": "Evil Gas",
-      "cn": "\u90AA\u6076\u6C14\u4F53"
+      "cn": "邪恶气体"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1025,7 +1025,7 @@
     "id": "FOSSIL_STALKER_NORMAL",
     "name": {
       "en": "Fossil Stalker",
-      "cn": "\u5316\u77F3\u8FFD\u8E2A\u8005"
+      "cn": "化石追踪者"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1040,7 +1040,7 @@
     "id": "GREMLIN_MERC_NORMAL",
     "name": {
       "en": "Two Gremlins in a Trenchcoat",
-      "cn": "\u7A7F\u7740\u4E00\u4EF6\u5927\u8863\u7684\u4E24\u53EA\u5730\u7CBE"
+      "cn": "穿着一件大衣的两只地精"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1057,7 +1057,7 @@
     "id": "HAUNTED_SHIP_NORMAL",
     "name": {
       "en": "Haunted Ship",
-      "cn": "\u5E7D\u7075\u8239"
+      "cn": "幽灵船"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1072,7 +1072,7 @@
     "id": "LAGAVULIN_MATRIARCH_BOSS",
     "name": {
       "en": "Lagavulin Matriarch",
-      "cn": "\u4E50\u52A0\u7EF4\u6797\u65CF\u6BCD"
+      "cn": "乐加维林族母"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -1087,7 +1087,7 @@
     "id": "SKULKING_COLONY_ELITE",
     "name": {
       "en": "Skulking Colony",
-      "cn": "\u9B3C\u795F\u73CA\u745A\u7FA4"
+      "cn": "鬼祟珊瑚群"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -1102,7 +1102,7 @@
     "id": "PHANTASMAL_GARDENERS_ELITE",
     "name": {
       "en": "Phantasmal Gardeners",
-      "cn": "\u82B1\u56ED\u5E7D\u7075\u9CD7"
+      "cn": "花园幽灵鳗"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -1117,7 +1117,7 @@
     "id": "PUNCH_CONSTRUCT_NORMAL",
     "name": {
       "en": "Punch Construct",
-      "cn": "\u62F3\u51FB\u6784\u88C5\u4F53"
+      "cn": "拳击构装体"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1132,7 +1132,7 @@
     "id": "SEAPUNK_WEAK",
     "name": {
       "en": "Seapunk",
-      "cn": "\u6D77\u6D0B\u6DF7\u6DF7"
+      "cn": "海洋混混"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -1147,7 +1147,7 @@
     "id": "SEWER_CLAM_NORMAL",
     "name": {
       "en": "Sewer Clam",
-      "cn": "\u4E0B\u6C34\u9053\u868C"
+      "cn": "下水道蚌"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1162,7 +1162,7 @@
     "id": "SLUDGE_SPINNER_WEAK",
     "name": {
       "en": "Sludge Spinner",
-      "cn": "\u6DE4\u6CE5\u65CB\u87BA"
+      "cn": "淤泥旋螺"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -1177,7 +1177,7 @@
     "id": "SOUL_FYSH_BOSS",
     "name": {
       "en": "Soul Fysh",
-      "cn": "\u7075\u9B42\u5F02\u9C7C"
+      "cn": "灵魂异鱼"
     },
     "roomType": "Boss",
     "isWeak": false,
@@ -1192,7 +1192,7 @@
     "id": "TERROR_EEL_ELITE",
     "name": {
       "en": "Terror Eel",
-      "cn": "\u9A87\u9CD7"
+      "cn": "骇鳗"
     },
     "roomType": "Elite",
     "isWeak": false,
@@ -1207,7 +1207,7 @@
     "id": "TOADPOLES_NORMAL",
     "name": {
       "en": "Underdocks Wildlife",
-      "cn": "\u6697\u6E2F\u91CE\u751F\u52A8\u7269"
+      "cn": "暗港野生动物"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1223,7 +1223,7 @@
     "id": "TOADPOLES_WEAK",
     "name": {
       "en": "Toadpoles",
-      "cn": "\u87FE\u870D\u874C\u86AA"
+      "cn": "蟾蜍蝌蚪"
     },
     "roomType": "Monster",
     "isWeak": true,
@@ -1238,7 +1238,7 @@
     "id": "TWO_TAILED_RATS_NORMAL",
     "name": {
       "en": "Two-Tailed Rats",
-      "cn": "\u53CC\u5C3E\u9F20"
+      "cn": "双尾鼠"
     },
     "roomType": "Monster",
     "isWeak": false,
@@ -1253,7 +1253,7 @@
     "id": "WATERFALL_GIANT_BOSS",
     "name": {
       "en": "Waterfall Giant",
-      "cn": "\u7011\u5E03\u5DE8\u517D"
+      "cn": "瀑布巨兽"
     },
     "roomType": "Boss",
     "isWeak": false,

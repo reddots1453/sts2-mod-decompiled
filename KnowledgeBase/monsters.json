@@ -1,4 +1,4 @@
-﻿{
+{
   "BYGONE_EFFIGY": {
     "id": "BYGONE_EFFIGY",
     "name": {
@@ -139,7 +139,7 @@
         ]
       }
     },
-    "ai": "Random(VULNERABLE_SPORES_MOVE, FRAIL_SPORES_MOVE, SMASH_MOVE) \u2192 Random(FRAIL_SPORES_MOVE, SMASH_MOVE)"
+    "ai": "Random(VULNERABLE_SPORES_MOVE, FRAIL_SPORES_MOVE, SMASH_MOVE) → Random(FRAIL_SPORES_MOVE, SMASH_MOVE)"
   },
   "LEAF_SLIME_M": {
     "id": "LEAF_SLIME_M",
@@ -1005,7 +1005,7 @@
         ]
       }
     },
-    "ai": "Conditional(INIT_MOVE) \u2192 Random(SKITTER_MOVE, MANDIBLE_MOVE)"
+    "ai": "Conditional(INIT_MOVE) → Random(SKITTER_MOVE, MANDIBLE_MOVE)"
   },
   "HUNTER_KILLER": {
     "id": "HUNTER_KILLER",
@@ -1663,7 +1663,7 @@
         ]
       }
     },
-    "ai": "Conditional(fabricateBranch) \u2192 Random(FABRICATE_MOVE, FABRICATING_STRIKE_MOVE)"
+    "ai": "Conditional(fabricateBranch) → Random(FABRICATE_MOVE, FABRICATING_STRIKE_MOVE)"
   },
   "GUARDBOT": {
     "id": "GUARDBOT",

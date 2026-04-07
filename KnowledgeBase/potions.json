@@ -1,13 +1,13 @@
-﻿{
+{
   "ASHWATER": {
     "id": "ASHWATER",
     "name": {
       "en": "Ashwater",
-      "cn": "\u7070\u6C34"
+      "cn": "灰水"
     },
     "description": {
       "en": "[gold]Exhaust[/gold] any number of cards in your [gold]Hand[/gold].",
-      "cn": "[gold]\u6D88\u8017[/gold]\u4F60[gold]\u624B\u724C[/gold]\u4E2D\u7684\u4EFB\u610F\u5F20\u724C\u3002"
+      "cn": "[gold]消耗[/gold]你[gold]手牌[/gold]中的任意张牌。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -19,11 +19,11 @@
     "id": "ATTACK_POTION",
     "name": {
       "en": "Attack Potion",
-      "cn": "\u653B\u51FB\u836F\u6C34"
+      "cn": "攻击药水"
     },
     "description": {
       "en": "Choose [blue]1[/blue] of [blue]3[/blue] random Attack cards to add into your [gold]Hand[/gold]. It\u0027s free to play this turn.",
-      "cn": "\u4ECE[blue]3[/blue]\u5F20\u968F\u673A\u653B\u51FB\u724C\u4E2D\u9009\u62E9[blue]1[/blue]\u5F20\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002\u8FD9\u5F20\u724C\u5728\u672C\u56DE\u5408\u53EF\u4EE5\u514D\u8D39\u6253\u51FA\u3002"
+      "cn": "从[blue]3[/blue]张随机攻击牌中选择[blue]1[/blue]张加入你的[gold]手牌[/gold]。这张牌在本回合可以免费打出。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -35,11 +35,11 @@
     "id": "BEETLE_JUICE",
     "name": {
       "en": "Beetle Juice",
-      "cn": "\u7532\u866B\u6C41"
+      "cn": "甲虫汁"
     },
     "description": {
       "en": "Enemy\u0027s attacks deal [blue]{DamageDecrease}%[/blue] less damage {Repeat:plural:next turn|for the next [blue]{}[/blue] turns}.",
-      "cn": "\u654C\u4EBA\u7684\u653B\u51FB\u5728\u4E0B[blue]{Repeat}[/blue]\u4E2A\u56DE\u5408\u4E2D\u9020\u6210\u7684\u4F24\u5BB3\u51CF\u5C11[blue]{DamageDecrease}%[/blue]\u3002"
+      "cn": "敌人的攻击在下[blue]{Repeat}[/blue]个回合中造成的伤害减少[blue]{DamageDecrease}%[/blue]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -54,11 +54,11 @@
     "id": "BLESSING_OF_THE_FORGE",
     "name": {
       "en": "Blessing of the Forge",
-      "cn": "\u7194\u7089\u7684\u795D\u798F"
+      "cn": "熔炉的祝福"
     },
     "description": {
       "en": "[gold]Upgrade[/gold] all cards in your [gold]Hand[/gold] for the rest of combat.",
-      "cn": "\u5728\u672C\u573A\u6218\u6597\u4E2D[gold]\u5347\u7EA7[/gold]\u4F60[gold]\u624B\u724C[/gold]\u4E2D\u7684\u6240\u6709\u724C\u3002"
+      "cn": "在本场战斗中[gold]升级[/gold]你[gold]手牌[/gold]中的所有牌。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -70,11 +70,11 @@
     "id": "BLOCK_POTION",
     "name": {
       "en": "Block Potion",
-      "cn": "\u683C\u6321\u836F\u6C34"
+      "cn": "格挡药水"
     },
     "description": {
       "en": "Gain [blue]{Block}[/blue] [gold]Block[/gold].",
-      "cn": "\u83B7\u5F97[blue]{Block}[/blue]\u70B9[gold]\u683C\u6321[/gold]\u3002"
+      "cn": "获得[blue]{Block}[/blue]点[gold]格挡[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -88,11 +88,11 @@
     "id": "BLOOD_POTION",
     "name": {
       "en": "Blood Potion",
-      "cn": "\u9C9C\u8840\u836F\u6C34"
+      "cn": "鲜血药水"
     },
     "description": {
       "en": "Heal for [green]{HealPercent}%[/green] of your Max HP.",
-      "cn": "\u56DE\u590D\u4F60\u6700\u5927\u751F\u547D\u503C\u7684[green]{HealPercent}%[/green]\u3002"
+      "cn": "回复你最大生命值的[green]{HealPercent}%[/green]。"
     },
     "rarity": "Common",
     "usage": "AnyTime",
@@ -106,11 +106,11 @@
     "id": "BONE_BREW",
     "name": {
       "en": "Bone Brew",
-      "cn": "\u9AA8\u5934\u917F"
+      "cn": "骨头酿"
     },
     "description": {
       "en": "[gold]Summon[/gold] [blue]{Summon}[/blue].",
-      "cn": "[gold]\u53EC\u5524[/gold][blue]{Summon}[/blue]\u3002"
+      "cn": "[gold]召唤[/gold][blue]{Summon}[/blue]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -124,11 +124,11 @@
     "id": "BOTTLED_POTENTIAL",
     "name": {
       "en": "Bottled Potential",
-      "cn": "\u74F6\u88C5\u6F5C\u80FD"
+      "cn": "瓶装潜能"
     },
     "description": {
       "en": "Shuffle ALL your cards into your [gold]Draw Pile[/gold]. Draw [blue]{Cards}[/blue] {Cards:plural:card|cards}.",
-      "cn": "\u5C06\u4F60\u7684\u6240\u6709\u724C\u6D17\u5165\u4F60\u7684[gold]\u62BD\u724C\u5806[/gold]\u3002\u62BD[blue]{Cards}[/blue]\u5F20\u724C\u3002"
+      "cn": "将你的所有牌洗入你的[gold]抽牌堆[/gold]。抽[blue]{Cards}[/blue]张牌。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -142,11 +142,11 @@
     "id": "CLARITY",
     "name": {
       "en": "Clarity Extract",
-      "cn": "\u660E\u6670\u63D0\u53D6\u7269"
+      "cn": "明晰提取物"
     },
     "description": {
       "en": "Draw [blue]{Cards}[/blue] {Cards:plural:card|cards}. At the start of your next {ClarityPower:plural:turn|[blue]{}[/blue] turns}, draw [blue]1[/blue] additional card.",
-      "cn": "\u62BD[blue]{Cards}[/blue]\u5F20\u724C\u3002\u5728\u4F60\u7684\u4E0B[blue]{ClarityPower}[/blue]\u4E2A\u56DE\u5408\u5F00\u59CB\u65F6\uFF0C\u989D\u5916\u62BD[blue]1[/blue]\u5F20\u724C\u3002"
+      "cn": "抽[blue]{Cards}[/blue]张牌。在你的下[blue]{ClarityPower}[/blue]个回合开始时，额外抽[blue]1[/blue]张牌。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -161,11 +161,11 @@
     "id": "COLORLESS_POTION",
     "name": {
       "en": "Colorless Potion",
-      "cn": "\u65E0\u8272\u836F\u6C34"
+      "cn": "无色药水"
     },
     "description": {
       "en": "Choose [blue]1[/blue] of [blue]3[/blue] random Colorless cards to add into your [gold]Hand[/gold]. It\u0027s free to play this turn.",
-      "cn": "\u4ECE[blue]3[/blue]\u5F20\u968F\u673A\u65E0\u8272\u724C\u4E2D\u9009\u62E9[blue]1[/blue]\u5F20\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002\u8FD9\u5F20\u724C\u5728\u672C\u56DE\u5408\u53EF\u4EE5\u514D\u8D39\u6253\u51FA\u3002"
+      "cn": "从[blue]3[/blue]张随机无色牌中选择[blue]1[/blue]张加入你的[gold]手牌[/gold]。这张牌在本回合可以免费打出。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -177,11 +177,11 @@
     "id": "COSMIC_CONCOCTION",
     "name": {
       "en": "Cosmic Concoction",
-      "cn": "\u5B87\u5B99\u836F\u5242"
+      "cn": "宇宙药剂"
     },
     "description": {
       "en": "Add [blue]{Cards}[/blue] [gold]Upgraded[/gold] Colorless {Cards:plural:card|cards} into your [gold]Hand[/gold].",
-      "cn": "\u5C06[blue]{Cards}[/blue]\u5F20[gold]\u5347\u7EA7[/gold]\u7684\u65E0\u8272\u724C\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002"
+      "cn": "将[blue]{Cards}[/blue]张[gold]升级[/gold]的无色牌加入你的[gold]手牌[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -195,11 +195,11 @@
     "id": "CUNNING_POTION",
     "name": {
       "en": "Cunning Potion",
-      "cn": "\u72E1\u8BC8\u836F\u6C34"
+      "cn": "狡诈药水"
     },
     "description": {
       "en": "Add [blue]{Cards}[/blue] [gold]Upgraded {Cards:plural:Shiv|Shivs}[/gold] into your [gold]Hand[/gold].",
-      "cn": "\u5C06[blue]{Cards}[/blue]\u5F20[gold]\u5C0F\u5200\u002B[/gold]\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002"
+      "cn": "将[blue]{Cards}[/blue]张[gold]小刀\u002B[/gold]加入你的[gold]手牌[/gold]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -213,11 +213,11 @@
     "id": "CURE_ALL",
     "name": {
       "en": "Cure All",
-      "cn": "\u75CA\u6108\u836F\u6C34"
+      "cn": "痊愈药水"
     },
     "description": {
       "en": "Gain {Energy:energyIcons()}. Draw [blue]{Cards}[/blue] {Cards:plural:card|cards}.",
-      "cn": "\u83B7\u5F97{Energy:energyIcons()}\u3002\u62BD[blue]{Cards}[/blue]\u5F20\u724C\u3002"
+      "cn": "获得{Energy:energyIcons()}。抽[blue]{Cards}[/blue]张牌。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -232,11 +232,11 @@
     "id": "DEPRECATED_POTION",
     "name": {
       "en": "Deprecated Potion",
-      "cn": "\u5E9F\u5F03\u836F\u6C34"
+      "cn": "废弃药水"
     },
     "description": {
       "en": "This potion has been removed from the game.",
-      "cn": "\u8FD9\u74F6\u836F\u6C34\u5DF2\u7ECF\u4ECE\u6E38\u620F\u4E2D\u79FB\u9664\u3002"
+      "cn": "这瓶药水已经从游戏中移除。"
     },
     "rarity": "None",
     "usage": "CombatOnly",
@@ -248,11 +248,11 @@
     "id": "DEXTERITY_POTION",
     "name": {
       "en": "Dexterity Potion",
-      "cn": "\u654F\u6377\u836F\u6C34"
+      "cn": "敏捷药水"
     },
     "description": {
       "en": "Gain [blue]{DexterityPower}[/blue] [gold]Dexterity[/gold].",
-      "cn": "\u83B7\u5F97[blue]{DexterityPower}[/blue]\u70B9[gold]\u654F\u6377[/gold]\u3002"
+      "cn": "获得[blue]{DexterityPower}[/blue]点[gold]敏捷[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -266,11 +266,11 @@
     "id": "DISTILLED_CHAOS",
     "name": {
       "en": "Distilled Chaos",
-      "cn": "\u7CBE\u70BC\u6DF7\u6C8C"
+      "cn": "精炼混沌"
     },
     "description": {
       "en": "Play the top [blue]{Repeat}[/blue] cards of your [gold]Draw Pile[/gold].",
-      "cn": "\u6253\u51FA\u4F60[gold]\u62BD\u724C\u5806[/gold]\u9876\u90E8\u7684[blue]{Repeat}[/blue]\u5F20\u724C\u3002"
+      "cn": "打出你[gold]抽牌堆[/gold]顶部的[blue]{Repeat}[/blue]张牌。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -284,11 +284,11 @@
     "id": "DROPLET_OF_PRECOGNITION",
     "name": {
       "en": "Droplet of Precognition",
-      "cn": "\u9884\u77E5\u4E4B\u6EF4"
+      "cn": "预知之滴"
     },
     "description": {
       "en": "Choose a card in your [gold]Draw Pile[/gold] and add it into your [gold]Hand[/gold].",
-      "cn": "\u9009\u62E9\u4F60[gold]\u62BD\u724C\u5806[/gold]\u4E2D\u7684\u4E00\u5F20\u724C\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002"
+      "cn": "选择你[gold]抽牌堆[/gold]中的一张牌加入你的[gold]手牌[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -300,11 +300,11 @@
     "id": "DUPLICATOR",
     "name": {
       "en": "Duplicator",
-      "cn": "\u590D\u5236\u836F\u6C34"
+      "cn": "复制药水"
     },
     "description": {
       "en": "This turn, your next card is played an extra time.",
-      "cn": "\u672C\u56DE\u5408\uFF0C\u4F60\u6253\u51FA\u7684\u4E0B\u4E00\u5F20\u724C\u4F1A\u989D\u5916\u6253\u51FA\u4E00\u6B21\u3002"
+      "cn": "本回合，你打出的下一张牌会额外打出一次。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -316,11 +316,11 @@
     "id": "ENERGY_POTION",
     "name": {
       "en": "Energy Potion",
-      "cn": "\u80FD\u91CF\u836F\u6C34"
+      "cn": "能量药水"
     },
     "description": {
       "en": "Gain {Energy:energyIcons()}.",
-      "cn": "\u83B7\u5F97{Energy:energyIcons()}\u3002"
+      "cn": "获得{Energy:energyIcons()}。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -334,11 +334,11 @@
     "id": "ENTROPIC_BREW",
     "name": {
       "en": "Entropic Brew",
-      "cn": "\u6DF7\u6C8C\u836F\u6C34"
+      "cn": "混沌药水"
     },
     "description": {
       "en": "Fill all your empty potion slots with random potions.",
-      "cn": "\u5728\u6240\u6709\u7A7A\u836F\u6C34\u680F\u4F4D\u4E2D\u83B7\u5F97\u968F\u673A\u836F\u6C34\u3002"
+      "cn": "在所有空药水栏位中获得随机药水。"
     },
     "rarity": "Rare",
     "usage": "AnyTime",
@@ -350,11 +350,11 @@
     "id": "ESSENCE_OF_DARKNESS",
     "name": {
       "en": "Essence of Darkness",
-      "cn": "\u9ED1\u6697\u7CBE\u534E"
+      "cn": "黑暗精华"
     },
     "description": {
       "en": "[gold]Channel[/gold] a [gold]Dark[/gold] for each of your [gold]Orb Slots[/gold].",
-      "cn": "[gold]\u751F\u6210[/gold]\u4F60[gold]\u5145\u80FD\u7403\u680F\u4F4D[/gold]\u6570\u91CF\u4E2A[gold]\u9ED1\u6697[/gold]\u5145\u80FD\u7403\u3002"
+      "cn": "[gold]生成[/gold]你[gold]充能球栏位[/gold]数量个[gold]黑暗[/gold]充能球。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -366,11 +366,11 @@
     "id": "EXPLOSIVE_AMPOULE",
     "name": {
       "en": "Explosive Ampoule",
-      "cn": "\u7206\u70B8\u5B89\u74FF"
+      "cn": "爆炸安瓿"
     },
     "description": {
       "en": "Deal [blue]{Damage}[/blue] damage to ALL enemies.",
-      "cn": "\u5BF9\u6240\u6709\u654C\u4EBA\u9020\u6210[blue]{Damage}[/blue]\u70B9\u4F24\u5BB3\u3002"
+      "cn": "对所有敌人造成[blue]{Damage}[/blue]点伤害。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -384,11 +384,11 @@
     "id": "FAIRY_IN_A_BOTTLE",
     "name": {
       "en": "Fairy in a Bottle",
-      "cn": "\u74F6\u4E2D\u7CBE\u7075"
+      "cn": "瓶中精灵"
     },
     "description": {
       "en": "When you would die, instead this potion is discarded and you heal to [blue]30%[/blue] of your Max HP.",
-      "cn": "\u5F53\u4F60\u5C06\u8981\u6B7B\u4EA1\u65F6\uFF0C\u6539\u4E3A\u4E22\u5F03\u8FD9\u74F6\u836F\u6C34\uFF0C\u7136\u540E\u5C06\u4F60\u56DE\u590D\u5230\u4F60\u6700\u5927\u751F\u547D\u503C\u7684[blue]30%[/blue]\u3002"
+      "cn": "当你将要死亡时，改为丢弃这瓶药水，然后将你回复到你最大生命值的[blue]30%[/blue]。"
     },
     "rarity": "Rare",
     "usage": "Automatic",
@@ -400,11 +400,11 @@
     "id": "FIRE_POTION",
     "name": {
       "en": "Fire Potion",
-      "cn": "\u706B\u7130\u836F\u6C34"
+      "cn": "火焰药水"
     },
     "description": {
       "en": "Deal [blue]{Damage}[/blue] damage.",
-      "cn": "\u9020\u6210[blue]{Damage}[/blue]\u70B9\u4F24\u5BB3\u3002"
+      "cn": "造成[blue]{Damage}[/blue]点伤害。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -418,11 +418,11 @@
     "id": "FLEX_POTION",
     "name": {
       "en": "Flex Potion",
-      "cn": "\u808C\u8089\u836F\u6C34"
+      "cn": "肌肉药水"
     },
     "description": {
       "en": "Gain [blue]{StrengthPower}[/blue] [gold]Strength[/gold]. At the end of your turn, lose [blue]{StrengthPower}[/blue] [gold]Strength[/gold].",
-      "cn": "\u83B7\u5F97[blue]{StrengthPower}[/blue]\u70B9[gold]\u529B\u91CF[/gold]\u3002\u5728\u4F60\u7684\u8FD9\u4E2A\u56DE\u5408\u7ED3\u675F\u65F6\uFF0C\u5931\u53BB[blue]{StrengthPower}[/blue]\u70B9[gold]\u529B\u91CF[/gold]\u3002"
+      "cn": "获得[blue]{StrengthPower}[/blue]点[gold]力量[/gold]。在你的这个回合结束时，失去[blue]{StrengthPower}[/blue]点[gold]力量[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -436,11 +436,11 @@
     "id": "FOCUS_POTION",
     "name": {
       "en": "Focus Potion",
-      "cn": "\u96C6\u4E2D\u836F\u6C34"
+      "cn": "集中药水"
     },
     "description": {
       "en": "Gain [blue]{FocusPower}[/blue] [gold]Focus[/gold].",
-      "cn": "\u83B7\u5F97[blue]{FocusPower}[/blue]\u70B9[gold]\u96C6\u4E2D[/gold]\u3002"
+      "cn": "获得[blue]{FocusPower}[/blue]点[gold]集中[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -454,11 +454,11 @@
     "id": "FORTIFIER",
     "name": {
       "en": "Fortifier",
-      "cn": "\u56FA\u5316\u836F\u6C34"
+      "cn": "固化药水"
     },
     "description": {
       "en": "Triple your [gold]Block[/gold].",
-      "cn": "\u5C06\u4F60\u7684[gold]\u683C\u6321[/gold]\u53D8\u4E3A\u4E09\u500D\u3002"
+      "cn": "将你的[gold]格挡[/gold]变为三倍。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -470,11 +470,11 @@
     "id": "FOUL_POTION",
     "name": {
       "en": "Foul Potion",
-      "cn": "\u6C61\u6D4A\u836F\u6C34"
+      "cn": "污浊药水"
     },
     "description": {
       "en": "Deal [blue]{Damage}[/blue] damage to EVERYONE.\nCan be thrown at the [gold]Merchant[/gold] for [blue]{Gold}[/blue] [gold]Gold[/gold] instead.",
-      "cn": "\u5BF9\u6240\u6709\u4EBA\u9020\u6210[blue]{Damage}[/blue]\u70B9\u4F24\u5BB3\u3002\n\u4E5F\u53EF\u4EE5\u6295\u63B7\u7ED9[gold]\u5546\u4EBA[/gold]\u6362\u53D6[blue]{Gold}[/blue][gold]\u91D1\u5E01[/gold]\u3002"
+      "cn": "对所有人造成[blue]{Damage}[/blue]点伤害。\n也可以投掷给[gold]商人[/gold]换取[blue]{Gold}[/blue][gold]金币[/gold]。"
     },
     "rarity": "Event",
     "usage": "AnyTime",
@@ -489,11 +489,11 @@
     "id": "FRUIT_JUICE",
     "name": {
       "en": "Fruit Juice",
-      "cn": "\u679C\u6C41"
+      "cn": "果汁"
     },
     "description": {
       "en": "Gain [blue]{MaxHp}[/blue] Max HP.",
-      "cn": "\u83B7\u5F97[blue]{MaxHp}[/blue]\u70B9\u6700\u5927\u751F\u547D\u503C\u3002"
+      "cn": "获得[blue]{MaxHp}[/blue]点最大生命值。"
     },
     "rarity": "Rare",
     "usage": "AnyTime",
@@ -507,11 +507,11 @@
     "id": "FYSH_OIL",
     "name": {
       "en": "Fysh Oil",
-      "cn": "\u5F02\u9C7C\u4E4B\u6CB9"
+      "cn": "异鱼之油"
     },
     "description": {
       "en": "Gain [blue]{StrengthPower}[/blue] [gold]Strength[/gold] and [blue]{DexterityPower}[/blue] [gold]Dexterity[/gold].",
-      "cn": "\u83B7\u5F97[blue]{StrengthPower}[/blue]\u70B9[gold]\u529B\u91CF[/gold]\u548C[blue]{DexterityPower}[/blue]\u70B9[gold]\u654F\u6377[/gold]\u3002"
+      "cn": "获得[blue]{StrengthPower}[/blue]点[gold]力量[/gold]和[blue]{DexterityPower}[/blue]点[gold]敏捷[/gold]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -526,11 +526,11 @@
     "id": "GAMBLERS_BREW",
     "name": {
       "en": "Gambler\u0027s Brew",
-      "cn": "\u8D4C\u5F92\u7279\u917F"
+      "cn": "赌徒特酿"
     },
     "description": {
       "en": "Discard any number of cards, then draw that many.",
-      "cn": "\u4E22\u5F03\u4EFB\u610F\u5F20\u724C\uFF0C\u7136\u540E\u62BD\u76F8\u540C\u6570\u91CF\u7684\u724C\u3002"
+      "cn": "丢弃任意张牌，然后抽相同数量的牌。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -542,11 +542,11 @@
     "id": "GHOST_IN_A_JAR",
     "name": {
       "en": "Ghost in a Jar",
-      "cn": "\u7F50\u88C5\u5E7D\u7075"
+      "cn": "罐装幽灵"
     },
     "description": {
       "en": "Gain [blue]1[/blue] [gold]Intangible[/gold].",
-      "cn": "\u83B7\u5F97[blue]1[/blue]\u5C42[gold]\u65E0\u5B9E\u4F53[/gold]\u3002"
+      "cn": "获得[blue]1[/blue]层[gold]无实体[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -560,11 +560,11 @@
     "id": "GIGANTIFICATION_POTION",
     "name": {
       "en": "Gigantification Potion",
-      "cn": "\u8D85\u5DE8\u5316\u836F\u6C34"
+      "cn": "超巨化药水"
     },
     "description": {
       "en": "The next Attack you play deals triple damage.",
-      "cn": "\u4F60\u6253\u51FA\u7684\u4E0B\u4E00\u5F20\u653B\u51FB\u724C\u5C06\u4F1A\u9020\u6210\u4E09\u500D\u4F24\u5BB3\u3002"
+      "cn": "你打出的下一张攻击牌将会造成三倍伤害。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -578,11 +578,11 @@
     "id": "GLOWWATER_POTION",
     "name": {
       "en": "Glowwater Potion",
-      "cn": "\u53D1\u5149\u6C34"
+      "cn": "发光水"
     },
     "description": {
       "en": "[gold]Exhaust[/gold] your [gold]Hand[/gold]. Draw [blue]{Cards}[/blue] cards.",
-      "cn": "[gold]\u6D88\u8017[/gold]\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002\u62BD[blue]{Cards}[/blue]\u5F20\u724C\u3002"
+      "cn": "[gold]消耗[/gold]你的[gold]手牌[/gold]。抽[blue]{Cards}[/blue]张牌。"
     },
     "rarity": "Event",
     "usage": "CombatOnly",
@@ -596,11 +596,11 @@
     "id": "HEART_OF_IRON",
     "name": {
       "en": "Heart of Iron",
-      "cn": "\u94C1\u5FC3\u836F\u6C34"
+      "cn": "铁心药水"
     },
     "description": {
       "en": "Gain [blue]{PlatingPower}[/blue] [gold]Plating[/gold].",
-      "cn": "\u83B7\u5F97[blue]{PlatingPower}[/blue]\u5C42[gold]\u8986\u7532[/gold]\u3002"
+      "cn": "获得[blue]{PlatingPower}[/blue]层[gold]覆甲[/gold]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -614,11 +614,11 @@
     "id": "KINGS_COURAGE",
     "name": {
       "en": "King\u0027s Courage",
-      "cn": "\u738B\u4E4B\u52C7\u6C14"
+      "cn": "王之勇气"
     },
     "description": {
       "en": "[gold]Forge[/gold] [blue]{Forge}[/blue].",
-      "cn": "[gold]\u94F8\u9020[/gold][blue]{Forge}[/blue]\u3002"
+      "cn": "[gold]铸造[/gold][blue]{Forge}[/blue]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -632,11 +632,11 @@
     "id": "LIQUID_BRONZE",
     "name": {
       "en": "Liquid Bronze",
-      "cn": "\u6D41\u52A8\u94DC\u6DB2"
+      "cn": "流动铜液"
     },
     "description": {
       "en": "Gain [blue]{ThornsPower}[/blue] [gold]Thorns[/gold].",
-      "cn": "\u83B7\u5F97[blue]{ThornsPower}[/blue]\u70B9[gold]\u8346\u68D8[/gold]\u3002"
+      "cn": "获得[blue]{ThornsPower}[/blue]点[gold]荆棘[/gold]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -650,11 +650,11 @@
     "id": "LIQUID_MEMORIES",
     "name": {
       "en": "Liquid Memories",
-      "cn": "\u6DB2\u6001\u8BB0\u5FC6"
+      "cn": "液态记忆"
     },
     "description": {
       "en": "Put a card from your [gold]Discard Pile[/gold] into your [gold]Hand[/gold]. It costs [blue]0[/blue] {energyPrefix:energyIcons(1)} this turn.",
-      "cn": "\u5C06\u4F60[gold]\u5F03\u724C\u5806[/gold]\u4E2D\u7684\u4E00\u5F20\u724C\u653E\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002\u8FD9\u5F20\u724C\u5728\u672C\u56DE\u5408\u7684{energyPrefix:energyIcons(1)}\u8D39\u7528\u4E3A[blue]0[/blue]\u3002"
+      "cn": "将你[gold]弃牌堆[/gold]中的一张牌放入你的[gold]手牌[/gold]。这张牌在本回合的{energyPrefix:energyIcons(1)}费用为[blue]0[/blue]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -666,11 +666,11 @@
     "id": "LUCKY_TONIC",
     "name": {
       "en": "Lucky Tonic",
-      "cn": "\u5E78\u8FD0\u8865\u5242"
+      "cn": "幸运补剂"
     },
     "description": {
       "en": "Gain [blue]{BufferPower}[/blue] [gold]Buffer[/gold].",
-      "cn": "\u83B7\u5F97[blue]{BufferPower}[/blue]\u5C42[gold]\u7F13\u51B2[/gold]\u3002"
+      "cn": "获得[blue]{BufferPower}[/blue]层[gold]缓冲[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -684,11 +684,11 @@
     "id": "MAZALETHS_GIFT",
     "name": {
       "en": "Mazaleth\u0027s Gift",
-      "cn": "\u9A6C\u8428\u96F7\u65AF\u7684\u8D60\u793C"
+      "cn": "马萨雷斯的赠礼"
     },
     "description": {
       "en": "Gain [blue]{RitualPower}[/blue] [gold]Ritual[/gold].",
-      "cn": "\u83B7\u5F97[blue]{RitualPower}[/blue]\u5C42[gold]\u4EEA\u5F0F[/gold]\u3002"
+      "cn": "获得[blue]{RitualPower}[/blue]层[gold]仪式[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -702,11 +702,11 @@
     "id": "OROBIC_ACID",
     "name": {
       "en": "Orobic Acid",
-      "cn": "\u6B27\u6D1B\u5DF4\u65AF\u4E4B\u9178"
+      "cn": "欧洛巴斯之酸"
     },
     "description": {
       "en": "Add a random Attack, Skill, and Power into your [gold]Hand[/gold]. They\u0027re free to play this turn.",
-      "cn": "\u5F80\u4F60\u7684[gold]\u624B\u724C[/gold]\u4E2D\u52A0\u5165\u4E00\u5F20\u968F\u673A\u653B\u51FB\u724C\u3001\u4E00\u5F20\u968F\u673A\u6280\u80FD\u724C\u548C\u4E00\u5F20\u968F\u673A\u80FD\u529B\u724C\u3002\u8FD9\u4E9B\u724C\u5728\u672C\u56DE\u5408\u514D\u8D39\u3002"
+      "cn": "往你的[gold]手牌[/gold]中加入一张随机攻击牌、一张随机技能牌和一张随机能力牌。这些牌在本回合免费。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -718,11 +718,11 @@
     "id": "POISON_POTION",
     "name": {
       "en": "Poison Potion",
-      "cn": "\u6BD2\u836F\u6C34"
+      "cn": "毒药水"
     },
     "description": {
       "en": "Apply [blue]{PoisonPower}[/blue] [gold]Poison[/gold].",
-      "cn": "\u7ED9\u4E88[blue]{PoisonPower}[/blue]\u5C42[gold]\u4E2D\u6BD2[/gold]\u3002"
+      "cn": "给予[blue]{PoisonPower}[/blue]层[gold]中毒[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -736,11 +736,11 @@
     "id": "POT_OF_GHOULS",
     "name": {
       "en": "Pot of Ghouls",
-      "cn": "\u5C38\u9B3C\u74EE"
+      "cn": "尸鬼瓮"
     },
     "description": {
       "en": "Add [blue]{Cards}[/blue] [gold]{Cards:plural:Soul|Souls}[/gold] into your [gold]Hand[/gold].",
-      "cn": "\u5C06[blue]{Cards}[/blue]\u5F20[gold]\u7075\u9B42[/gold]\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002"
+      "cn": "将[blue]{Cards}[/blue]张[gold]灵魂[/gold]加入你的[gold]手牌[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -754,11 +754,11 @@
     "id": "POTION_OF_BINDING",
     "name": {
       "en": "Potion of Binding",
-      "cn": "\u7F1A\u9B42\u836F\u6C34"
+      "cn": "缚魂药水"
     },
     "description": {
       "en": "Apply [blue]{WeakPower:diff()}[/blue] [gold]Weak[/gold] and [blue]{VulnerablePower:diff()}[/blue] [gold]Vulnerable[/gold] to ALL enemies.",
-      "cn": "\u7ED9\u4E88\u6240\u6709\u654C\u4EBA[blue]{WeakPower:diff()}[/blue]\u5C42[gold]\u865A\u5F31[/gold]\u548C[blue]{VulnerablePower:diff()}[/blue]\u5C42[gold]\u6613\u4F24[/gold]\u3002"
+      "cn": "给予所有敌人[blue]{WeakPower:diff()}[/blue]层[gold]虚弱[/gold]和[blue]{VulnerablePower:diff()}[/blue]层[gold]易伤[/gold]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -773,11 +773,11 @@
     "id": "POTION_OF_CAPACITY",
     "name": {
       "en": "Potion of Capacity",
-      "cn": "\u6269\u5BB9\u836F\u6C34"
+      "cn": "扩容药水"
     },
     "description": {
       "en": "Gain [blue]{Repeat}[/blue] [gold]Orb {Repeat:plural:Slot|Slots}[/gold].",
-      "cn": "\u83B7\u5F97[blue]{Repeat}[/blue]\u4E2A[gold]\u5145\u80FD\u7403\u680F\u4F4D[/gold]\u3002"
+      "cn": "获得[blue]{Repeat}[/blue]个[gold]充能球栏位[/gold]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -791,11 +791,11 @@
     "id": "POTION_OF_DOOM",
     "name": {
       "en": "Potion of Doom",
-      "cn": "\u707E\u5384\u836F\u6C34"
+      "cn": "灾厄药水"
     },
     "description": {
       "en": "Apply [blue]{DoomPower}[/blue] [gold]Doom[/gold].",
-      "cn": "\u7ED9\u4E88[blue]{DoomPower}[/blue]\u5C42[gold]\u707E\u5384[/gold]\u3002"
+      "cn": "给予[blue]{DoomPower}[/blue]层[gold]灾厄[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -809,11 +809,11 @@
     "id": "POTION_SHAPED_ROCK",
     "name": {
       "en": "Potion-Shaped Rock",
-      "cn": "\u836F\u6C34\u5F62\u72B6\u7684\u77F3\u5934"
+      "cn": "药水形状的石头"
     },
     "description": {
       "en": "Deal [blue]{Damage}[/blue] damage.",
-      "cn": "\u9020\u6210[blue]{Damage}[/blue]\u70B9\u4F24\u5BB3\u3002"
+      "cn": "造成[blue]{Damage}[/blue]点伤害。"
     },
     "rarity": "Token",
     "usage": "CombatOnly",
@@ -827,11 +827,11 @@
     "id": "POWDERED_DEMISE",
     "name": {
       "en": "Powdered Demise",
-      "cn": "\u6D88\u4EA1\u7C89\u672B"
+      "cn": "消亡粉末"
     },
     "description": {
       "en": "Enemy loses [blue]{Demise}[/blue] HP at the end of each of its turns.",
-      "cn": "\u654C\u4EBA\u5728\u81EA\u8EAB\u7684\u6BCF\u4E2A\u56DE\u5408\u7ED3\u675F\u65F6\uFF0C\u5931\u53BB[blue]{Demise}[/blue]\u70B9\u751F\u547D\u3002"
+      "cn": "敌人在自身的每个回合结束时，失去[blue]{Demise}[/blue]点生命。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -845,11 +845,11 @@
     "id": "POWER_POTION",
     "name": {
       "en": "Power Potion",
-      "cn": "\u80FD\u529B\u836F\u6C34"
+      "cn": "能力药水"
     },
     "description": {
       "en": "Choose [blue]1[/blue] of [blue]3[/blue] random Power cards to add into your [gold]Hand[/gold]. It\u0027s free to play this turn.",
-      "cn": "\u4ECE[blue]3[/blue]\u5F20\u968F\u673A\u80FD\u529B\u724C\u4E2D\u9009\u62E9[blue]1[/blue]\u5F20\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002\u8FD9\u5F20\u724C\u5728\u672C\u56DE\u5408\u53EF\u4EE5\u514D\u8D39\u6253\u51FA\u3002"
+      "cn": "从[blue]3[/blue]张随机能力牌中选择[blue]1[/blue]张加入你的[gold]手牌[/gold]。这张牌在本回合可以免费打出。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -861,11 +861,11 @@
     "id": "RADIANT_TINCTURE",
     "name": {
       "en": "Radiant Tincture",
-      "cn": "\u660E\u8000\u914A\u5242"
+      "cn": "明耀酊剂"
     },
     "description": {
       "en": "Gain {Energy:energyIcons()}. Gain an additional {energyPrefix:energyIcons(1)} at the start of your next [blue]{RadiancePower}[/blue] {RadiancePower:plural:turn|turns}.",
-      "cn": "\u83B7\u5F97{Energy:energyIcons()}\u3002\u5728\u4F60\u7684\u4E0B[blue]{RadiancePower}[/blue]\u4E2A\u56DE\u5408\u5F00\u59CB\u65F6\uFF0C\u989D\u5916\u83B7\u5F97{energyPrefix:energyIcons(1)}\u3002"
+      "cn": "获得{Energy:energyIcons()}。在你的下[blue]{RadiancePower}[/blue]个回合开始时，额外获得{energyPrefix:energyIcons(1)}。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -880,11 +880,11 @@
     "id": "REGEN_POTION",
     "name": {
       "en": "Regen Potion",
-      "cn": "\u518D\u751F\u836F\u6C34"
+      "cn": "再生药水"
     },
     "description": {
       "en": "Gain [green]{RegenPower}[/green] [gold]Regen[/gold].",
-      "cn": "\u83B7\u5F97[green]{RegenPower}[/green]\u5C42[gold]\u518D\u751F[/gold]\u3002"
+      "cn": "获得[green]{RegenPower}[/green]层[gold]再生[/gold]。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -898,11 +898,11 @@
     "id": "SHACKLING_POTION",
     "name": {
       "en": "Shackling Potion",
-      "cn": "\u9563\u94D0\u836F\u6C34"
+      "cn": "镣铐药水"
     },
     "description": {
       "en": "ALL enemies lose [blue]{StrengthPower}[/blue] [gold]Strength[/gold] this turn.",
-      "cn": "\u6240\u6709\u654C\u4EBA\u5728\u8FD9\u4E2A\u56DE\u5408\u5931\u53BB[blue]{StrengthPower}[/blue]\u70B9[gold]\u529B\u91CF[/gold]\u3002"
+      "cn": "所有敌人在这个回合失去[blue]{StrengthPower}[/blue]点[gold]力量[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -916,11 +916,11 @@
     "id": "SHIP_IN_A_BOTTLE",
     "name": {
       "en": "Ship in a Bottle",
-      "cn": "\u74F6\u4E2D\u8239"
+      "cn": "瓶中船"
     },
     "description": {
       "en": "Gain [blue]{Block:diff()}[/blue] [gold]Block[/gold]. Next turn, gain [blue]{Block:diff()}[/blue] [gold]Block[/gold].",
-      "cn": "\u83B7\u5F97[blue]{Block:diff()}[/blue]\u70B9[gold]\u683C\u6321[/gold]\u3002\u5728\u4E0B\u4E2A\u56DE\u5408\u5F00\u59CB\u65F6\u83B7\u5F97[blue]{Block:diff()}[/blue]\u70B9[gold]\u683C\u6321[/gold]\u3002"
+      "cn": "获得[blue]{Block:diff()}[/blue]点[gold]格挡[/gold]。在下个回合开始时获得[blue]{Block:diff()}[/blue]点[gold]格挡[/gold]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -934,11 +934,11 @@
     "id": "SKILL_POTION",
     "name": {
       "en": "Skill Potion",
-      "cn": "\u6280\u80FD\u836F\u6C34"
+      "cn": "技能药水"
     },
     "description": {
       "en": "Choose [blue]1[/blue] of [blue]3[/blue] random Skill cards to add into your [gold]Hand[/gold]. It\u0027s free to play this turn.",
-      "cn": "\u4ECE[blue]3[/blue]\u5F20\u968F\u673A\u6280\u80FD\u724C\u4E2D\u9009\u62E9[blue]1[/blue]\u5F20\u52A0\u5165\u4F60\u7684[gold]\u624B\u724C[/gold]\u3002\u8FD9\u5F20\u724C\u5728\u672C\u56DE\u5408\u53EF\u4EE5\u514D\u8D39\u6253\u51FA\u3002"
+      "cn": "从[blue]3[/blue]张随机技能牌中选择[blue]1[/blue]张加入你的[gold]手牌[/gold]。这张牌在本回合可以免费打出。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -950,11 +950,11 @@
     "id": "SNECKO_OIL",
     "name": {
       "en": "Snecko Oil",
-      "cn": "\u5F02\u86C7\u4E4B\u6CB9"
+      "cn": "异蛇之油"
     },
     "description": {
       "en": "Draw [blue]{Cards}[/blue] cards. Randomize the cost of cards in your [gold]Hand[/gold] this turn.",
-      "cn": "\u62BD[blue]{Cards}[/blue]\u5F20\u724C\u3002\u5728\u672C\u56DE\u5408\u968F\u673A\u5316\u4F60[gold]\u624B\u724C[/gold]\u4E2D\u6240\u6709\u724C\u7684\u8017\u80FD\u3002"
+      "cn": "抽[blue]{Cards}[/blue]张牌。在本回合随机化你[gold]手牌[/gold]中所有牌的耗能。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -968,11 +968,11 @@
     "id": "SOLDIERS_STEW",
     "name": {
       "en": "Soldier\u0027s Stew",
-      "cn": "\u58EB\u5175\u7096\u6C64"
+      "cn": "士兵炖汤"
     },
     "description": {
       "en": "All cards containing [gold]Strike[/gold] gain [blue]1[/blue] [gold]Replay[/gold] this combat.",
-      "cn": "\u5728\u672C\u573A\u6218\u6597\u4E2D\uFF0C\u6240\u6709\u540D\u5B57\u4E2D\u6709\u201C[gold]\u6253\u51FB[/gold]\u201D\u7684\u724C\u83B7\u5F97[gold]\u91CD\u653E[/gold]\uFF1A[blue]1[/blue]\u3002"
+      "cn": "在本场战斗中，所有名字中有“[gold]打击[/gold]”的牌获得[gold]重放[/gold]：[blue]1[/blue]。"
     },
     "rarity": "Rare",
     "usage": "CombatOnly",
@@ -984,11 +984,11 @@
     "id": "SPEED_POTION",
     "name": {
       "en": "Speed Potion",
-      "cn": "\u901F\u5EA6\u836F\u6C34"
+      "cn": "速度药水"
     },
     "description": {
       "en": "Gain [blue]{DexterityPower}[/blue] [gold]Dexterity[/gold]. At the end of your turn, lose [blue]{DexterityPower}[/blue] [gold]Dexterity[/gold].",
-      "cn": "\u83B7\u5F97[blue]{DexterityPower}[/blue]\u70B9[gold]\u654F\u6377[/gold]\u3002\u5728\u4F60\u7684\u8FD9\u4E2A\u56DE\u5408\u7ED3\u675F\u65F6\uFF0C\u5931\u53BB[blue]{DexterityPower}[/blue]\u70B9[gold]\u654F\u6377[/gold]\u3002"
+      "cn": "获得[blue]{DexterityPower}[/blue]点[gold]敏捷[/gold]。在你的这个回合结束时，失去[blue]{DexterityPower}[/blue]点[gold]敏捷[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -1002,11 +1002,11 @@
     "id": "STABLE_SERUM",
     "name": {
       "en": "Stable Serum",
-      "cn": "\u7A33\u5B9A\u8840\u6E05"
+      "cn": "稳定血清"
     },
     "description": {
       "en": "[gold]Retain[/gold] your [gold]Hand[/gold] for [blue]{Repeat}[/blue] {Repeat:plural:turn|turns}.",
-      "cn": "[gold]\u4FDD\u7559[/gold]\u4F60\u7684[gold]\u624B\u724C[/gold][blue]{Repeat}[/blue]\u56DE\u5408\u3002"
+      "cn": "[gold]保留[/gold]你的[gold]手牌[/gold][blue]{Repeat}[/blue]回合。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -1020,11 +1020,11 @@
     "id": "STAR_POTION",
     "name": {
       "en": "Star Potion",
-      "cn": "\u661F\u661F\u836F\u6C34"
+      "cn": "星星药水"
     },
     "description": {
       "en": "Gain {Stars:starIcons()}.",
-      "cn": "\u83B7\u5F97{Stars:starIcons()}\u3002"
+      "cn": "获得{Stars:starIcons()}。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -1038,11 +1038,11 @@
     "id": "STRENGTH_POTION",
     "name": {
       "en": "Strength Potion",
-      "cn": "\u529B\u91CF\u836F\u6C34"
+      "cn": "力量药水"
     },
     "description": {
       "en": "Gain [blue]{StrengthPower}[/blue] [gold]Strength[/gold].",
-      "cn": "\u83B7\u5F97[blue]{StrengthPower}[/blue]\u70B9[gold]\u529B\u91CF[/gold]\u3002"
+      "cn": "获得[blue]{StrengthPower}[/blue]点[gold]力量[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -1056,11 +1056,11 @@
     "id": "SWIFT_POTION",
     "name": {
       "en": "Swift Potion",
-      "cn": "\u8FC5\u6377\u836F\u6C34"
+      "cn": "迅捷药水"
     },
     "description": {
       "en": "Draw [blue]{Cards}[/blue] {Cards:plural:card|cards}.",
-      "cn": "\u62BD[blue]{Cards}[/blue]\u5F20\u724C\u3002"
+      "cn": "抽[blue]{Cards}[/blue]张牌。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -1074,11 +1074,11 @@
     "id": "TOUCH_OF_INSANITY",
     "name": {
       "en": "Touch of Insanity",
-      "cn": "\u766B\u72C2\u4E4B\u89E6"
+      "cn": "癫狂之触"
     },
     "description": {
       "en": "Choose a card in your [gold]Hand[/gold]. It is free to play this combat.",
-      "cn": "\u9009\u62E9\u4F60[gold]\u624B\u724C[/gold]\u4E2D\u7684\u4E00\u5F20\u724C\uFF0C\u4F7F\u5176\u5728\u672C\u573A\u6218\u6597\u53EF\u4EE5\u514D\u8D39\u6253\u51FA\u3002"
+      "cn": "选择你[gold]手牌[/gold]中的一张牌，使其在本场战斗可以免费打出。"
     },
     "rarity": "Uncommon",
     "usage": "CombatOnly",
@@ -1090,11 +1090,11 @@
     "id": "VULNERABLE_POTION",
     "name": {
       "en": "Vulnerable Potion",
-      "cn": "\u6613\u4F24\u836F\u6C34"
+      "cn": "易伤药水"
     },
     "description": {
       "en": "Apply [blue]{VulnerablePower}[/blue] [gold]Vulnerable[/gold].",
-      "cn": "\u7ED9\u4E88[blue]{VulnerablePower}[/blue]\u5C42[gold]\u6613\u4F24[/gold]\u3002"
+      "cn": "给予[blue]{VulnerablePower}[/blue]层[gold]易伤[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",
@@ -1108,11 +1108,11 @@
     "id": "WEAK_POTION",
     "name": {
       "en": "Weak Potion",
-      "cn": "\u865A\u5F31\u836F\u6C34"
+      "cn": "虚弱药水"
     },
     "description": {
       "en": "Apply [blue]{WeakPower}[/blue] [gold]Weak[/gold].",
-      "cn": "\u7ED9\u4E88[blue]{WeakPower}[/blue]\u5C42[gold]\u865A\u5F31[/gold]\u3002"
+      "cn": "给予[blue]{WeakPower}[/blue]层[gold]虚弱[/gold]。"
     },
     "rarity": "Common",
     "usage": "CombatOnly",

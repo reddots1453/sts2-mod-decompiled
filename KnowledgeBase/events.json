@@ -1,23 +1,23 @@
-﻿{
+{
   "AROMA_OF_CHAOS": {
     "id": "AROMA_OF_CHAOS",
     "name": {
       "en": "Aroma of Chaos",
-      "cn": "\u6DF7\u6C8C\u82B3\u9999"
+      "cn": "混沌芳香"
     },
     "description": {
       "en": "Upon trudging through a thick underbrush and making it into a clearing, you\u0027re hit with an unplaceable nostalgia.\n\nA mix of [purple]floral scents[/purple], [green]putrid decay[/green], and [orange]something else entirely[/orange]. The scent grows stronger with each step, and you feel as though the world around you is [sine]warping and twisting[/sine].\n\nOvercome with a sense of [sine][rainbow freq=0.3 sat=0.8 val=1]shifting chaos[/rainbow][/sine], you begin to lose your sense of self.",
-      "cn": "\u8D39\u529B\u5730\u7A7F\u8FC7\u4E00\u7247\u539A\u5BC6\u7684\u704C\u6728\u4E1B\u5E76\u6765\u5230\u7A7A\u5730\u540E\uFF0C\u4E00\u79CD\u83AB\u540D\u7684\u6000\u65E7\u611F\u7A81\u7136\u5411\u4F60\u88AD\u6765\u3002\n\n\u90A3\u662F[purple]\u82B1\u6735\u7684\u82AC\u82B3[/purple]\u3001[green]\u8150\u70C2\u7684\u6076\u81ED[/green]\u4EE5\u53CA[orange]\u67D0\u79CD\u65E0\u6CD5\u8A00\u8BF4\u7684\u6C14\u606F[/orange]\u7684\u6DF7\u5408\u4F53\u3002\u6BCF\u524D\u8FDB\u4E00\u6B65\uFF0C\u8FD9\u80A1\u6C14\u5473\u90FD\u53D8\u5F97\u6108\u53D1\u6D53\u70C8\u3002\u4E0E\u6B64\u540C\u65F6\uFF0C\u4F60\u611F\u53D7\u5230\u5468\u56F4\u7684\u4E16\u754C\u6B63\u5F00\u59CB[sine]\u626D\u66F2\uFF0C\u65CB\u8F6C[/sine]\u3002\n\n\u4E00\u80A1[sine][rainbow]\u53D8\u5E7B\u83AB\u6D4B\u7684\u6DF7\u6C8C[/rainbow][/sine]\u5C06\u4F60\u6DF9\u6CA1\uFF0C\u4F60\u5F00\u59CB\u6162\u6162\u5730\u4E27\u5931\u4E86\u5BF9\u81EA\u6211\u7684\u611F\u77E5\u3002"
+      "cn": "费力地穿过一片厚密的灌木丛并来到空地后，一种莫名的怀旧感突然向你袭来。\n\n那是[purple]花朵的芬芳[/purple]、[green]腐烂的恶臭[/green]以及[orange]某种无法言说的气息[/orange]的混合体。每前进一步，这股气味都变得愈发浓烈。与此同时，你感受到周围的世界正开始[sine]扭曲，旋转[/sine]。\n\n一股[sine][rainbow]变幻莫测的混沌[/rainbow][/sine]将你淹没，你开始慢慢地丧失了对自我的感知。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u653E\u4EFB\u81EA\u6D41",
+        "text_en": "放任自流",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u7EF4\u6301\u7406\u667A",
+        "text_en": "维持理智",
         "isLocked": false
       }
     ]
@@ -26,21 +26,21 @@
     "id": "BYRDONIS_NEST",
     "name": {
       "en": "Byrdonis Nest",
-      "cn": "\u591A\u5C3C\u65AF\u5F02\u9E1F\u5DE2"
+      "cn": "多尼斯异鸟巢"
     },
     "description": {
       "en": "You spot an enormous [jitter][red]Shambling Beast[/red][/jitter] chase off an injured [green][sine]Green Byrd[/sine][/green].\n\nIn the alcove the byrd fled from, a [gold]single unguarded egg[/gold] lies abandoned.\n\n[sine]Your stomach gurgles...[/sine]",
-      "cn": "\u4F60\u770B\u89C1\u4E00\u53EA\u5DE8\u5927\u7684[jitter][red]\u8E52\u8DDA\u5DE8\u517D[/red][/jitter]\u6B63\u5728\u9A71\u8D76\u4E00\u53EA\u53D7\u4F24\u7684[green][sine]\u7EFF\u8272\u5F02\u9E1F[/sine][/green]\u3002\n\n\u5728\u90A3\u53EA\u5F02\u9E1F\u9003\u79BB\u7684\u9690\u853D\u89D2\u843D\u91CC\uFF0C\u4E00\u9897[gold]\u65E0\u4EBA\u770B\u5B88\u7684\u86CB[/gold]\u88AB\u9057\u5F03\u5728\u4E86\u90A3\u91CC\u3002\n\n[sine]\u4F60\u7684\u809A\u5B50\u5495\u5495\u4F5C\u54CD\u2026[/sine]"
+      "cn": "你看见一只巨大的[jitter][red]蹒跚巨兽[/red][/jitter]正在驱赶一只受伤的[green][sine]绿色异鸟[/sine][/green]。\n\n在那只异鸟逃离的隐蔽角落里，一颗[gold]无人看守的蛋[/gold]被遗弃在了那里。\n\n[sine]你的肚子咕咕作响…[/sine]"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5403\u6389\u8FD9\u9897\u86CB",
+        "text_en": "吃掉这颗蛋",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u5E26\u8D70\u8FD9\u9897\u86CB",
+        "text_en": "带走这颗蛋",
         "isLocked": false
       }
     ]
@@ -49,21 +49,21 @@
     "id": "DENSE_VEGETATION",
     "name": {
       "en": "Dense Vegetation",
-      "cn": "\u8302\u5BC6\u7684\u690D\u88AB"
+      "cn": "茂密的植被"
     },
     "description": {
-      "en": "Having taken the wrong path for a good while, you find yourself in a thick jungle of [green]ferns[/green], [green]shrubs[/green], and [green]vines[/green]. Especially [green]vines[/green]. Exhaustion sets in, and a dark thought comes to mind:\n\n[sine][purple]\u201CYou are lost, unprepared, and the inevitability of death is approaching.\u201D[/purple][/sine]\n\nWhat do you do?",
-      "cn": "\u4F60\u5728\u9519\u8DEF\u4E0A\u8D70\u4E86\u4E00\u6BB5\u65F6\u95F4\u4E4B\u540E\uFF0C\u4F60\u53D1\u73B0\u81EA\u5DF1\u7F6E\u8EAB\u4E8E\u4E00\u7247\u7531[green]\u8568\u7C7B[/green]\u3001[green]\u704C\u6728[/green]\u548C[green]\u85E4\u8513[/green]\u6784\u6210\u7684\u8302\u5BC6\u4E1B\u6797\u4E2D\u3002\u5C24\u5176\u662F[green]\u85E4\u8513[/green]\u3002\u7CBE\u75B2\u529B\u7AED\u7684\u611F\u89C9\u6CB9\u7136\u800C\u751F\uFF0C\u4E00\u4E2A\u53EF\u6015\u7684\u5FF5\u5934\u968F\u4E4B\u6D6E\u73B0\u5728\u8111\u6D77\u91CC\uFF1A\n\n[sine][purple]\u201C\u4F60\u8FF7\u8DEF\u4E86\uFF0C\u6BEB\u65E0\u9632\u5907\uFF0C\u800C\u6B7B\u4EA1\u7684\u9634\u5F71\u6B63\u6084\u7136\u903C\u8FD1\u3002\u201D[/purple][/sine]\n\n\u4F60\u8981\u600E\u4E48\u529E\u5462\uFF1F"
+      "en": "Having taken the wrong path for a good while, you find yourself in a thick jungle of [green]ferns[/green], [green]shrubs[/green], and [green]vines[/green]. Especially [green]vines[/green]. Exhaustion sets in, and a dark thought comes to mind:\n\n[sine][purple]“You are lost, unprepared, and the inevitability of death is approaching.”[/purple][/sine]\n\nWhat do you do?",
+      "cn": "你在错路上走了一段时间之后，你发现自己置身于一片由[green]蕨类[/green]、[green]灌木[/green]和[green]藤蔓[/green]构成的茂密丛林中。尤其是[green]藤蔓[/green]。精疲力竭的感觉油然而生，一个可怕的念头随之浮现在脑海里：\n\n[sine][purple]“你迷路了，毫无防备，而死亡的阴影正悄然逼近。”[/purple][/sine]\n\n你要怎么办呢？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u575A\u6301\u8DCB\u6D89",
+        "text_en": "坚持跋涉",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u4F11\u606F",
+        "text_en": "休息",
         "isLocked": false
       }
     ]
@@ -72,21 +72,21 @@
     "id": "JUNGLE_MAZE_ADVENTURE",
     "name": {
       "en": "Jungle Maze Adventure",
-      "cn": "\u4E1B\u6797\u8FF7\u5BAB\u5947\u9047"
+      "cn": "丛林迷宫奇遇"
     },
     "description": {
       "en": "In a clearing, you run into a [green]Ragtag Group of Adventurers[/green] looking down and gesturing at a [purple]gigantic maze[/purple].\n\nThey offer to join forces with you in an [b]Epic Quest[/b] to loot the riches of this maze. As an experienced adventurer yourself, it\u0027s clear this maze is filled with [red][jitter]deadly traps[/jitter][/red] and [orange][sine]guardians[/sine][/orange].\n\nIt would be easier if you work together, but then you would have to split the loot.",
-      "cn": "\u5728\u4E00\u7247\u6797\u95F4\u7A7A\u5730\u4E0A\uFF0C\u4F60\u649E\u89C1\u4E86\u4E00\u7FA4[green]\u5BD2\u789C\u7684\u5192\u9669\u8005\u5C0F\u961F[/green]\uFF0C\u4ED6\u4EEC\u6B63\u4FEF\u77B0\u7740\u4E00\u5EA7[purple]\u5DE8\u578B\u8FF7\u5BAB[/purple]\u5E76\u6307\u624B\u753B\u811A\u3002\n\n\u4ED6\u4EEC\u9080\u8BF7\u4F60\u5165\u4F19\uFF0C\u5171\u540C\u5F00\u542F\u4E00\u573A\u641C\u522E\u8FF7\u5BAB\u8D22\u5BCC\u7684[b]\u53F2\u8BD7\u7EA7\u4EFB\u52A1[/b]\u3002\u8EAB\u4E3A\u8001\u624B\uFF0C\u4F60\u5FC3\u77E5\u809A\u660E\u8FD9\u8FF7\u5BAB\u91CC\u585E\u6EE1\u4E86[red][jitter]\u81F4\u547D\u9677\u9631[/jitter][/red]\u548C[orange][sine]\u5B88\u536B[/sine][/orange]\u3002\n\n\u642D\u4F19\u5E72\u6D3B\u786E\u5B9E\u5BB9\u6613\u4E9B\uFF0C\u4F46\u90A3\u6837\u4F60\u5C31\u5F97\u8DDF\u4EBA\u5E73\u5206\u6218\u5229\u54C1\u4E86\u3002"
+      "cn": "在一片林间空地上，你撞见了一群[green]寒碜的冒险者小队[/green]，他们正俯瞰着一座[purple]巨型迷宫[/purple]并指手画脚。\n\n他们邀请你入伙，共同开启一场搜刮迷宫财富的[b]史诗级任务[/b]。身为老手，你心知肚明这迷宫里塞满了[red][jitter]致命陷阱[/jitter][/red]和[orange][sine]守卫[/sine][/orange]。\n\n搭伙干活确实容易些，但那样你就得跟人平分战利品了。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u72EC\u81EA\u6311\u6218",
+        "text_en": "独自挑战",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u7ED3\u4F34\u540C\u884C",
+        "text_en": "结伴同行",
         "isLocked": false
       }
     ]
@@ -95,11 +95,11 @@
     "id": "LUMINOUS_CHOIR",
     "name": {
       "en": "Luminous Choir",
-      "cn": "\u51B7\u5149\u5408\u5531\u56E2"
+      "cn": "冷光合唱团"
     },
     "description": {
       "en": "You stumble upon a clearing bathed in an unnatural blue glow. Towering mushrooms pulse with bioluminescence, their caps swollen and glistening. As you approach, the fungi begin to emit [sine][purple]haunting, melodic tones[/purple][/sine] that reverberate throughout your chest.\n\nYou notice something gleaming, embedded within the largest mushroom\u0027s flesh, [sine]pulsing[/sine] in rhythm with the fungal song.",
-      "cn": "\u4F60\u649E\u5165\u4E86\u4E00\u7247\u6C90\u6D74\u5728\u8BE1\u5F02\u84DD\u5149\u4E0B\u7684\u6797\u95F4\u7A7A\u5730\u3002\u9AD8\u8038\u7684\u8611\u83C7\u968F\u7740\u751F\u7269\u8367\u5149\u8D77\u4F0F\u8109\u52A8\uFF0C\u83CC\u76D6\u80BF\u80C0\u800C\u6CDB\u7740\u5149\u6CFD\u3002\u5F53\u4F60\u9760\u8FD1\u65F6\uFF0C\u771F\u83CC\u4EEC\u7ADF\u5F00\u59CB\u53D1\u51FA[sine][purple]\u51C4\u7F8E\u800C\u5A49\u8F6C\u7684\u65CB\u5F8B[/purple][/sine]\uFF0C\u8FD9\u65CB\u5F8B\u5728\u4F60\u7684\u80F8\u8154\u5185\u6FC0\u8361\u3002\n\n\u4F60\u6CE8\u610F\u5230\uFF0C\u5728\u90A3\u4E2A\u4F53\u578B\u6700\u5927\u7684\u8611\u83C7\u8089\u8D28\u4E2D\u5D4C\u5165\u4E86\u67D0\u79CD\u95EA\u5149\u7684\u4E1C\u897F\uFF0C\u6B63\u968F\u7740\u771F\u83CC\u4E4B\u6B4C\u6709\u8282\u594F\u5730[sine]\u8DC3\u52A8[/sine]\u3002"
+      "cn": "你撞入了一片沐浴在诡异蓝光下的林间空地。高耸的蘑菇随着生物荧光起伏脉动，菌盖肿胀而泛着光泽。当你靠近时，真菌们竟开始发出[sine][purple]凄美而婉转的旋律[/purple][/sine]，这旋律在你的胸腔内激荡。\n\n你注意到，在那个体型最大的蘑菇肉质中嵌入了某种闪光的东西，正随着真菌之歌有节奏地[sine]跃动[/sine]。"
     },
     "options": []
   },
@@ -107,21 +107,21 @@
     "id": "MORPHIC_GROVE",
     "name": {
       "en": "Morphic Grove",
-      "cn": "\u53D8\u5F62\u7075\u6797\u8C37"
+      "cn": "变形灵林谷"
     },
     "description": {
       "en": "You enter a grove of [green]crystalline trees[/green], and they begin to [jitter]quiver excitedly[/jitter]!\nA chorus of [sine]hellos and welcomes[/sine] bombard you as a group of [aqua]Morphics[/aqua] [jitter]burst[/jitter] forth from trees.\n\nOne of the [aqua]Morphics[/aqua] is fidgeting in the corner, clearly not as sociable as the others.\n\nApproach the group or the loner?",
-      "cn": "\u4F60\u8FDB\u5165\u4E86\u4E00\u7247[green]\u7ED3\u6676\u6811[/green]\u7684\u6797\u8C37\uFF0C\u6811\u6728\u5F00\u59CB[jitter]\u6FC0\u52A8\u5730\u98A4\u6296\u8D77\u6765[/jitter]\uFF01\n\u4E00\u9635\u9635\u6742\u4E71\u7684[sine]\u95EE\u5019\u4E0E\u6B22\u8FCE\u58F0[/sine]\u5728\u4F60\u8033\u8FB9\u4E0D\u65AD\u54CD\u8D77\uFF0C\u539F\u6765\u662F\u4E00\u7FA4[aqua]\u53D8\u5F62\u7075[/aqua]\u4ECE\u6811\u4E0A[jitter]\u7EFD\u653E[/jitter]\u4E86\u51FA\u6765\u3002\n\n\u6709\u4E00\u53EA[aqua]\u53D8\u5F62\u7075[/aqua]\u5728\u89D2\u843D\u91CC\u5750\u7ACB\u4E0D\u5B89\u7684\u6837\u5B50\uFF0C\u663E\u7136\u4E0D\u50CF\u5176\u4ED6\u540C\u7C7B\u90A3\u6837\u5584\u4E8E\u793E\u4EA4\u3002\n\n\u4F60\u662F\u53BB\u627E\u4E00\u7FA4\u53D8\u5F62\u7075\uFF0C\u8FD8\u662F\u53BB\u627E\u843D\u5355\u7684\u90A3\u4E2A\uFF1F"
+      "cn": "你进入了一片[green]结晶树[/green]的林谷，树木开始[jitter]激动地颤抖起来[/jitter]！\n一阵阵杂乱的[sine]问候与欢迎声[/sine]在你耳边不断响起，原来是一群[aqua]变形灵[/aqua]从树上[jitter]绽放[/jitter]了出来。\n\n有一只[aqua]变形灵[/aqua]在角落里坐立不安的样子，显然不像其他同类那样善于社交。\n\n你是去找一群变形灵，还是去找落单的那个？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5927\u7FA4\u53D8\u5F62\u7075",
+        "text_en": "大群变形灵",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u843D\u5355\u53D8\u5F62\u7075",
+        "text_en": "落单变形灵",
         "isLocked": false
       }
     ]
@@ -130,21 +130,21 @@
     "id": "SAPPHIRE_SEED",
     "name": {
       "en": "Sapphire Seed",
-      "cn": "\u84DD\u5B9D\u77F3\u79CD\u5B50"
+      "cn": "蓝宝石种子"
     },
     "description": {
       "en": "You narrowly avoid stepping on a bright, sharp... seed? Its unmistakable color gives away that it\u0027s a [aqua]Sapphire Seed[/aqua]! Weren\u0027t these incredible seeds supposed to be extinct!?\n\nLegends say that consuming one can greatly [gold]amplify your endurance[/gold], but what if you plant and nourish it instead?",
-      "cn": "\u4F60\u8D70\u8DEF\u65F6\u5DEE\u70B9\u8E29\u4E0A\u4E86\u4E00\u5757\u53D1\u5149\u7684\u5C16\u9510\u2026\u2026\u79CD\u5B50\uFF1F\u5B83\u7684\u989C\u8272\u975E\u5E38\u660E\u786E\u5730\u8868\u660E\u4E86\u8FD9\u662F\u4E00\u679A[aqua]\u84DD\u5B9D\u77F3\u79CD\u5B50[/aqua]\uFF01\u8FD9\u4E9B\u7A00\u6709\u79CD\u5B50\u4E0D\u662F\u5E94\u8BE5\u5DF2\u7ECF\u706D\u7EDD\u4E86\u5417\uFF01\uFF1F\n\n\u4F20\u8BF4\u91CC\uFF0C\u53EA\u8981\u5403\u4E0B\u4E00\u7C92\u8FD9\u4E2A\u79CD\u5B50\uFF0C\u5C31\u80FD\u5927\u5E45[gold]\u5F3A\u5316\u4F60\u7684\u4F53\u80FD[/gold]\uFF0C\u4F46\u5982\u679C\u4F60\u628A\u5B83\u79CD\u4E0B\u7136\u540E\u597D\u597D\u517B\u80B2\u5B83\uFF0C\u53C8\u4F1A\u600E\u4E48\u6837\u5462\uFF1F"
+      "cn": "你走路时差点踩上了一块发光的尖锐……种子？它的颜色非常明确地表明了这是一枚[aqua]蓝宝石种子[/aqua]！这些稀有种子不是应该已经灭绝了吗！？\n\n传说里，只要吃下一粒这个种子，就能大幅[gold]强化你的体能[/gold]，但如果你把它种下然后好好养育它，又会怎么样呢？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5403\u4E0B",
+        "text_en": "吃下",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u79CD\u690D\u57F9\u80B2",
+        "text_en": "种植培育",
         "isLocked": false
       }
     ]
@@ -153,21 +153,21 @@
     "id": "SUNKEN_STATUE",
     "name": {
       "en": "The Sunken Statue",
-      "cn": "\u6C89\u6CA1\u96D5\u50CF"
+      "cn": "沉没雕像"
     },
     "description": {
       "en": "You spot an aged statue half submerged in a pond; its hands gently rest atop a [blue]stone sword[/blue].\n\nSomething is also [gold][sine]glittering[/sine][/gold] at the bottom of the pond.\nVotive offerings perhaps?\n\nYou could really use some money...",
-      "cn": "\u4F60\u770B\u89C1\u4E00\u5C0A\u53E4\u8001\u7684\u96D5\u50CF\uFF0C\u4E00\u534A\u6C89\u6CA1\u5728\u6C60\u5858\u7684\u6C34\u4E2D\u3002\u96D5\u50CF\u7684\u624B\u653E\u5728\u4E00\u628A[blue]\u77F3\u5251[/blue]\u4E4B\u4E0A\u3002\n\n\u540C\u65F6\u4F60\u8FD8\u770B\u89C1\uFF0C\u6C60\u5858\u7684\u6C34\u5E95\u4F3C\u4E4E\u6709\u4E00\u4E9B\u4E1C\u897F\u5728[gold][sine]\u95EA\u70C1[/sine][/gold]\u7740\u5149\u8292\u3002\n\u6216\u8BB8\u662F\u4EBA\u4EEC\u7948\u613F\u6295\u4E0B\u7684\u91D1\u5E01\uFF1F\n\n\u94B1\u53EF\u662F\u4E2A\u597D\u4E1C\u897F\u2026\u2026"
+      "cn": "你看见一尊古老的雕像，一半沉没在池塘的水中。雕像的手放在一把[blue]石剑[/blue]之上。\n\n同时你还看见，池塘的水底似乎有一些东西在[gold][sine]闪烁[/sine][/gold]着光芒。\n或许是人们祈愿投下的金币？\n\n钱可是个好东西……"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u62FF\u8D77\u77F3\u5251",
+        "text_en": "拿起石剑",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6F5C\u6C34",
+        "text_en": "潜水",
         "isLocked": false
       }
     ]
@@ -176,21 +176,21 @@
     "id": "TABLET_OF_TRUTH",
     "name": {
       "en": "Tablet of Truth",
-      "cn": "\u771F\u7406\u77F3\u677F"
+      "cn": "真理石板"
     },
     "description": {
       "en": "You defeat a pair of [blue]Guardian Kin[/blue] and make your way into a protected vault.\n\nInside is a [purple][sine]tablet with familiar inscriptions[/sine][/purple]. Your intuition tells you that this language can be deciphered rather easily... However, once you begin deciphering you\u0027ll be locked in.\n\nThe tablet gives off a soothing energy and you can smash it to receive its [green]healing energies[/green] instead.",
-      "cn": "\u4F60\u6253\u8D25\u4E86\u4E24\u53EA[blue]\u540C\u65CF\u5B88\u62A4\u8005[/blue]\uFF0C\u8FDB\u5165\u4E86\u5B83\u4EEC\u5B88\u62A4\u7684\u85CF\u5B9D\u5E93\u3002\n\n\u91CC\u9762\u6709\u4E00\u5757[purple][sine]\u523B\u7740\u719F\u6089\u94ED\u6587\u7684\u77F3\u677F[/sine][/purple]\u3002\u4F60\u7684\u76F4\u89C9\u544A\u8BC9\u4F60\uFF0C\u4E0A\u9762\u7684\u8BED\u8A00\u53EF\u4EE5\u8F7B\u6613\u89E3\u8BFB\u2026\u2026\u53EF\u662F\u4E00\u65E6\u5F00\u59CB\u89E3\u8BFB\uFF0C\u4F60\u5C31\u5FC5\u987B\u5168\u795E\u8D2F\u6CE8\u3002\n\n\u77F3\u677F\u4E0A\u6563\u53D1\u51FA\u4E00\u79CD\u4EE4\u4EBA\u5B89\u5FC3\u7684\u80FD\u91CF\uFF0C\u4F60\u4E5F\u53EF\u4EE5\u5C31\u8FD9\u6837\u7838\u788E\u5B83\uFF0C\u6765\u83B7\u53D6\u5176\u4E2D\u7684[green]\u6CBB\u6108\u80FD\u91CF[/green]\u3002"
+      "cn": "你打败了两只[blue]同族守护者[/blue]，进入了它们守护的藏宝库。\n\n里面有一块[purple][sine]刻着熟悉铭文的石板[/sine][/purple]。你的直觉告诉你，上面的语言可以轻易解读……可是一旦开始解读，你就必须全神贯注。\n\n石板上散发出一种令人安心的能量，你也可以就这样砸碎它，来获取其中的[green]治愈能量[/green]。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u89E3\u8BFB",
+        "text_en": "解读",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u7838\u788E",
+        "text_en": "砸碎",
         "isLocked": false
       }
     ]
@@ -199,21 +199,21 @@
     "id": "UNREST_SITE",
     "name": {
       "en": "Unrest Site",
-      "cn": "\u65E0\u4F11\u4E4B\u5904"
+      "cn": "无休之处"
     },
     "description": {
       "en": "You find a secluded [gold]Rest Site[/gold] and start a [orange]fire[/orange] to get some rest.\nOr so you thought.\n\nOnce the fire is started, it begins to swell, reaching not upwards but [sine]sideways[/sine] towards a grove of [purple]oil-seeping trees[/purple].\n\nShould you try resting anyways?",
-      "cn": "\u4F60\u627E\u5230\u4E86\u4E00\u4E2A\u9694\u7EDD\u7684[gold]\u4F11\u606F\u5904[/gold]\uFF0C\u4E8E\u662F\u70B9\u8D77[orange]\u7BDD\u706B[/orange]\u6253\u7B97\u4F11\u606F\u3002\n\u7ED3\u679C\u53EA\u662F\u6253\u7B97\u800C\u5DF2\u3002\n\n\u7BDD\u706B\u70B9\u8D77\u540E\uFF0C\u706B\u5149\u7ACB\u5373\u80C0\u5927\u8D77\u6765\uFF0C\u4E0D\u662F\u5411\u4E0A\u800C\u662F\u5411\u7740[sine]\u4FA7\u9762[/sine]\u5EF6\u4F38\u5411\u4E00\u7247\u6EE1\u662F[purple]\u5192\u6CB9\u6811\u6728[/purple]\u7684\u6797\u5730\u3002\n\n\u8981\u4E0D\u8981\u4E0D\u7BA1\u8FD9\u4E2A\u60C5\u51B5\uFF0C\u5C31\u8FD9\u4E48\u7EE7\u7EED\u4F11\u606F\uFF1F"
+      "cn": "你找到了一个隔绝的[gold]休息处[/gold]，于是点起[orange]篝火[/orange]打算休息。\n结果只是打算而已。\n\n篝火点起后，火光立即胀大起来，不是向上而是向着[sine]侧面[/sine]延伸向一片满是[purple]冒油树木[/purple]的林地。\n\n要不要不管这个情况，就这么继续休息？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5C31\u8FD9\u6837\u4F11\u606F",
+        "text_en": "就这样休息",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6740\u6B7B\u6811\u6728",
+        "text_en": "杀死树木",
         "isLocked": false
       }
     ]
@@ -222,21 +222,21 @@
     "id": "WELLSPRING",
     "name": {
       "en": "Wellspring",
-      "cn": "\u6CC9\u6C34"
+      "cn": "泉水"
     },
     "description": {
       "en": "You trace a [jitter]low rumble[/jitter] to its source and find yourself captivated by a tranquil wellspring. The water is an [sine][aqua]emerald green[/aqua][/sine] with clusters of [sine][gold]glowing motes[/gold][/sine].\n\nIt looks inviting. What can possibly go wrong?",
-      "cn": "\u4F60\u8DDF\u7740\u4E00\u9635[jitter]\u4F4E\u6C89\u7684\u8F70\u9E23\u58F0[/jitter]\u627E\u5230\u4E86\u6E90\u5934\uFF1A\u5C45\u7136\u662F\u4E00\u5904\u5E73\u9759\u7684\u6CC9\u6C34\uFF0C\u8BA9\u4F60\u5FC3\u751F\u5411\u5F80\u3002\u6CC9\u6C34[sine][aqua]\u7EFF\u5982\u78A7\u7389[/aqua][/sine]\uFF0C\u4F60\u8FD8\u80FD\u4ECE\u4E2D\u770B\u89C1\u4E00\u4E9B[sine][gold]\u53D1\u5149\u7684\u5C18\u57C3[/gold][/sine]\u3002\n\n\u770B\u8D77\u6765\u5341\u5206\u8BF1\u4EBA\uFF0C\u8FD9\u4E0D\u53EF\u80FD\u51FA\u4EC0\u4E48\u5DEE\u9519\u7684\u5427\uFF1F"
+      "cn": "你跟着一阵[jitter]低沉的轰鸣声[/jitter]找到了源头：居然是一处平静的泉水，让你心生向往。泉水[sine][aqua]绿如碧玉[/aqua][/sine]，你还能从中看见一些[sine][gold]发光的尘埃[/gold][/sine]。\n\n看起来十分诱人，这不可能出什么差错的吧？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u88C5\u74F6",
+        "text_en": "装瓶",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6C90\u6D74",
+        "text_en": "沐浴",
         "isLocked": false
       }
     ]
@@ -245,21 +245,21 @@
     "id": "WHISPERING_HOLLOW",
     "name": {
       "en": "Whispering Hollow",
-      "cn": "\u4F4E\u8BED\u7A7A\u8C37"
+      "cn": "低语空谷"
     },
     "description": {
       "en": "Making your way through a [red]hollow of dead trees[/red] you happen upon a single bone-white tree. Clay baubles hang off its branches, which curve inward like protective ribs.\n\nSuch a [purple]creepy tree[/purple]. It whispers.\n\n[sine][blue]...make exchange.....[/blue][/sine]",
-      "cn": "\u5728\u901A\u8FC7\u4E00\u4E2A[red]\u67AF\u6728\u6797\u8C37[/red]\u65F6\uFF0C\u4F60\u9047\u89C1\u4E86\u4E00\u682A\u5B64\u5355\u7684\u767D\u9AA8\u822C\u7684\u6811\u3002\u5B83\u7684\u679D\u4E2B\u5982\u540C\u808B\u9AA8\u822C\u5411\u5185\u5F2F\u66F2\uFF0C\u679D\u6761\u4E0A\u5219\u6302\u7740\u9ECF\u571F\u822C\u7684\u7403\u72B6\u7269\u4F53\u3002\n\n\u771F\u662F\u68F5[purple]\u7606\u4EBA\u7684\u6811[/purple]\u3002\u5B83\u8FD8\u5728\u53D1\u51FA\u4F4E\u8BED\uFF1A\n\n[sine][blue]\u2026\u6765\u505A\u4EA4\u6613\u2026..[/blue][/sine]"
+      "cn": "在通过一个[red]枯木林谷[/red]时，你遇见了一株孤单的白骨般的树。它的枝丫如同肋骨般向内弯曲，枝条上则挂着黏土般的球状物体。\n\n真是棵[purple]瘆人的树[/purple]。它还在发出低语：\n\n[sine][blue]…来做交易…..[/blue][/sine]"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u4EA4\u6362\u91D1\u5E01",
+        "text_en": "交换金币",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u62E5\u62B1\u6811\u6728",
+        "text_en": "拥抱树木",
         "isLocked": false
       }
     ]
@@ -268,11 +268,11 @@
     "id": "WOOD_CARVINGS",
     "name": {
       "en": "Wood Carvings",
-      "cn": "\u6728\u96D5"
+      "cn": "木雕"
     },
     "description": {
       "en": "You open a dusty box to find a set of 3 elaborate wood carvings:\n\nA bird, snake, and... a torus?\n\nA nearby pedestal has indentations which match the bottom of the carvings. Which carving will you place on the pedestal?",
-      "cn": "\u4F60\u6253\u5F00\u4E00\u4E2A\u5C18\u5C01\u7684\u76D2\u5B50\uFF0C\u53D1\u73B0\u91CC\u9762\u6709\u4E00\u7EC43\u4E2A\u76F8\u5F53\u7CBE\u7EC6\u7684\u6728\u96D5\uFF1A\n\n\u4E00\u53EA\u9E1F\u3001\u4E00\u6761\u86C7\u3001\u8FD8\u6709\u2026\u2026\u4E00\u4E2A\u5706\u73AF\uFF1F\n\n\u9644\u8FD1\u6709\u4E00\u4E2A\u57FA\u5EA7\uFF0C\u4E0A\u9762\u7684\u51F9\u9677\u75D5\u8FF9\u6B63\u4E0E\u8FD9\u4E9B\u6728\u96D5\u5E95\u90E8\u7684\u5F62\u72B6\u543B\u5408\u3002\u4F60\u8981\u628A\u54EA\u4E2A\u6728\u96D5\u653E\u5728\u57FA\u5EA7\u4E0A\u5462\uFF1F"
+      "cn": "你打开一个尘封的盒子，发现里面有一组3个相当精细的木雕：\n\n一只鸟、一条蛇、还有……一个圆环？\n\n附近有一个基座，上面的凹陷痕迹正与这些木雕底部的形状吻合。你要把哪个木雕放在基座上呢？"
     },
     "options": []
   },
@@ -280,21 +280,21 @@
     "id": "AMALGAMATOR",
     "name": {
       "en": "Amalgamator",
-      "cn": "\u7194\u5408\u8005"
+      "cn": "熔合者"
     },
     "description": {
-      "en": "[b][jitter]CLANG! CLANG!!![/jitter][/b]\n\nYou hear the echoes of metal upon metal on the otherside of a wall...\n\nAs you press your head against the wall to listen in\u2014the wall opens up, revealing a [orange]hulking six-armed figure[/orange] toiling away.\nIts \u201Cface\u201D is a [gold][sine]swirling vortex of glowing sigils[/sine][/gold] that shift about.\n\n\u201COne with an [aqua]Ascending Spirit[/aqua] has found my workshop? Let\u0027s get [jitter]COMBINING[/jitter]!\u201D",
-      "cn": "[b][jitter]\u94FF\uFF01\u94FF\uFF01\uFF01\u9535\uFF01\uFF01\uFF01[/jitter][/b]\n\n\u5899\u58C1\u7684\u53E6\u4E00\u4FA7\u4F20\u6765\u4E86\u9635\u9635\u91D1\u5C5E\u4EA4\u51FB\u58F0\u7684\u56DE\u54CD\u2026\n\n\u5F53\u4F60\u628A\u5934\u8D34\u5728\u5899\u4E0A\u51C6\u5907\u63A2\u542C\u4E00\u756A\u65F6\u2014\u2014\u5899\u58C1\u8F70\u7136\u5F00\u542F\uFF0C\u9732\u51FA\u4E86\u4E00\u4E2A\u6B63\u5728\u57CB\u5934\u82E6\u5E72\u7684[orange]\u9B41\u68A7\u516D\u81C2\u8EAB\u5F71[/orange]\u3002\n\u5B83\u7684\u201C\u8138\u90E8\u201D\u662F\u4E00\u56E2\u7531[gold][sine]\u53D1\u5149\u7B26\u6587\u6784\u6210\u7684\u6D41\u8F6C\u65CB\u6DA1[/sine][/gold]\uFF0C\u6B63\u5728\u4E0D\u65AD\u53D8\u5E7B\u4EA4\u7EC7\u3002\n\n\u201C\u4E00\u4E2A\u62E5\u6709[aqua]\u8FDB\u9636\u4E4B\u9B42[/aqua]\u7684\u4EBA\u7ADF\u7136\u627E\u5230\u4E86\u6211\u7684\u5DE5\u574A\uFF1F\u90A3\u5C31\u8BA9\u6211\u4EEC\u5F00\u59CB[jitter]\u878D\u5408[/jitter]\u5427\uFF01\u201D"
+      "en": "[b][jitter]CLANG! CLANG!!![/jitter][/b]\n\nYou hear the echoes of metal upon metal on the otherside of a wall...\n\nAs you press your head against the wall to listen in—the wall opens up, revealing a [orange]hulking six-armed figure[/orange] toiling away.\nIts “face” is a [gold][sine]swirling vortex of glowing sigils[/sine][/gold] that shift about.\n\n“One with an [aqua]Ascending Spirit[/aqua] has found my workshop? Let\u0027s get [jitter]COMBINING[/jitter]!”",
+      "cn": "[b][jitter]铿！铿！！锵！！！[/jitter][/b]\n\n墙壁的另一侧传来了阵阵金属交击声的回响…\n\n当你把头贴在墙上准备探听一番时——墙壁轰然开启，露出了一个正在埋头苦干的[orange]魁梧六臂身影[/orange]。\n它的“脸部”是一团由[gold][sine]发光符文构成的流转旋涡[/sine][/gold]，正在不断变幻交织。\n\n“一个拥有[aqua]进阶之魂[/aqua]的人竟然找到了我的工坊？那就让我们开始[jitter]融合[/jitter]吧！”"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u878D\u5408\u6253\u51FB",
+        "text_en": "融合打击",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u878D\u5408\u9632\u5FA1",
+        "text_en": "融合防御",
         "isLocked": false
       }
     ]
@@ -303,21 +303,21 @@
     "id": "BUGSLAYER",
     "name": {
       "en": "Bugslayer",
-      "cn": "\u5BB3\u866B\u6740\u624B"
+      "cn": "害虫杀手"
     },
     "description": {
-      "en": "As you\u0027re fending off a [jitter][red]swarm of aggressive insects[/red][/jitter] you suddenly notice a [gold]Mighty Rugged Warrior-Man[/gold] fighting beside you this whole time!\n\nThe insects, sensing defeat, scatter. You turn to your fellow fighter.\n\u201CWould you like any tips on exterminating these pests?\u201D\n\nHow polite. You nod and accept his offer.",
-      "cn": "\u5F53\u4F60\u6B63\u594B\u529B\u62B5\u5FA1\u4E00\u7FA4[jitter][red]\u7A77\u51F6\u6781\u6076\u7684\u866B\u7FA4[/red][/jitter]\u65F6\uFF0C\u4F60\u7A81\u7136\u6CE8\u610F\u5230\uFF0C\u4E00\u4F4D[gold]\u5A01\u731B\u527D\u608D\u7684\u6218\u58EB[/gold]\u7ADF\u7136\u4E00\u76F4\u5C31\u5728\u4F60\u8EAB\u8FB9\u5E76\u80A9\u4F5C\u6218\uFF01\n\n\u866B\u7FA4\u4EEC\uFF0C\u5BDF\u89C9\u8D25\u5C40\uFF0C\u56DB\u6563\u800C\u9003\u3002\u4F60\u8F6C\u5411\u8FD9\u4F4D\u6218\u53CB\u3002\n\u201C\u4F60\u60F3\u8981\u4E00\u4E9B\u6D88\u706D\u8FD9\u4E9B\u5BB3\u866B\u7684\u5EFA\u8BAE\u5417\uFF1F\u201D\n\n\u8FD8\u633A\u6709\u793C\u8C8C\u3002\u4F60\u70B9\u4E86\u70B9\u5934\uFF0C\u63A5\u53D7\u4E86\u4ED6\u7684\u63D0\u8BAE\u3002"
+      "en": "As you\u0027re fending off a [jitter][red]swarm of aggressive insects[/red][/jitter] you suddenly notice a [gold]Mighty Rugged Warrior-Man[/gold] fighting beside you this whole time!\n\nThe insects, sensing defeat, scatter. You turn to your fellow fighter.\n“Would you like any tips on exterminating these pests?”\n\nHow polite. You nod and accept his offer.",
+      "cn": "当你正奋力抵御一群[jitter][red]穷凶极恶的虫群[/red][/jitter]时，你突然注意到，一位[gold]威猛剽悍的战士[/gold]竟然一直就在你身边并肩作战！\n\n虫群们，察觉败局，四散而逃。你转向这位战友。\n“你想要一些消灭这些害虫的建议吗？”\n\n还挺有礼貌。你点了点头，接受了他的提议。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5B66\u4E60\u6740\u706D\u7684\u6280\u5DE7",
+        "text_en": "学习杀灭的技巧",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u5B66\u4E60\u538B\u6241\u7684\u6280\u5DE7",
+        "text_en": "学习压扁的技巧",
         "isLocked": false
       }
     ]
@@ -326,11 +326,11 @@
     "id": "COLORFUL_PHILOSOPHERS",
     "name": {
       "en": "Colorful Philosophers",
-      "cn": "\u8272\u5F69\u54F2\u5B66\u5BB6"
+      "cn": "色彩哲学家"
     },
     "description": {
       "en": "Before you is a rather epic sight.\nYou see 3 different colored statues towering over a dais, having a [jitter][red]heated debate[/red][/jitter] over the philosophical implications of color.\n\nAs you listen in, you get a sense that the most important question at hand is which color truly is [gold]THE BEST[/gold].\n\nYou chime in with your thoughts.",
-      "cn": "\u5728\u4F60\u9762\u524D\u7684\u662F\u4E00\u5E55\u9887\u4E3A\u5B8F\u4F1F\u7684\u666F\u8C61\u3002\n\u4F60\u770B\u5230\u4E09\u5EA7\u4E0D\u540C\u989C\u8272\u7684\u77F3\u50CF\u8038\u7ACB\u5728\u9AD8\u53F0\u4E4B\u4E0A\uFF0C\u6B63\u5C31\u8272\u5F69\u7684\u54F2\u5B66\u5185\u6DB5\u5C55\u5F00[jitter][red]\u6FC0\u70C8\u7684\u4E89\u8BBA[/red][/jitter]\u3002\n\n\u968F\u7740\u4F60\u7684\u503E\u542C\uFF0C\u4F60\u611F\u89C9\u5230\u773C\u4E0B\u6700\u6838\u5FC3\u7684\u8BAE\u9898\u662F\uFF0C\u7A76\u7ADF\u54EA\u79CD\u989C\u8272\u624D\u662F[gold][b]\u6700\u68D2\u7684[/b][/gold]\u3002\n\n\u4F60\u52A0\u5165\u5176\u4E2D\uFF0C\u8868\u8FBE\u4E86\u4F60\u7684\u89C1\u89E3\u3002"
+      "cn": "在你面前的是一幕颇为宏伟的景象。\n你看到三座不同颜色的石像耸立在高台之上，正就色彩的哲学内涵展开[jitter][red]激烈的争论[/red][/jitter]。\n\n随着你的倾听，你感觉到眼下最核心的议题是，究竟哪种颜色才是[gold][b]最棒的[/b][/gold]。\n\n你加入其中，表达了你的见解。"
     },
     "options": []
   },
@@ -338,21 +338,21 @@
     "id": "COLOSSAL_FLOWER",
     "name": {
       "en": "Colossal Flower",
-      "cn": "\u5DE8\u5927\u82B1\u5349"
+      "cn": "巨大花卉"
     },
     "description": {
       "en": "There is a [green]colossal flower[/green] growing atop a [red][jitter]mountain of bones[/jitter][/red].\n\nAs its [sine][rainbow freq=0.3 sat=0.8 val=1]color-shifting petals[/rainbow][/sine] pulsate, you sense there is a [aqua]Powerful Cluster of Pollen[/aqua] in the center but the undulating petals are [red]razor sharp[/red] and unpredictable.\n\nYou could grab some of the [gold]golden nectar[/gold], but reaching the prize in the center is so tempting...",
-      "cn": "\u4E00\u6735[green]\u5DE8\u578B\u82B1\u5349[/green]\u6B63\u751F\u957F\u5728\u4E00\u5EA7[red][jitter]\u9AB8\u9AA8\u5806\u79EF\u800C\u6210\u7684\u5C71[/jitter][/red]\u4E0A\u3002\n\n\u968F\u7740\u5B83\u90A3[sine][rainbow freq=0.3 sat=0.8 val=1]\u53D8\u6362\u8272\u5F69\u7684\u82B1\u74E3[/rainbow][/sine]\u4E0D\u65AD\u640F\u52A8\uFF0C\u4F60\u611F\u89C9\u5230\u4E2D\u5FC3\u5904\u4E00\u5B9A\u6709[aqua]\u4E00\u56E2\u5F3A\u529B\u82B1\u7C89[/aqua]\uFF0C\u4F46\u90A3\u8D77\u4F0F\u7684\u82B1\u74E3[red]\u5982\u5200\u950B\u822C\u950B\u5229[/red]\u4E14\u6349\u6478\u4E0D\u5B9A\u3002\n\n\u4F60\u672C\u53EF\u4EE5\u53EA\u91C7\u96C6\u4E00\u4E9B[gold]\u91D1\u8272\u82B1\u871C[/gold]\uFF0C\u4F46\u4E2D\u5FC3\u5904\u7684\u90A3\u4E2A\u5956\u8D4F\u5B9E\u5728\u662F\u592A\u8BF1\u4EBA\u4E86\u2026"
+      "cn": "一朵[green]巨型花卉[/green]正生长在一座[red][jitter]骸骨堆积而成的山[/jitter][/red]上。\n\n随着它那[sine][rainbow freq=0.3 sat=0.8 val=1]变换色彩的花瓣[/rainbow][/sine]不断搏动，你感觉到中心处一定有[aqua]一团强力花粉[/aqua]，但那起伏的花瓣[red]如刀锋般锋利[/red]且捉摸不定。\n\n你本可以只采集一些[gold]金色花蜜[/gold]，但中心处的那个奖赏实在是太诱人了…"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u91C7\u96C6\u82B1\u871C",
+        "text_en": "采集花蜜",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6DF1\u5165\u63A2\u7D22",
+        "text_en": "深入探索",
         "isLocked": false
       }
     ]
@@ -361,21 +361,21 @@
     "id": "FIELD_OF_MAN_SIZED_HOLES",
     "name": {
       "en": "Field of Man-Sized Holes",
-      "cn": "\u4EBA\u5F62\u6D1E\u7A74\u4E4B\u5730"
+      "cn": "人形洞穴之地"
     },
     "description": {
       "en": "The sudden sight of a massive field, [jitter]gouged with large outlines of bodies[/jitter], stops you in your tracks.\n\nOne of these outlines matches your own.\n\n[sine][orange]It\u0027s perfect...[/orange][/sine]",
-      "cn": "\u773C\u524D\u7A81\u7136\u51FA\u73B0\u4E00\u5927\u7247\u571F\u5730\uFF0C\u4E0A\u9762[jitter]\u51FF\u523B\u7740\u5BC6\u5BC6\u9EBB\u9EBB\u7684\u4EBA\u5F62\u8F6E\u5ED3[/jitter]\uFF0C\u8BA9\u4F60\u4E0D\u7531\u5F97\u505C\u4E0B\u4E86\u811A\u6B65\u3002\n\n\u5176\u4E2D\u6709\u4E00\u4E2A\u6D1E\u7684\u8F6E\u5ED3\uFF0C\u7ADF\u7136\u548C\u4F60\u7684\u4F53\u578B\u4E00\u6A21\u4E00\u6837\u3002\n\n[sine][orange]\u5B8C\u7F8E\u5951\u5408\u2026[/orange][/sine]"
+      "cn": "眼前突然出现一大片土地，上面[jitter]凿刻着密密麻麻的人形轮廓[/jitter]，让你不由得停下了脚步。\n\n其中有一个洞的轮廓，竟然和你的体型一模一样。\n\n[sine][orange]完美契合…[/orange][/sine]"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u62B5\u6297\u8BF1\u60D1",
+        "text_en": "抵抗诱惑",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u8FDB\u5165\u4F60\u7684\u6D1E",
+        "text_en": "进入你的洞",
         "isLocked": false
       }
     ]
@@ -384,21 +384,21 @@
     "id": "INFESTED_AUTOMATON",
     "name": {
       "en": "Infested Automaton",
-      "cn": "\u88AB\u5BC4\u751F\u7684\u81EA\u52A8\u673A\u68B0"
+      "cn": "被寄生的自动机械"
     },
     "description": {
       "en": "There\u0027s a chamber filled with [red]dead robots[/red].\n\nA lone automaton still has a [sine][aqua]faintly glowing core[/aqua][/sine] but it\u0027s engulfed by a grotesque, organic growth and doesn\u0027t respond.",
-      "cn": "\u8FD9\u95F4\u5BC6\u5BA4\u91CC\u5806\u6EE1\u4E86[red]\u62A5\u5E9F\u7684\u673A\u5668\u4EBA[/red]\u3002\n\n\u5176\u4E2D\u4E00\u53F0\u5B64\u96F6\u96F6\u7684\u81EA\u52A8\u673A\u68B0\uFF0C\u5176[sine][aqua]\u6838\u5FC3\u4ECD\u5728\u5E7D\u5E7D\u53D1\u5149[/aqua][/sine]\uFF0C\u4F46\u5B83\u5DF2\u88AB\u4E00\u79CD\u8BE1\u5F02\u7684\u6709\u673A\u589E\u751F\u7EC4\u7EC7\u541E\u6CA1\uFF0C\u6BEB\u65E0\u54CD\u5E94\u3002"
+      "cn": "这间密室里堆满了[red]报废的机器人[/red]。\n\n其中一台孤零零的自动机械，其[sine][aqua]核心仍在幽幽发光[/aqua][/sine]，但它已被一种诡异的有机增生组织吞没，毫无响应。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5B66\u4E60",
+        "text_en": "学习",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u89E6\u78B0\u6838\u5FC3",
+        "text_en": "触碰核心",
         "isLocked": false
       }
     ]
@@ -407,21 +407,21 @@
     "id": "LOST_WISP",
     "name": {
       "en": "The Lost Wisp",
-      "cn": "\u8FF7\u5931\u9B3C\u706B"
+      "cn": "迷失鬼火"
     },
     "description": {
       "en": "In the distance is an odd sight. Mounds and mounds of [sine][red]deceased insects[/red][/sine], surrounding what looks to be a [orange]small glowing mote[/orange].\nIt seems to be an effective attractant for all manner of bugs but you see it lash out some flames!\n\nYou move closer to investigate.",
-      "cn": "\u8FDC\u5904\u6709\u4E00\u5E55\u53E4\u602A\u7684\u666F\u8C61\u3002\u6210\u5806\u7684[sine][red]\u6606\u866B\u6B8B\u9AB8[/red][/sine]\u5C42\u5C42\u5806\u53E0\uFF0C\u56F4\u7ED5\u7740\u4E00\u4E2A\u50CF\u662F[orange]\u5FAE\u5C0F\u7684\u5149\u56E2[/orange]\u7684\u4E1C\u897F\u3002\n\u5B83\u4F3C\u4E4E\u5BF9\u5404\u79CD\u866B\u5B50\u90FD\u6709\u7740\u4E0D\u4FD7\u7684\u5438\u5F15\u529B\uFF0C\u4F46\u4F60\u5374\u76EE\u7779\u4E86\u5B83\u8FF8\u53D1\u51FA\u706B\u7130\uFF01\n\n\u4F60\u8D70\u8FD1\u524D\u53BB\u4E00\u63A2\u7A76\u7ADF\u3002"
+      "cn": "远处有一幕古怪的景象。成堆的[sine][red]昆虫残骸[/red][/sine]层层堆叠，围绕着一个像是[orange]微小的光团[/orange]的东西。\n它似乎对各种虫子都有着不俗的吸引力，但你却目睹了它迸发出火焰！\n\n你走近前去一探究竟。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u6293\u4F4F\u8FD9\u56E2\u9B3C\u706B",
+        "text_en": "抓住这团鬼火",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u641C\u7D22\u9644\u8FD1\u7684\u533A\u57DF",
+        "text_en": "搜索附近的区域",
         "isLocked": false
       }
     ]
@@ -430,21 +430,21 @@
     "id": "SPIRIT_GRAFTER",
     "name": {
       "en": "Spirit Grafter",
-      "cn": "\u7075\u9B42\u5AC1\u63A5\u8005"
+      "cn": "灵魂嫁接者"
     },
     "description": {
       "en": "Above, a cocoon is [jitter]shaking and wriggling[/jitter], about to burst forth!\n\n...it stops wriggling. [orange][sine]The cocoon ignites[/sine][/orange]! [jitter]What is going on?[/jitter]\nIn a flash of [gold]light[/gold] and [red]flame[/red], a [orange]Spirit Grafter[/orange] rushes into you, threatening to merge with your being to become complete.",
-      "cn": "\u5728\u4F60\u4E0A\u65B9\uFF0C\u4E00\u4E2A\u8327\u6B63\u5728[jitter]\u98A4\u52A8\u626D\u66F2[/jitter]\uFF0C\u4F3C\u4E4E\u5C31\u8981\u7834\u8327\u800C\u51FA\u4E86\uFF01\n\n\u2026\u2026\u5B83\u505C\u6B62\u4E86\u626D\u52A8\u3002[orange][sine]\u8327\u71C3\u70E7\u4E86\u8D77\u6765[/sine][/orange]\uFF01[jitter]\u53D1\u751F\u4EC0\u4E48\u4E8B\u4E86\uFF1F[/jitter]\n\u4E00\u9053[gold]\u5149\u8292[/gold]\u4E0E[red]\u70C8\u7130[/red]\u95EA\u8FC7\uFF0C\u4E00\u4E2A[orange]\u7075\u9B42\u5AC1\u63A5\u8005[/orange]\u5411\u4F60\u51B2\u6765\uFF0C\u8BD5\u56FE\u8981\u4E0E\u4F60\u878D\u4E3A\u4E00\u4F53\uFF0C\u4EE5\u6C42\u5B8C\u6574\u3002"
+      "cn": "在你上方，一个茧正在[jitter]颤动扭曲[/jitter]，似乎就要破茧而出了！\n\n……它停止了扭动。[orange][sine]茧燃烧了起来[/sine][/orange]！[jitter]发生什么事了？[/jitter]\n一道[gold]光芒[/gold]与[red]烈焰[/red]闪过，一个[orange]灵魂嫁接者[/orange]向你冲来，试图要与你融为一体，以求完整。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u63A5\u7EB3",
+        "text_en": "接纳",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u62D2\u7EDD",
+        "text_en": "拒绝",
         "isLocked": false
       }
     ]
@@ -453,21 +453,21 @@
     "id": "THE_LANTERN_KEY",
     "name": {
       "en": "The Lantern Key",
-      "cn": "\u706F\u706B\u94A5\u5319"
+      "cn": "灯火钥匙"
     },
     "description": {
-      "en": "You come upon a faintly glowing key and go to pick it up.\n\n\u201CBeen looking all over for that key! Now if you don\u0027t mind...\u201D\n\n This person looks like bad news but maybe it\u0027s not good to be judgy.",
-      "cn": "\u4F60\u53D1\u73B0\u4E86\u4E00\u628A\u53D1\u51FA\u5FAE\u5149\u7684\u94A5\u5319\uFF0C\u4E8E\u662F\u5C06\u5B83\u6361\u4E86\u8D77\u6765\u3002\n\n\u201C\u6211\u627E\u8FD9\u628A\u94A5\u5319\u53EF\u628A\u8FD9\u91CC\u7FFB\u4E86\u4E2A\u904D\uFF01\u4F60\u8981\u662F\u4E0D\u4ECB\u610F\u7684\u8BDD\u2026\u2026\u201D\n\n\u8FD9\u5BB6\u4F19\u770B\u8D77\u6765\u4E0D\u662F\u4EC0\u4E48\u597D\u4EBA\uFF0C\u4F46\u6216\u8BB8\u4F60\u4E5F\u4E0D\u8BE5\u4EE5\u8C8C\u53D6\u4EBA\u3002"
+      "en": "You come upon a faintly glowing key and go to pick it up.\n\n“Been looking all over for that key! Now if you don\u0027t mind...”\n\n This person looks like bad news but maybe it\u0027s not good to be judgy.",
+      "cn": "你发现了一把发出微光的钥匙，于是将它捡了起来。\n\n“我找这把钥匙可把这里翻了个遍！你要是不介意的话……”\n\n这家伙看起来不是什么好人，但或许你也不该以貌取人。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u4EA4\u8FD8\u94A5\u5319",
+        "text_en": "交还钥匙",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u7559\u4E0B\u94A5\u5319",
+        "text_en": "留下钥匙",
         "isLocked": false
       }
     ]
@@ -476,11 +476,11 @@
     "id": "ZEN_WEAVER",
     "name": {
       "en": "Zen Weaver",
-      "cn": "\u4FEE\u7985\u7EC7\u7F51\u8005"
+      "cn": "修禅织网者"
     },
     "description": {
-      "en": "You walk through a spider web and [jitter][red]PANIC[/red][/jitter]!\nBut then, a [sine][blue]wave of calm[/blue][/sine] washes over you...\n\n[sine]\u201CCalm down. I need you to quit fussing up my web.\u201D[/sine]\n\nHow did you calm down so quickly?\nAn [orange]itsy bitsy[/orange] spider abseils down to meet you. It seems willing to impart some techniques for [gold]gold[/gold].",
-      "cn": "\u4F60\u5728\u884C\u8D70\u65F6\u649E\u5230\u4E86\u4E00\u5F20\u8718\u86DB\u7F51\uFF0C\u7ACB\u5373[jitter][red]\u614C\u4E86\u795E[/red][/jitter]\uFF01\n\u53EF\u662F\u5F88\u5FEB\uFF0C\u4E00\u9635[sine][blue]\u5E73\u9759\u7684\u611F\u89C9[/blue][/sine]\u5E2D\u5377\u4E86\u4F60\u2026\u2026\n\n[sine]\u201C\u51B7\u9759\u4E0B\u6765\uFF0C\u6211\u9700\u8981\u4F60\u4E0D\u518D\u5F04\u574F\u6211\u7684\u7F51\u3002\u201D[/sine]\n\n\u4F60\u600E\u4E48\u4F1A\u8FD9\u4E48\u5FEB\u5C31\u51B7\u9759\u4E0B\u6765\u7684\u5462\uFF1F\n\u4E00\u53EA[orange]\u5C0F\u4E4B\u53C8\u5C0F[/orange]\u7684\u8718\u86DB\u6CBF\u7740\u4E1D\u7EBF\u964D\u843D\u4E0B\u6765\u4E0E\u4F60\u95EE\u597D\uFF0C\u5B83\u770B\u8D77\u6765\u613F\u610F\u6536\u53D6\u4E00\u4E9B[gold]\u91D1\u5E01[/gold]\u6765\u5206\u4EAB\u5B83\u7684\u90E8\u5206\u6280\u672F\u3002"
+      "en": "You walk through a spider web and [jitter][red]PANIC[/red][/jitter]!\nBut then, a [sine][blue]wave of calm[/blue][/sine] washes over you...\n\n[sine]“Calm down. I need you to quit fussing up my web.”[/sine]\n\nHow did you calm down so quickly?\nAn [orange]itsy bitsy[/orange] spider abseils down to meet you. It seems willing to impart some techniques for [gold]gold[/gold].",
+      "cn": "你在行走时撞到了一张蜘蛛网，立即[jitter][red]慌了神[/red][/jitter]！\n可是很快，一阵[sine][blue]平静的感觉[/blue][/sine]席卷了你……\n\n[sine]“冷静下来，我需要你不再弄坏我的网。”[/sine]\n\n你怎么会这么快就冷静下来的呢？\n一只[orange]小之又小[/orange]的蜘蛛沿着丝线降落下来与你问好，它看起来愿意收取一些[gold]金币[/gold]来分享它的部分技术。"
     },
     "options": []
   },
@@ -488,26 +488,26 @@
     "id": "BATTLEWORN_DUMMY",
     "name": {
       "en": "Battleworn Dummy",
-      "cn": "\u6218\u75D5\u7D2F\u7D2F\u7684\u8BAD\u7EC3\u5047\u4EBA"
+      "cn": "战痕累累的训练假人"
     },
     "description": {
-      "en": "As you approach, it begins to rumble and fizzle and lights up brilliantly!\n\n\u201C[jitter]BZZZT![/jitter] TIME TO TRAIN!!! YOU HAVE [blue]3 TURNS[/blue] TO DEFEAT ME!\nCHOOSE A SETTING OR FACE [red]LETHAL HUMILIATION[/red].\nHere are the options:\u201D\n\nAfter the terrifying message, the dummy carefully reads out detailed instructions.\n\nWhat do you choose?",
-      "cn": "\u5F53\u4F60\u9760\u8FD1\u65F6\uFF0C\u5B83\u7A81\u7136\u5F00\u59CB\u8F70\u9E23\uFF0C\u6ECB\u6ECB\u4F5C\u54CD\uFF0C\u968F\u540E\u7206\u53D1\u51FA\u8000\u773C\u7684\u5149\u8292\uFF01\n\n[b]\u201C[jitter]\u6ECB\u6ECB\uFF01[/jitter] \u8BAD\u7EC3\u65F6\u95F4\u5230\uFF01\uFF01\uFF01\u4F60\u6709[blue]3\u4E2A\u56DE\u5408[/blue]\u7684\u65F6\u95F4\u6765\u51FB\u8D25\u6211\uFF01\n\u9009\u62E9\u4E00\u4E2A\u6863\u4F4D\uFF0C\u5426\u5219\u5C31\u51C6\u5907\u597D\u9762\u5BF9[red]\u81F4\u547D\u7684\u7F9E\u8FB1[/red]\u5427\u3002[/b]\n\u4EE5\u4E0B\u662F\u53EF\u9009\u65B9\u6848\uFF1A\u201D\n\n\u5728\u53D1\u5E03\u5B8C\u8FD9\u6BB5\u6050\u6016\u7684\u5BA3\u8A00\u540E\uFF0C\u5047\u4EBA\u5F00\u59CB\u8BA4\u771F\u5730\u8BFB\u51FA\u8BE6\u7EC6\u7684\u6307\u4EE4\u3002\n\n\u8981\u9009\u54EA\u4E00\u4E2A\u5462\uFF1F"
+      "en": "As you approach, it begins to rumble and fizzle and lights up brilliantly!\n\n“[jitter]BZZZT![/jitter] TIME TO TRAIN!!! YOU HAVE [blue]3 TURNS[/blue] TO DEFEAT ME!\nCHOOSE A SETTING OR FACE [red]LETHAL HUMILIATION[/red].\nHere are the options:”\n\nAfter the terrifying message, the dummy carefully reads out detailed instructions.\n\nWhat do you choose?",
+      "cn": "当你靠近时，它突然开始轰鸣，滋滋作响，随后爆发出耀眼的光芒！\n\n[b]“[jitter]滋滋！[/jitter] 训练时间到！！！你有[blue]3个回合[/blue]的时间来击败我！\n选择一个档位，否则就准备好面对[red]致命的羞辱[/red]吧。[/b]\n以下是可选方案：”\n\n在发布完这段恐怖的宣言后，假人开始认真地读出详细的指令。\n\n要选哪一个呢？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u7B2C1\u6863",
+        "text_en": "第1档",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u7B2C2\u6863",
+        "text_en": "第2档",
         "isLocked": false
       },
       {
         "index": 2,
-        "text_en": "\u7B2C3\u6863",
+        "text_en": "第3档",
         "isLocked": false
       }
     ]
@@ -516,11 +516,11 @@
     "id": "GRAVE_OF_THE_FORGOTTEN",
     "name": {
       "en": "Grave of the Forgotten",
-      "cn": "\u9057\u5FD8\u4E4B\u5893"
+      "cn": "遗忘之墓"
     },
     "description": {
       "en": "There is a single grave with a [jitter][aqua]roiling blue flame[/aqua][/jitter]...\n\nA prideful warrior died in battle but its soul is restless. It wants to keep fighting, you feel it [sine]begging[/sine] to journey with you.\n\nBut perhaps it\u0027s better for it to face the [red]truth[/red]?",
-      "cn": "\u4E00\u5EA7\u5B64\u51A2\u4E0A[jitter][aqua]\u7FFB\u817E\u7740\u6C79\u6D8C\u7684\u84DD\u7130[/aqua][/jitter]\u2026\n\n\u4E00\u540D\u9AD8\u50B2\u7684\u6218\u58EB\u6218\u6B7B\u4E8E\u6B64\uFF0C\u7075\u9B42\u5374\u8E81\u52A8\u4E0D\u5B89\u3002\u4F46\u5B83\u6E34\u671B\u7EE7\u7EED\u6218\u6597\uFF0C\u4F60\u751A\u81F3\u80FD\u611F\u89C9\u5230\u5B83\u5728[sine]\u54C0\u6C42[/sine]\u4F60\u5E26\u7740\u5B83\u4E00\u8D77\u8E0F\u4E0A\u5F81\u9014\u3002\n\n\u4F46\u4E5F\u8BB8\uFF0C\u8BA9\u5B83\u76F4\u9762[red]\u771F\u76F8[/red]\u624D\u662F\u66F4\u597D\u7684\u9009\u62E9\uFF1F"
+      "cn": "一座孤冢上[jitter][aqua]翻腾着汹涌的蓝焰[/aqua][/jitter]…\n\n一名高傲的战士战死于此，灵魂却躁动不安。但它渴望继续战斗，你甚至能感觉到它在[sine]哀求[/sine]你带着它一起踏上征途。\n\n但也许，让它直面[red]真相[/red]才是更好的选择？"
     },
     "options": []
   },
@@ -528,21 +528,21 @@
     "id": "HUNGRY_FOR_MUSHROOMS",
     "name": {
       "en": "Hungry for Mushrooms",
-      "cn": "\u8611\u83C7\u9965\u6E34"
+      "cn": "蘑菇饥渴"
     },
     "description": {
       "en": "[sine]How long has it been since you ate?\n...wait, what\u0027s that fantastic smell?[/sine]\n\nFollowing the scent, you reach a cozy campground with all manner of [green]tasty mushrooms[/green] being cooked! You don\u0027t consider the safety of eating these mushrooms because you are so hungry.\n(So hungry that you don\u0027t notice the dead adventurer)",
-      "cn": "[sine]\u4E0A\u4E00\u6B21\u5403\u996D\u662F\u4EC0\u4E48\u65F6\u5019\u6765\u7740\uFF1F\n\u2026\u7B49\u7B49\uFF0C\u8FD9\u80A1\u5947\u5999\u7684\u9999\u5473\u662F\u600E\u4E48\u56DE\u4E8B\uFF1F[/sine]\n\n\u5FAA\u7740\u6C14\u5473\uFF0C\u4F60\u6765\u5230\u4E86\u4E00\u5904\u6E29\u99A8\u7684\u8425\u5730\uFF0C\u5404\u79CD[green]\u7F8E\u5473\u7684\u8611\u83C7[/green]\u6B63\u5728\u706B\u4E0A\u70E4\u7740\uFF01\u7531\u4E8E\u5B9E\u5728\u662F\u592A\u997F\u4E86\uFF0C\u4F60\u751A\u81F3\u5B8C\u5168\u6CA1\u60F3\u8FC7\u8FD9\u4E9B\u73A9\u610F\u513F\u5B89\u4E0D\u5B89\u5168\u3002\n\uFF08\u4F60\u997F\u5F97\u751A\u81F3\u8FDE\u65C1\u8FB9\u6709\u4E2A\u6B7B\u6389\u7684\u5192\u9669\u8005\u8FD9\u4E8B\u90FD\u6CA1\u6CE8\u610F\u5230\uFF09"
+      "cn": "[sine]上一次吃饭是什么时候来着？\n…等等，这股奇妙的香味是怎么回事？[/sine]\n\n循着气味，你来到了一处温馨的营地，各种[green]美味的蘑菇[/green]正在火上烤着！由于实在是太饿了，你甚至完全没想过这些玩意儿安不安全。\n（你饿得甚至连旁边有个死掉的冒险者这事都没注意到）"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5927\u8611\u83C7",
+        "text_en": "大蘑菇",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u82B3\u9999\u8611\u83C7",
+        "text_en": "芳香蘑菇",
         "isLocked": false
       }
     ]
@@ -551,21 +551,21 @@
     "id": "REFLECTIONS",
     "name": {
       "en": "Reflections snoitcelfeR",
-      "cn": "\u955C\u4E2D\u5012\u5F71  \u5F71\u5012\u4E2D\u955C"
+      "cn": "镜中倒影  影倒中镜"
     },
     "description": {
       "en": "What is this? Something feels wrong here...\n[sine]...ereh gnorw sleef gnihtemoS ?siht si tahW[/sine]",
-      "cn": "\u8FD9\u662F\u4EC0\u4E48\uFF1F\u8FD9\u91CC\u611F\u89C9\u4E0D\u592A\u5BF9\u52B2\u2026.\n[sine]\u2026.\u52B2\u5BF9\u592A\u4E0D\u89C9\u611F\u91CC\u8FD9\uFF1F\u4E48\u4EC0\u662F\u8FD9[/sine]"
+      "cn": "这是什么？这里感觉不太对劲….\n[sine]….劲对太不觉感里这？么什是这[/sine]"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u89E6\u78B0\u955C\u5B50",
+        "text_en": "触碰镜子",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6253\u788E",
+        "text_en": "打碎",
         "isLocked": false
       }
     ]
@@ -574,21 +574,21 @@
     "id": "ROUND_TEA_PARTY",
     "name": {
       "en": "The Round Tea Party",
-      "cn": "\u5706\u684C\u8336\u4F1A"
+      "cn": "圆桌茶会"
     },
     "description": {
-      "en": "You find an [orange]invitation[/orange] for a [blue]\u201CSir Galalot\u201D[/blue] to a tea party and decide to show up in his stead.\n\nUpon entering an unassuming rotunda, you find yourself in the midst of [gold]commanders[/gold], [aqua]generals[/aqua], [red]warlords[/red], and [blue]mercenaries[/blue] having... tea?\nThe gigantic knight donning a [gold]golden crown[/gold] speaks.\n\n[jitter]\u201CThou art late for [b]Tea[/b]?!\u201D[/jitter]",
-      "cn": "\u4F60\u627E\u5230\u4E86\u4E00\u4EFD\u9001\u7ED9[blue]\u201C\u52A0\u62C9\u6D1B\u7279\u7235\u58EB\u201D\u7684[/blue][orange]\u8BF7\u67EC[/orange]\uFF0C\u9080\u8BF7\u4ED6\u53C2\u52A0\u4E00\u6B21\u8336\u4F1A\uFF0C\u4E8E\u662F\u4F60\u51B3\u5B9A\u4EE3\u4ED6\u524D\u53BB\u3002\n\n\u8D70\u8FDB\u5176\u8C8C\u4E0D\u626C\u7684\u5706\u5F62\u5927\u5385\u65F6\uFF0C\u4F60\u53D1\u73B0\u8FD9\u91CC\u6709\u4E00\u5927\u7FA4[gold]\u6307\u6325\u5B98[/gold]\u3001[aqua]\u5C06\u519B[/aqua]\u3001[red]\u519B\u9600[/red]\u548C[blue]\u5546\u4EBA[/blue]\u4EEC\uFF0C\u6B63\u5728\u2026\u2026\u559D\u7740\u8336\uFF1F\n\u4E00\u4E2A\u5934\u6234[gold]\u91D1\u51A0[/gold]\u7684\u5DE8\u4EBA\u9A91\u58EB\u5F00\u53E3\u8BF4\u9053\uFF1A\n\n[jitter]\u201C\u6C5D\u6765[b]\u8336\u4F1A[/b]\u7ADF\u6562\u8FDF\u5230\uFF1F\uFF01\u201D[/jitter]"
+      "en": "You find an [orange]invitation[/orange] for a [blue]“Sir Galalot”[/blue] to a tea party and decide to show up in his stead.\n\nUpon entering an unassuming rotunda, you find yourself in the midst of [gold]commanders[/gold], [aqua]generals[/aqua], [red]warlords[/red], and [blue]mercenaries[/blue] having... tea?\nThe gigantic knight donning a [gold]golden crown[/gold] speaks.\n\n[jitter]“Thou art late for [b]Tea[/b]?!”[/jitter]",
+      "cn": "你找到了一份送给[blue]“加拉洛特爵士”的[/blue][orange]请柬[/orange]，邀请他参加一次茶会，于是你决定代他前去。\n\n走进其貌不扬的圆形大厅时，你发现这里有一大群[gold]指挥官[/gold]、[aqua]将军[/aqua]、[red]军阀[/red]和[blue]商人[/blue]们，正在……喝着茶？\n一个头戴[gold]金冠[/gold]的巨人骑士开口说道：\n\n[jitter]“汝来[b]茶会[/b]竟敢迟到？！”[/jitter]"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u559D\u676F\u597D\u8336",
+        "text_en": "喝杯好茶",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6311\u4E8B\u6597\u6BB4",
+        "text_en": "挑事斗殴",
         "isLocked": false
       }
     ]
@@ -597,21 +597,21 @@
     "id": "TRIAL",
     "name": {
       "en": "The Trial",
-      "cn": "\u5BA1\u5224"
+      "cn": "审判"
     },
     "description": {
-      "en": "You join a line of people entering a massive building.\n\nAs you pass under a [gold]golden archway[/gold], horns blare, [jitter]confetti explodes[/jitter], and [sine]streamers glide[/sine] down from the ceiling!\n\n\u201CEntrant [blue]{EntrantNumber}[/blue], you are the [green]DECIDER[/green] for today\u0027s [gold]Trial[/gold].\u201D",
-      "cn": "\u4F60\u6392\u8D77\u961F\uFF0C\u548C\u4F17\u4EBA\u4E00\u8D77\u8FDB\u5165\u4E00\u680B\u5DE8\u5927\u7684\u5EFA\u7B51\u7269\u3002\n\n\u5F53\u4F60\u901A\u8FC7\u4E00\u9053[gold]\u91D1\u8272\u7684\u62F1\u95E8[/gold]\u65F6\uFF0C\u7A81\u7136\u53F7\u89D2\u54CD\u8D77\u3001[jitter]\u5F69\u7EB8\u7206\u88C2\u98DE\u6563[/jitter]\u3001\u5929\u82B1\u677F\u4E0A\u8FD8\u98DE\u51FA\u4E86\u4F17\u591A[sine]\u5F69\u6761[/sine]\uFF01\n\n\u201C[blue]{EntrantNumber}[/blue]\u53F7\u8FDB\u5165\u8005\uFF0C\u4F60\u5C06\u6210\u4E3A\u4ECA\u5929[gold]\u5BA1\u5224[/gold]\u7684[green]\u5224\u51B3\u8005[/green]\u3002\u201D"
+      "en": "You join a line of people entering a massive building.\n\nAs you pass under a [gold]golden archway[/gold], horns blare, [jitter]confetti explodes[/jitter], and [sine]streamers glide[/sine] down from the ceiling!\n\n“Entrant [blue]{EntrantNumber}[/blue], you are the [green]DECIDER[/green] for today\u0027s [gold]Trial[/gold].”",
+      "cn": "你排起队，和众人一起进入一栋巨大的建筑物。\n\n当你通过一道[gold]金色的拱门[/gold]时，突然号角响起、[jitter]彩纸爆裂飞散[/jitter]、天花板上还飞出了众多[sine]彩条[/sine]！\n\n“[blue]{EntrantNumber}[/blue]号进入者，你将成为今天[gold]审判[/gold]的[green]判决者[/green]。”"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u63A5\u53D7",
+        "text_en": "接受",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u62D2\u7EDD",
+        "text_en": "拒绝",
         "isLocked": false
       }
     ]
@@ -620,16 +620,16 @@
     "id": "TINKER_TIME",
     "name": {
       "en": "Tinker Time",
-      "cn": "\u6253\u9020\u65F6\u95F4"
+      "cn": "打造时间"
     },
     "description": {
-      "en": "Navigating through an [red][sine]endless sea of corpses[/sine][/red], you find a [orange]mad scientist[/orange] scavenging for various scraps.\n\n\u201CYes. Hi, hello! You look like a capable fighter... I need a tester for my next [green]atrocity device[/green]! How about it?\u201D",
-      "cn": "\u4F60\u5728\u7FFB\u8D8A[red][sine]\u6570\u4E0D\u5C3D\u7684\u5C38\u5C71\u8840\u6D77[/sine][/red]\u4E4B\u65F6\uFF0C\u9047\u5230\u4E86\u4E00\u4F4D\u6B63\u5728\u641C\u5BFB\u7834\u70C2\u7684[orange]\u75AF\u72C2\u79D1\u5B66\u5BB6[/orange]\u3002\n\n\u201C\u662F\u7684\uFF0C\u55E8\uFF0C\u4F60\u597D\uFF01\u4F60\u770B\u8D77\u6765\u662F\u4E2A\u6709\u5B9E\u529B\u7684\u6218\u58EB\u2026\u2026\u6211\u7684\u4E0B\u4E00\u4EF6[green]\u66B4\u884C\u88C5\u5907[/green]\u6B63\u9700\u8981\u4E00\u4E2A\u6D4B\u8BD5\u5458\uFF01\u4F60\u89C9\u5F97\u600E\u4E48\u6837\uFF1F\u201D"
+      "en": "Navigating through an [red][sine]endless sea of corpses[/sine][/red], you find a [orange]mad scientist[/orange] scavenging for various scraps.\n\n“Yes. Hi, hello! You look like a capable fighter... I need a tester for my next [green]atrocity device[/green]! How about it?”",
+      "cn": "你在翻越[red][sine]数不尽的尸山血海[/sine][/red]之时，遇到了一位正在搜寻破烂的[orange]疯狂科学家[/orange]。\n\n“是的，嗨，你好！你看起来是个有实力的战士……我的下一件[green]暴行装备[/green]正需要一个测试员！你觉得怎么样？”"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u63A5\u53D7",
+        "text_en": "接受",
         "isLocked": false
       }
     ]
@@ -638,21 +638,21 @@
     "id": "ABYSSAL_BATHS",
     "name": {
       "en": "Abyssal Baths",
-      "cn": "\u6DF1\u6E0A\u6D74\u573A"
+      "cn": "深渊浴场"
     },
     "description": {
       "en": "You discover a secluded chamber.\n\nSteam rises from bubbling pools of hot liquid that shifts colors with hypnotic rhythm. Barnacled growths hang from the ceiling, dripping viscous fluid that hisses and writhes when it touches the surface. The air feels heavy, laden with [blue]salt[/blue] and something [green]unmistakably organic[/green].\n\nAs you approach the edge of the largest pool, the liquid ripples. The waters bubble more intensely as if anticipating your entry.",
-      "cn": "\u4F60\u53D1\u73B0\u4E86\u4E00\u95F4\u50FB\u9759\u7684\u5BC6\u5BA4\u3002\n\n\u6C24\u6C32\u7684\u96FE\u6C14\u4ECE\u6CB8\u817E\u7684\u6C60\u6C34\u4E2D\u5347\u817E\u800C\u8D77\uFF0C\u6C60\u6C34\u7684\u8272\u6CFD\u6B63\u4EE5\u4E00\u79CD\u50AC\u7720\u822C\u7684\u8282\u594F\u53D8\u5E7B\u3002\u5929\u82B1\u677F\u4E0A\u5782\u6302\u7740\u8986\u6EE1\u85E4\u58F6\u7684\u5F02\u5F62\u751F\u957F\u7269\uFF0C\u6EF4\u843D\u7684\u9ECF\u7A20\u6DB2\u4F53\u5728\u89E6\u53CA\u6C34\u9762\u7684\u77AC\u95F4\uFF0C\u4E00\u8FB9\u53D1\u51FA\u5636\u5636\u58F0\uFF0C\u4E00\u8FB9\u5982\u6D3B\u7269\u822C\u626D\u52A8\u6323\u624E\u3002\u7A7A\u6C14\u7C98\u6EDE\u6C89\u91CD\uFF0C\u5145\u65A5\u7740[blue]\u76D0[/blue]\u7684\u5473\u9053\u548C\u67D0\u79CD[green]\u4E0D\u8A00\u800C\u55BB\u7684\u6D3B\u7269\u7684\u6C14\u606F[/green]\u3002\n\n\u5F53\u4F60\u9760\u8FD1\u90A3\u53E3\u6700\u5927\u7684\u6C34\u6C60\u65F6\uFF0C\u6DB2\u9762\u6CDB\u8D77\u4E86\u6D9F\u6F2A\u3002\u6C34\u6D41\u7FFB\u817E\u5F97\u6108\u53D1\u72C2\u4E71\uFF0C\u4EFF\u4F5B\u6B63\u671F\u5F85\u7740\u4F60\u7684\u5230\u6765\u3002"
+      "cn": "你发现了一间僻静的密室。\n\n氤氲的雾气从沸腾的池水中升腾而起，池水的色泽正以一种催眠般的节奏变幻。天花板上垂挂着覆满藤壶的异形生长物，滴落的黏稠液体在触及水面的瞬间，一边发出嘶嘶声，一边如活物般扭动挣扎。空气粘滞沉重，充斥着[blue]盐[/blue]的味道和某种[green]不言而喻的活物的气息[/green]。\n\n当你靠近那口最大的水池时，液面泛起了涟漪。水流翻腾得愈发狂乱，仿佛正期待着你的到来。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u6295\u8EAB\u5176\u4E2D",
+        "text_en": "投身其中",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u656C\u800C\u8FDC\u4E4B",
+        "text_en": "敬而远之",
         "isLocked": false
       }
     ]
@@ -661,21 +661,21 @@
     "id": "DROWNING_BEACON",
     "name": {
       "en": "Drowning Beacon",
-      "cn": "\u6DF9\u6C34\u706F\u5854"
+      "cn": "淹水灯塔"
     },
     "description": {
       "en": "Crossing a dreamscape of rocks and still waters, you emerge to face a [sine]sinking lighthouse[/sine] emitting [purple]anti-light[/purple].\n\nYou can bottle up the [aqua][sine]eerily-glowing water[/sine][/aqua] that has pooled here or climb up the dilapidated structure to retrieve the [gold]lens[/gold].",
-      "cn": "\u7A7F\u8FC7\u4E00\u7247\u7531\u5CA9\u77F3\u4E0E\u9759\u6C34\u6784\u6210\u7684\u68A6\u5E7B\u4E4B\u5883\uFF0C\u4F60\u6765\u5230\u4E86\u4E00\u5EA7\u6563\u53D1\u7740[purple]\u9006\u6D41\u5149[/purple]\u7684[sine]\u6C89\u6CA1\u706F\u5854[/sine]\u524D\u3002\n\n\u4F60\u53EF\u4EE5\u628A\u79EF\u805A\u5728\u6B64\u7684[aqua][sine]\u8BE1\u5F02\u53D1\u5149\u6C34[/sine][/aqua]\u88C5\u8FDB\u74F6\u5B50\u91CC\uFF0C\u6216\u8005\u722C\u4E0A\u8FD9\u5EA7\u7834\u8D25\u7684\u5EFA\u7B51\uFF0C\u53D6\u4E0B\u5176\u4E2D\u7684[gold]\u900F\u955C[/gold]\u3002"
+      "cn": "穿过一片由岩石与静水构成的梦幻之境，你来到了一座散发着[purple]逆流光[/purple]的[sine]沉没灯塔[/sine]前。\n\n你可以把积聚在此的[aqua][sine]诡异发光水[/sine][/aqua]装进瓶子里，或者爬上这座破败的建筑，取下其中的[gold]透镜[/gold]。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u88C5\u74F6",
+        "text_en": "装瓶",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6500\u722C",
+        "text_en": "攀爬",
         "isLocked": false
       }
     ]
@@ -684,11 +684,11 @@
     "id": "ENDLESS_CONVEYOR",
     "name": {
       "en": "Endless Conveyor",
-      "cn": "\u65E0\u5C3D\u4F20\u9001\u5E26"
+      "cn": "无尽传送带"
     },
     "description": {
-      "en": "You lumber into a shack with a bright but crooked sign that reads:\n[aqua]\u201CENDLESS FEAST - PAY WHAT YOU HUNGER!\u201D[/aqua]\n\nInside, a [orange]willowy multi-armed chef[/orange] is deftly preparing [green]bites of food[/green] and placing them onto a [sine]winding chitinous belt[/sine].\n\nOne of the chef\u0027s arms point to a sign:\n[blue]35[/blue] [gold]Gold[/gold] each",
-      "cn": "\u4F60\u8D70\u8FDB\u4E00\u95F4\u6302\u7740\u6B6A\u659C\u62DB\u724C\u7684\u5C0F\u6728\u5C4B\uFF0C\u62DB\u724C\u4EAE\u5F97\u53D1\u6643\uFF0C\u4E0A\u9762\u5199\u7740\uFF1A\n[aqua][b]\u201C\u65E0\u5C3D\u76DB\u5BB4\u2014\u6309\u997F\u4ED8\u8D39\uFF01\u201D[/b][/aqua]\n\n\u5C4B\u91CC\uFF0C\u4E00\u4F4D[orange]\u8EAB\u5F62\u4FEE\u957F\u7684\u591A\u81C2\u5927\u53A8[/orange]\u6B63\u719F\u7EC3\u5730\u51C6\u5907\u7740[green]\u4E00\u4EFD\u4EFD\u5C0F\u98DF[/green]\uFF0C\u5E76\u5C06\u5B83\u4EEC\u6446\u5728\u4E00\u6761[sine]\u873F\u8712\u7684\u51E0\u4E01\u8D28\u4F20\u9001\u5E26[/sine]\u4E0A\u3002\n\n\u5927\u53A8\u5176\u4E2D\u7684\u4E00\u53EA\u624B\u81C2\u6307\u5411\u4E00\u5757\u724C\u5B50\uFF1A\n\u6BCF\u4EFD[blue]35[/blue][gold]\u91D1\u5E01[/gold]"
+      "en": "You lumber into a shack with a bright but crooked sign that reads:\n[aqua]“ENDLESS FEAST - PAY WHAT YOU HUNGER!”[/aqua]\n\nInside, a [orange]willowy multi-armed chef[/orange] is deftly preparing [green]bites of food[/green] and placing them onto a [sine]winding chitinous belt[/sine].\n\nOne of the chef\u0027s arms point to a sign:\n[blue]35[/blue] [gold]Gold[/gold] each",
+      "cn": "你走进一间挂着歪斜招牌的小木屋，招牌亮得发晃，上面写着：\n[aqua][b]“无尽盛宴—按饿付费！”[/b][/aqua]\n\n屋里，一位[orange]身形修长的多臂大厨[/orange]正熟练地准备着[green]一份份小食[/green]，并将它们摆在一条[sine]蜿蜒的几丁质传送带[/sine]上。\n\n大厨其中的一只手臂指向一块牌子：\n每份[blue]35[/blue][gold]金币[/gold]"
     },
     "options": []
   },
@@ -696,21 +696,21 @@
     "id": "PUNCH_OFF",
     "name": {
       "en": "Punch Off",
-      "cn": "\u91CD\u62F3\u51FA\u51FB"
+      "cn": "重拳出击"
     },
     "description": {
       "en": "Two [gold]Punch Constructs[/gold] are duking it out and you see some treasure in between them...\n\nShould you try to nab it?",
-      "cn": "\u4E24\u4E2A[gold]\u62F3\u51FB\u6784\u88C5\u4F53[/gold]\u6B63\u5728\u6325\u62F3\u4E92\u6BB4\uFF0C\u800C\u4F60\u770B\u5230\u5728\u5B83\u4EEC\u4E24\u4E2A\u4E4B\u95F4\u6709\u4E00\u4E9B\u8D22\u5B9D\u2026\u2026\n\n\u8981\u4E0D\u8981\u628A\u8D22\u5B9D\u987A\u8D70\uFF1F"
+      "cn": "两个[gold]拳击构装体[/gold]正在挥拳互殴，而你看到在它们两个之间有一些财宝……\n\n要不要把财宝顺走？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u987A\u8D70",
+        "text_en": "顺走",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6211\u80FD\u6253\u4E24\u4E2A",
+        "text_en": "我能打两个",
         "isLocked": false
       }
     ]
@@ -719,21 +719,21 @@
     "id": "SPIRALING_WHIRLPOOL",
     "name": {
       "en": "Spiraling Whirlpool",
-      "cn": "\u87BA\u65CB\u6F29\u6DA1"
+      "cn": "螺旋漩涡"
     },
     "description": {
       "en": "You happen upon a [aqua][sine]Massive Spiraling Whirlpool[/sine][/aqua]. The water swirls with beautiful precision and its surrounding walls are adorned with spiral patterns.\n\n[purple][sine]Around and around... around...\n....and around.... what a sight......[/sine][/purple]\n\nWhat do you do?",
-      "cn": "\u4F60\u5076\u9047\u4E86\u4E00\u4E2A[aqua][sine]\u5DE8\u5927\u7684\u87BA\u65CB\u6F29\u6DA1[/sine][/aqua]\u3002\u6C34\u6D41\u4EE5\u7CBE\u51C6\u800C\u4F18\u96C5\u7684\u97F5\u5F8B\u56DE\u65CB\u7740\uFF0C\u56DB\u5468\u7684\u5899\u58C1\u4E5F\u5E03\u6EE1\u4E86\u87BA\u65CB\u7EB9\u8DEF\u3002\n\n[purple][sine]\u8F6C\u554A\uFF0C\u8F6C\u554A\u2026\u8F6C\u2026\n\u2026\u8F6C\u4E2A\u4E0D\u505C\u2026\u4F55\u7B49\u5947\u666F\u2026[/sine][/purple]\n\n\u4F60\u8981\u505A\u4EC0\u4E48\u5462\uFF1F\uFF1F"
+      "cn": "你偶遇了一个[aqua][sine]巨大的螺旋漩涡[/sine][/aqua]。水流以精准而优雅的韵律回旋着，四周的墙壁也布满了螺旋纹路。\n\n[purple][sine]转啊，转啊…转…\n…转个不停…何等奇景…[/sine][/purple]\n\n你要做什么呢？？"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u89C2\u5BDF",
+        "text_en": "观察",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u996E\u7528",
+        "text_en": "饮用",
         "isLocked": false
       }
     ]
@@ -742,21 +742,21 @@
     "id": "SUNKEN_TREASURY",
     "name": {
       "en": "Sunken Treasury",
-      "cn": "\u6DF9\u6C34\u91D1\u5E93"
+      "cn": "淹水金库"
     },
     "description": {
       "en": "A path leads you into a partially submerged vault.\nThere are [blue]2[/blue] [gold]chests[/gold] but only [blue]1[/blue] [jitter][purple]brittle key[/purple][/jitter].\n\n[gold]The First Chest:[/gold] Shaking it, you get jingly-jangly noises. Bit of gold.\n[gold]The Second Chest:[/gold] Enormous, ornate, and clearly [red]cursed[/red]. Lots of gold!",
-      "cn": "\u4E00\u6761\u5C0F\u8DEF\u8BA9\u4F60\u627E\u5230\u4E86\u4E00\u4E2A\u90E8\u5206\u6DF9\u6C34\u7684\u91D1\u5E93\u3002\n\u4F60\u770B\u5230\u91CC\u9762\u6709[blue]2[/blue]\u4E2A[gold]\u7BB1\u5B50[/gold]\uFF0C\u4F46\u5374\u53EA\u6709[blue]1[/blue]\u628A[jitter][purple]\u8106\u5F31\u7684\u94A5\u5319[/purple][/jitter]\u3002\n\n[gold]\u7B2C\u4E00\u4E2A\u7BB1\u5B50\uFF1A[/gold]\u4F60\u6447\u6643\u4E86\u4E00\u4E0B\uFF0C\u80FD\u542C\u5230\u53EE\u94C3\u54D0\u5577\u7684\u8F7B\u54CD\uFF0C\u5E94\u8BE5\u662F\u5C11\u91CF\u91D1\u5E01\u3002\n[gold]\u7B2C\u4E8C\u4E2A\u7BB1\u5B50\uFF1A[/gold]\u5DE8\u5927\u3001\u7CBE\u81F4\u3001\u800C\u4E14\u663E\u7136[red]\u88AB\u8BC5\u5492\u4E86[/red]\u3002\u91CC\u9762\u6709\u5F88\u591A\u91D1\u5E01\uFF01"
+      "cn": "一条小路让你找到了一个部分淹水的金库。\n你看到里面有[blue]2[/blue]个[gold]箱子[/gold]，但却只有[blue]1[/blue]把[jitter][purple]脆弱的钥匙[/purple][/jitter]。\n\n[gold]第一个箱子：[/gold]你摇晃了一下，能听到叮铃哐啷的轻响，应该是少量金币。\n[gold]第二个箱子：[/gold]巨大、精致、而且显然[red]被诅咒了[/red]。里面有很多金币！"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u7B2C\u4E00\u4E2A\u7BB1\u5B50",
+        "text_en": "第一个箱子",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u7B2C\u4E8C\u4E2A\u7BB1\u5B50",
+        "text_en": "第二个箱子",
         "isLocked": false
       }
     ]
@@ -765,21 +765,21 @@
     "id": "DOORS_OF_LIGHT_AND_DARK",
     "name": {
       "en": "Doors of Light and Dark",
-      "cn": "\u5149\u4E0E\u6697\u7684\u95E8\u6249"
+      "cn": "光与暗的门扉"
     },
     "description": {
-      "en": "A doorway existed where none existed moments before...\n\nYou enter to find two shimmering doorways and a [gold]well-dressed doorman[/gold].\n\u201CFinally, a visitor! Please please! Choose a door, any door!\u201D\n\n[blue]Are we still in the Spire? How is this place so clean?[/blue]",
-      "cn": "\u4E00\u9053\u95E8\u6249\u7A81\u7136\u51ED\u7A7A\u51FA\u73B0\u4E86\u2026\n\n\u4F60\u6B65\u5165\u5176\u4E2D\uFF0C\u89C1\u5230\u4E86\u4E24\u9053\u6563\u53D1\u7740\u5FAE\u5149\u7684\u95E8\uFF0C\u4EE5\u53CA\u4E00\u4F4D[gold]\u8863\u7740\u5F97\u4F53\u7684\u770B\u95E8\u4EBA[/gold]\u3002\n\u201C\u7EC8\u4E8E\u6709\u8BBF\u5BA2\u4E86\uFF01\u8BF7\uFF0C\u8BF7\uFF01\u9009\u4E00\u6247\u95E8\uFF0C\u4EFB\u4F55\u4E00\u6247\u90FD\u53EF\u4EE5\uFF01\u201D\n\n[blue]\u6211\u4EEC\u8FD8\u5728\u5C16\u5854\u91CC\u5417\uFF1F\u8FD9\u5730\u65B9\u4E3A\u4F55\u7ADF\u5982\u6B64\u6D01\u51C0\uFF1F[/blue]"
+      "en": "A doorway existed where none existed moments before...\n\nYou enter to find two shimmering doorways and a [gold]well-dressed doorman[/gold].\n“Finally, a visitor! Please please! Choose a door, any door!”\n\n[blue]Are we still in the Spire? How is this place so clean?[/blue]",
+      "cn": "一道门扉突然凭空出现了…\n\n你步入其中，见到了两道散发着微光的门，以及一位[gold]衣着得体的看门人[/gold]。\n“终于有访客了！请，请！选一扇门，任何一扇都可以！”\n\n[blue]我们还在尖塔里吗？这地方为何竟如此洁净？[/blue]"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5149\u4E4B\u95E8",
+        "text_en": "光之门",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6697\u4E4B\u95E8",
+        "text_en": "暗之门",
         "isLocked": false
       }
     ]
@@ -788,21 +788,21 @@
     "id": "TRASH_HEAP",
     "name": {
       "en": "Trash Heap",
-      "cn": "\u5783\u573E\u5806"
+      "cn": "垃圾堆"
     },
     "description": {
       "en": "You discover a towering pile of [red][jitter]scrapped weapons[/jitter][/red], [orange]discarded trinkets[/orange], and [purple][sine]other oddities[/sine][/purple]. The massive pile shifts and rumbles, as if growing from within...\n\nIf you scavenge from the surface, you may find some decent things. But if you really get in there, you may find some [gold]exotic treasures[/gold].",
-      "cn": "\u4F60\u53D1\u73B0\u4E86\u4E00\u5EA7\u5982\u5C71\u822C\u5806\u79EF\u7684\u5783\u573E\uFF0C\u91CC\u9762\u6709\u7740[red][jitter]\u5E9F\u65E7\u6B66\u5668[/jitter][/red]\u3001[orange]\u9057\u5F03\u9970\u54C1[/orange]\u548C\u4F17\u591A[purple][sine]\u5176\u4ED6\u53E4\u602A\u73A9\u610F\u513F[/sine][/purple]\u3002\u5783\u573E\u5806\u6447\u6446\u6643\u52A8\u7740\uFF0C\u4EFF\u4F5B\u6B63\u5728\u4ECE\u5185\u90E8\u4E0D\u65AD\u751F\u957F\u53D8\u5927\u2026\u2026\n\n\u5982\u679C\u4F60\u4ECE\u8868\u9762\u641C\u7D22\uFF0C\u5E94\u8BE5\u80FD\u627E\u5230\u4E00\u4E9B\u597D\u4E1C\u897F\u3002\u4F46\u5982\u679C\u4F60\u52AA\u52AA\u529B\u624E\u8FDB\u5783\u573E\u5806\u91CC\u9762\uFF0C\u90A3\u5C31\u80FD\u627E\u5230\u4E00\u4E9B[gold]\u5947\u73CD\u5F02\u5B9D[/gold]\u3002"
+      "cn": "你发现了一座如山般堆积的垃圾，里面有着[red][jitter]废旧武器[/jitter][/red]、[orange]遗弃饰品[/orange]和众多[purple][sine]其他古怪玩意儿[/sine][/purple]。垃圾堆摇摆晃动着，仿佛正在从内部不断生长变大……\n\n如果你从表面搜索，应该能找到一些好东西。但如果你努努力扎进垃圾堆里面，那就能找到一些[gold]奇珍异宝[/gold]。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u624E\u8FDB\u5783\u573E\u5806",
+        "text_en": "扎进垃圾堆",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u968F\u4FBF\u62FF\u70B9\u5783\u573E",
+        "text_en": "随便拿点垃圾",
         "isLocked": false
       }
     ]
@@ -811,11 +811,11 @@
     "id": "WATERLOGGED_SCRIPTORIUM",
     "name": {
       "en": "Waterlogged Scriptorium",
-      "cn": "\u6C34\u6F2B\u7F2E\u5199\u5BA4"
+      "cn": "水漫缮写室"
     },
     "description": {
       "en": "Navigating the murky passages, you stumble upon a [aqua]withered figure[/aqua] working a small shop. The multitude of shelves are [sine]stuffed[/sine] full of damp scrolls and parchment.\n\nNoticing a patron has entered, the [aqua]scribe-shopkeeper[/aqua] snaps to attention and gestures at some [gold]implements[/gold] arranged on a desk.",
-      "cn": "\u5728\u660F\u6697\u7684\u901A\u9053\u4E2D\u524D\u884C\u65F6\uFF0C\u4F60\u627E\u5230\u4E86\u4E00\u4E2A\u5C0F\u5E97\uFF0C\u91CC\u9762\u6709\u4E00\u4E2A[aqua]\u6194\u60B4\u7684\u5458\u5DE5[/aqua]\u3002\u56DB\u5468\u7684\u4E66\u67B6\u4E0A[sine]\u585E\u6EE1\u4E86[/sine]\u65E0\u6570\u6F6E\u6E7F\u7684\u5377\u8F74\u4E0E\u7F8A\u76AE\u7EB8\u3002\n\n[aqua]\u6284\u5199\u5458\u517C\u5E97\u4E3B[/aqua]\u6CE8\u610F\u5230\u6709\u5BA2\u4EBA\u8FDB\u5E97\uFF0C\u731B\u5730\u56DE\u8FC7\u795E\u6765\uFF0C\u4E3A\u4F60\u6307\u4E86\u6307\u4E66\u684C\u4E0A\u6446\u653E\u7740\u7684\u4E00\u4E9B[gold]\u5668\u5177[/gold]\u3002"
+      "cn": "在昏暗的通道中前行时，你找到了一个小店，里面有一个[aqua]憔悴的员工[/aqua]。四周的书架上[sine]塞满了[/sine]无数潮湿的卷轴与羊皮纸。\n\n[aqua]抄写员兼店主[/aqua]注意到有客人进店，猛地回过神来，为你指了指书桌上摆放着的一些[gold]器具[/gold]。"
     },
     "options": []
   },
@@ -823,21 +823,21 @@
     "id": "BRAIN_LEECH",
     "name": {
       "en": "Brain Leech",
-      "cn": "\u8111\u86ED"
+      "cn": "脑蛭"
     },
     "description": {
-      "en": "[jitter]*thunk*[/jitter]\n\nA sharp pain is felt atop your head and a thought stabs into your mind.\n\n[purple][sine]\u201CSHARE KNOWLEDGE???\u201D[/sine][/purple]\n\nYou are unsure how to proceed...",
-      "cn": "[jitter]\u549A\uFF01[/jitter]\n\n\u4F60\u7684\u5934\u9876\u4F20\u6765\u4E00\u9635\u523A\u75DB\uFF0C\u4E00\u4E2A\u5FF5\u5934\u523A\u5165\u4E86\u4F60\u7684\u8111\u6D77\u3002\n\n[purple][sine][b]\u201C\u5206\u4EAB\u77E5\u8BC6\u5417\uFF1F\uFF1F\uFF1F\u201D[/b][/sine][/purple]\n\n\u4F60\u4E0D\u77E5\u5982\u4F55\u662F\u597D\u2026"
+      "en": "[jitter]*thunk*[/jitter]\n\nA sharp pain is felt atop your head and a thought stabs into your mind.\n\n[purple][sine]“SHARE KNOWLEDGE???”[/sine][/purple]\n\nYou are unsure how to proceed...",
+      "cn": "[jitter]咚！[/jitter]\n\n你的头顶传来一阵刺痛，一个念头刺入了你的脑海。\n\n[purple][sine][b]“分享知识吗？？？”[/b][/sine][/purple]\n\n你不知如何是好…"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5206\u4EAB\u77E5\u8BC6",
+        "text_en": "分享知识",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u628A\u5B83\u626F\u4E0B\u6765",
+        "text_en": "把它扯下来",
         "isLocked": false
       }
     ]
@@ -846,21 +846,21 @@
     "id": "CRYSTAL_SPHERE",
     "name": {
       "en": "Crystal Sphere",
-      "cn": "\u6C34\u6676\u7403"
+      "cn": "水晶球"
     },
     "description": {
-      "en": "[sine][blue]\u201CI predicted you\u0027d enter...!\u201D[/blue][/sine]\n\nA [jitter]raspy[/jitter] voice calls out as you enter a [purple]mystic hut[/purple].\n\n[sine][blue]\u201CYour destiny has brought you here. We must uncover your future and fortunes so you can SAVE US ALL!!\u201D[/blue][/sine]\n\u201COkay, here are the options for the [gold]Crystal Sphere reading[/gold]. Be sure to sign this waiver as well,\u201D she says while bringing out pen and parchment.",
-      "cn": "[sine][blue]\u201C\u6211\u9884\u89C1\u5230\u4E86\u4F60\u7684\u5230\u6765\u2026\uFF01\u201D[/blue][/sine]\n\n\u5F53\u4F60\u8D70\u8FDB\u4E00\u95F4[purple]\u795E\u79D8\u5C0F\u5C4B[/purple]\u65F6\uFF0C\u4E00\u4E2A[jitter]\u6C99\u54D1[/jitter]\u7684\u58F0\u97F3\u4F20\u4E86\u8FC7\u6765\u3002\n\n[sine][blue]\u201C\u4F60\u7684\u547D\u8FD0\u6307\u5F15\u4F60\u6765\u5230\u6B64\u5904\u3002\u6211\u4EEC\u5FC5\u987B\u63ED\u5F00\u4F60\u7684\u672A\u6765\u4E0E\u8FD0\u52BF\uFF0C\u8FD9\u6837\u4F60\u624D\u80FD\u62EF\u6551\u6211\u4EEC\u6240\u6709\u4EBA\uFF01\uFF01\u201D[/blue][/sine]\n\u201C\u597D\u5566\uFF0C\u8FD9\u662F\u8FDB\u884C[gold]\u6C34\u6676\u7403\u5360\u535C[/gold]\u7684\u51E0\u4E2A\u9009\u9879\u3002\u53E6\u5916\uFF0C\u8BB0\u5F97\u628A\u8FD9\u4EFD\u514D\u8D23\u534F\u8BAE\u4E5F\u7B7E\u4E86\uFF0C\u201D\u5979\u4E00\u8FB9\u8BF4\u7740\uFF0C\u4E00\u8FB9\u62FF\u51FA\u4E86\u7B14\u548C\u7F8A\u76AE\u7EB8\u3002"
+      "en": "[sine][blue]“I predicted you\u0027d enter...!”[/blue][/sine]\n\nA [jitter]raspy[/jitter] voice calls out as you enter a [purple]mystic hut[/purple].\n\n[sine][blue]“Your destiny has brought you here. We must uncover your future and fortunes so you can SAVE US ALL!!”[/blue][/sine]\n“Okay, here are the options for the [gold]Crystal Sphere reading[/gold]. Be sure to sign this waiver as well,” she says while bringing out pen and parchment.",
+      "cn": "[sine][blue]“我预见到了你的到来…！”[/blue][/sine]\n\n当你走进一间[purple]神秘小屋[/purple]时，一个[jitter]沙哑[/jitter]的声音传了过来。\n\n[sine][blue]“你的命运指引你来到此处。我们必须揭开你的未来与运势，这样你才能拯救我们所有人！！”[/blue][/sine]\n“好啦，这是进行[gold]水晶球占卜[/gold]的几个选项。另外，记得把这份免责协议也签了，”她一边说着，一边拿出了笔和羊皮纸。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u63ED\u5E55\u672A\u6765",
+        "text_en": "揭幕未来",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u5206\u671F\u4ED8\u6B3E",
+        "text_en": "分期付款",
         "isLocked": false
       }
     ]
@@ -869,26 +869,26 @@
     "id": "DOLL_ROOM",
     "name": {
       "en": "Doll Room",
-      "cn": "\u73A9\u5076\u5BA4"
+      "cn": "玩偶室"
     },
     "description": {
       "en": "You enter a hidden room...\n\nIt\u0027s packed with an array of dolls. Each are unique, their expressions ranging from [green]joy[/green] to [purple]sorrow[/purple], their attire spanning centuries and realms beyond your own.\n\nA [sine][blue]chorus of whispers[/blue][/sine] grows louder and louder until [jitter][red]the dolls are shouting[/red][/jitter] over each other and calling for you...\n\nYou must choose one and leave immediately.",
-      "cn": "\u4F60\u8D70\u8FDB\u4E86\u4E00\u95F4\u9690\u85CF\u7684\u5BC6\u5BA4\u2026\u2026\n\n\u8FD9\u91CC\u5806\u6EE1\u4E86\u7433\u7405\u6EE1\u76EE\u7684\u73A9\u5076\u3002\u6BCF\u4E00\u53EA\u90FD\u72EC\u4E00\u65E0\u4E8C\uFF0C\u5B83\u4EEC\u7684\u8868\u60C5\u4EA6\u4ECE[green]\u559C\u60A6[/green]\u5230[purple]\u60B2\u54C0[/purple]\u5404\u4E0D\u76F8\u540C\uFF0C\u5176\u670D\u9970\u8DE8\u8D8A\u4E86\u6570\u4E2A\u4E16\u7EAA\uFF0C\u751A\u81F3\u6765\u81EA\u4F60\u8BA4\u77E5\u4E4B\u5916\u7684\u9886\u57DF\u3002\n\n\u4E00\u9635[sine][blue]\u4F4E\u8BED\u7684\u5408\u5531[/blue][/sine]\u53D8\u5F97\u8D8A\u6765\u8D8A\u54CD\uFF0C\u76F4\u5230[jitter][red]\u90A3\u4E9B\u73A9\u5076\u4E92\u76F8\u4E89\u5435\u7740\u5927\u53EB\u8D77\u6765[/red][/jitter]\uFF0C\u653E\u58F0\u547C\u5524\u7740\u4F60\u2026\u2026\n\n\u4F60\u5FC5\u987B\u9009\u62E9\u4E00\u4E2A\uFF0C\u5E76\u7ACB\u523B\u79BB\u5F00\u8FD9\u4E2A\u5730\u65B9\u3002"
+      "cn": "你走进了一间隐藏的密室……\n\n这里堆满了琳琅满目的玩偶。每一只都独一无二，它们的表情亦从[green]喜悦[/green]到[purple]悲哀[/purple]各不相同，其服饰跨越了数个世纪，甚至来自你认知之外的领域。\n\n一阵[sine][blue]低语的合唱[/blue][/sine]变得越来越响，直到[jitter][red]那些玩偶互相争吵着大叫起来[/red][/jitter]，放声呼唤着你……\n\n你必须选择一个，并立刻离开这个地方。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u968F\u673A\u62FF\u8D70\u4E00\u5C0A",
+        "text_en": "随机拿走一尊",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u82B1\u70B9\u65F6\u95F4\u6162\u6162\u6765",
+        "text_en": "花点时间慢慢来",
         "isLocked": false
       },
       {
         "index": 2,
-        "text_en": "\u4ED4\u7EC6\u68C0\u67E5\u7136\u540E\u6311\u9009\u6700\u597D\u7684\u90A3\u4E2A",
+        "text_en": "仔细检查然后挑选最好的那个",
         "isLocked": false
       }
     ]
@@ -897,11 +897,11 @@
     "id": "FAKE_MERCHANT",
     "name": {
       "en": "The Merchant???",
-      "cn": "\u5546\u4EBA\uFF1F\uFF1F\uFF1F"
+      "cn": "商人？？？"
     },
     "description": {
       "en": "Placeholder",
-      "cn": "\u5360\u4F4D\u7B26"
+      "cn": "占位符"
     },
     "options": []
   },
@@ -909,21 +909,21 @@
     "id": "POTION_COURIER",
     "name": {
       "en": "Potion Courier",
-      "cn": "\u836F\u6C34\u5FEB\u9012\u5458"
+      "cn": "药水快递员"
     },
     "description": {
       "en": "There is a [sine]sour[/sine] smell in the air and shortly after, you find a [gold]Potion Courier[/gold] collapsed on the ground.\nUnmoving. Lifeless. [jitter]Dead!?[/jitter]\nWhile their belongings have been ransacked, there is a batch of [green][sine]Foul Smelling Potions[/sine][/green] with a note: \u0022Recipient: Merchant\u0022.",
-      "cn": "\u7A7A\u6C14\u4E2D\u4F20\u6765\u4E00\u9635[sine]\u6D53\u6D53\u7684\u9178\u5473[/sine]\uFF0C\u4E0D\u4E00\u4F1A\u513F\u4F60\u5728\u9644\u8FD1\u627E\u5230\u4E86\u4E00\u4E2A\u5012\u5728\u5730\u4E0A\u7684[gold]\u836F\u6C34\u5FEB\u9012\u5458[/gold]\u3002\n\u4E00\u52A8\u4E0D\u52A8\uFF0C\u5DF2\u7ECF\u6CA1\u4E86\u6C14\u3002[jitter]\u6B7B\u4E86\uFF01\uFF1F[/jitter]\n\u5FEB\u9012\u5458\u5E26\u7740\u7684\u7269\u54C1\u5DF2\u7ECF\u88AB\u6D17\u52AB\u5F97\u5DEE\u4E0D\u591A\u4E86\uFF0C\u53EA\u6709\u4E00\u6279[green][sine]\u5F88\u96BE\u95FB\u7684\u836F\u6C34[/sine][/green]\u597D\u597D\u5730\u653E\u5728\u90A3\u91CC\uFF0C\u4E0A\u9762\u6709\u4E00\u5F20\u5B57\u6761\uFF1A\u201C\u6536\u4EF6\u4EBA\uFF1A\u5546\u4EBA\u201D\u3002"
+      "cn": "空气中传来一阵[sine]浓浓的酸味[/sine]，不一会儿你在附近找到了一个倒在地上的[gold]药水快递员[/gold]。\n一动不动，已经没了气。[jitter]死了！？[/jitter]\n快递员带着的物品已经被洗劫得差不多了，只有一批[green][sine]很难闻的药水[/sine][/green]好好地放在那里，上面有一张字条：“收件人：商人”。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u62FF\u8D70\u8FD9\u6279\u836F\u6C34",
+        "text_en": "拿走这批药水",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6D17\u52AB",
+        "text_en": "洗劫",
         "isLocked": false
       }
     ]
@@ -932,11 +932,11 @@
     "id": "RANWID_THE_ELDER",
     "name": {
       "en": "Ranwid the Elder",
-      "cn": "\u957F\u8005\u5170\u4F1F\u5FB7"
+      "cn": "长者兰伟德"
     },
     "description": {
-      "en": "You are approached by the [purple]oldest person you have ever seen[/purple].\n[sine]\u201CWe meet once more... it\u0027s me, Ranwid!\u201D[/sine]\n\nYou do not know this man.",
-      "cn": "\u4E00\u4E2A[purple]\u4F60\u81F3\u4ECA\u4E3A\u6B62\u89C1\u8FC7\u6700\u5E74\u8FC8\u7684\u4EBA[/purple]\u8D70\u5230\u4E86\u4F60\u7684\u8EAB\u524D\u3002\n[sine]\u201C\u6211\u4EEC\u53C8\u89C1\u9762\u4E86....\u662F\u6211\uFF0C\u5170\u4F1F\u5FB7\uFF01\u201D[/sine]\n\n\u4F60\u4E0D\u8BA4\u8BC6\u8FD9\u4E2A\u7537\u4EBA\u3002"
+      "en": "You are approached by the [purple]oldest person you have ever seen[/purple].\n[sine]“We meet once more... it\u0027s me, Ranwid!”[/sine]\n\nYou do not know this man.",
+      "cn": "一个[purple]你至今为止见过最年迈的人[/purple]走到了你的身前。\n[sine]“我们又见面了....是我，兰伟德！”[/sine]\n\n你不认识这个男人。"
     },
     "options": []
   },
@@ -944,11 +944,11 @@
     "id": "RELIC_TRADER",
     "name": {
       "en": "Relic Trader",
-      "cn": "\u9057\u7269\u4EA4\u6362\u5546"
+      "cn": "遗物交换商"
     },
     "description": {
-      "en": "You turn a corner and suddenly, a shadowy figure is just standing there. He pivots to face you.\n\n\u201CWelcome! What\u0027re ya trading?\u201D\nThe figure inquires as he flares open his cloak to reveal a slew of [sine][purple]suspicious wares[/purple][/sine].",
-      "cn": "\u4F60\u8D70\u8FC7\u4E00\u4E2A\u62D0\u89D2\uFF0C\u4E00\u4E2A\u9ED1\u5F71\u7A81\u7136\u77D7\u7ACB\u5728\u524D\u65B9\u3002\u4ED6\u8F6C\u8FC7\u8EAB\u6765\uFF0C\u6B63\u5BF9\u7740\u4F60\u3002\n\n\u201C\u6B22\u8FCE\uFF01\u4F60\u60F3\u6362\u70B9\u4EC0\u4E48\u5436\uFF1F\u201D\n\u4ED6\u5F00\u53E3\u8BE2\u95EE\uFF0C\u540C\u65F6\u731B\u5730\u6380\u5F00\u6597\u7BF7\uFF0C\u9732\u51FA\u4E00\u5927\u5806[sine][purple]\u53EF\u7591\u8D27\u7269[/purple][/sine]\u3002"
+      "en": "You turn a corner and suddenly, a shadowy figure is just standing there. He pivots to face you.\n\n“Welcome! What\u0027re ya trading?”\nThe figure inquires as he flares open his cloak to reveal a slew of [sine][purple]suspicious wares[/purple][/sine].",
+      "cn": "你走过一个拐角，一个黑影突然矗立在前方。他转过身来，正对着你。\n\n“欢迎！你想换点什么吶？”\n他开口询问，同时猛地掀开斗篷，露出一大堆[sine][purple]可疑货物[/purple][/sine]。"
     },
     "options": []
   },
@@ -956,21 +956,21 @@
     "id": "ROOM_FULL_OF_CHEESE",
     "name": {
       "en": "Room Full of Cheese",
-      "cn": "\u6EE1\u5C4B\u829D\u58EB"
+      "cn": "满屋芝士"
     },
     "description": {
       "en": "This room is full of [b][jitter]cheese!!![/jitter][/b]\n\nYou look around to see if there are any traps and above you is... more [b]cheese[/b]. The candles in this room appear to be made of [b]cheese[/b]. The furniture is also [b]cheese[/b].\nSuddenly, the door behind you slams shut.\n\nIt is made of [b]cheese[/b].",
-      "cn": "\u8FD9\u623F\u95F4\u91CC\u5168\u662F[b][jitter]\u829D\u58EB\uFF01\uFF01\uFF01[/jitter][/b]\n\n\u4F60\u73AF\u987E\u56DB\u5468\uFF0C\u60F3\u770B\u770B\u6709\u6CA1\u6709\u9677\u9631\uFF0C\u7ED3\u679C\u53D1\u73B0\u5934\u9876\u4E0A\u662F\u2026\u66F4\u591A\u7684[b]\u829D\u58EB[/b]\u3002\u5C4B\u91CC\u7684\u8721\u70DB\u4F3C\u4E4E\u4E5F\u662F\u7528[b]\u829D\u58EB[/b]\u505A\u7684\u3002\u5BB6\u5177\u540C\u6837\u662F[b]\u829D\u58EB[/b]\u3002\n\u7A81\u7136\uFF0C\u4F60\u8EAB\u540E\u7684\u95E8\u7830\u5730\u4E00\u58F0\u5173\u4E0A\u4E86\u3002\n\n\u4E5F\u662F[b]\u829D\u58EB[/b]\u505A\u7684\u3002"
+      "cn": "这房间里全是[b][jitter]芝士！！！[/jitter][/b]\n\n你环顾四周，想看看有没有陷阱，结果发现头顶上是…更多的[b]芝士[/b]。屋里的蜡烛似乎也是用[b]芝士[/b]做的。家具同样是[b]芝士[/b]。\n突然，你身后的门砰地一声关上了。\n\n也是[b]芝士[/b]做的。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u5927\u5FEB\u6735\u9890",
+        "text_en": "大快朵颐",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u4ED4\u7EC6\u7FFB\u627E",
+        "text_en": "仔细翻找",
         "isLocked": false
       }
     ]
@@ -979,11 +979,11 @@
     "id": "SELF_HELP_BOOK",
     "name": {
       "en": "Self-Help Book",
-      "cn": "\u81EA\u52A9\u6307\u5357"
+      "cn": "自助指南"
     },
     "description": {
-      "en": "On the floor lies a tome,\n\u201CTop 3 Ways to Conquer the Spire\u201D\n\nThe book is [red]encrusted with blood[/red] so you find this manuscript highly suspicious.\n\nWill you read it?",
-      "cn": "\u5730\u4E0A\u6709\u4E00\u672C\u4E66\uFF1A\n\u300A\u5F81\u670D\u9AD8\u5854\u76843\u79CD\u6700\u4F73\u65B9\u6CD5\u300B\n\n\u8FD9\u672C\u4E66\u4E0A[red]\u8840\u8FF9\u6591\u6591[/red]\uFF0C\u6240\u4EE5\u4F60\u89C9\u5F97\u5B83\u975E\u5E38\u53EF\u7591\u3002\n\n\u4F60\u8981\u8BFB\u5B83\u5417\uFF1F"
+      "en": "On the floor lies a tome,\n“Top 3 Ways to Conquer the Spire”\n\nThe book is [red]encrusted with blood[/red] so you find this manuscript highly suspicious.\n\nWill you read it?",
+      "cn": "地上有一本书：\n《征服高塔的3种最佳方法》\n\n这本书上[red]血迹斑斑[/red]，所以你觉得它非常可疑。\n\n你要读它吗？"
     },
     "options": []
   },
@@ -991,11 +991,11 @@
     "id": "SLIPPERY_BRIDGE",
     "name": {
       "en": "Slippery Bridge",
-      "cn": "\u6ED1\u811A\u6728\u6865"
+      "cn": "滑脚木桥"
     },
     "description": {
       "en": "While crossing a rickety wooden bridge, there is a sudden [blue][jitter]torrent of rain[/jitter][/blue]. [purple][sine]Massive gusts of wind[/sine][/purple] buffet you, threatening to end your journey.",
-      "cn": "\u5F53\u4F60\u7A7F\u8FC7\u4E00\u5EA7\u6447\u6447\u6B32\u5760\u7684\u6728\u6865\u65F6\uFF0C\u5FFD\u7136\u95F4[blue][jitter]\u66B4\u96E8\u503E\u76C6[/jitter][/blue]\u3002[purple][sine]\u9635\u9635\u72C2\u98CE[/sine][/purple]\u4E0D\u65AD\u5411\u4F60\u88AD\u6765\uFF0C\u4F3C\u4E4E\u8981\u5C06\u4F60\u7684\u65C5\u7A0B\u7EC8\u7ED3\u4E0E\u6B64\u3002"
+      "cn": "当你穿过一座摇摇欲坠的木桥时，忽然间[blue][jitter]暴雨倾盆[/jitter][/blue]。[purple][sine]阵阵狂风[/sine][/purple]不断向你袭来，似乎要将你的旅程终结与此。"
     },
     "options": []
   },
@@ -1003,11 +1003,11 @@
     "id": "STONE_OF_ALL_TIME",
     "name": {
       "en": "Stone of All Time",
-      "cn": "\u6C38\u6052\u4E4B\u77F3"
+      "cn": "永恒之石"
     },
     "description": {
       "en": "A massive boulder sits in the middle of an abandoned courtyard.\n\nA plaque reads:\n[gold][b]Stone of All Time[/b][/gold].\n\nIts presence, shape, and adornments indicate that this courtyard was built around this [blue]Stone[/blue] and that it has never moved from this spot.",
-      "cn": "\u5728\u4E00\u4E2A\u5E9F\u5F03\u5EAD\u9662\u7684\u5F53\u4E2D\uFF0C\u6709\u4E00\u5757\u5DE8\u5927\u7684\u77F3\u5934\u3002\n\n\u77F3\u5934\u8FB9\u7684\u4E00\u5757\u724C\u5B50\u4E0A\u5199\u7740\uFF1A\n[gold][b]\u6C38\u6052\u4E4B\u77F3[/b][/gold]\u3002\n\n\u4ECE\u5B83\u7684\u6837\u5B50\u3001\u5F62\u72B6\u548C\u88C5\u9970\u6765\u770B\uFF0C\u6574\u4E2A\u5EAD\u9662\u90FD\u662F\u56F4\u7ED5\u7740\u8FD9\u5757[blue]\u77F3\u5934[/blue]\u5EFA\u9020\u51FA\u6765\u7684\uFF0C\u5B83\u4ECE\u6765\u6CA1\u6709\u79BB\u5F00\u8FC7\u90A3\u4E2A\u5730\u70B9\u54EA\u6015\u4E00\u6B21\u3002"
+      "cn": "在一个废弃庭院的当中，有一块巨大的石头。\n\n石头边的一块牌子上写着：\n[gold][b]永恒之石[/b][/gold]。\n\n从它的样子、形状和装饰来看，整个庭院都是围绕着这块[blue]石头[/blue]建造出来的，它从来没有离开过那个地点哪怕一次。"
     },
     "options": []
   },
@@ -1015,11 +1015,11 @@
     "id": "SYMBIOTE",
     "name": {
       "en": "Symbiote",
-      "cn": "\u5171\u751F\u4F53"
+      "cn": "共生体"
     },
     "description": {
       "en": "Along your travels, you stumble upon a dark, amorphous polyp. You can sense that it is very old, and very evil.\n\n[sine]Approach...[/sine]",
-      "cn": "\u5728\u4F60\u7684\u65C5\u7A0B\u4E2D\uFF0C\u4F60\u9047\u5230\u4E86\u4E00\u4E2A\u9ED1\u8272\u65E0\u5B9A\u5F62\u7684\u8089\u5757\u72B6\u751F\u7269\uFF0C\u4F60\u80FD\u611F\u89C9\u5230\u5B83\u975E\u5E38\u53E4\u8001\u3001\u5E76\u4E14\u975E\u5E38\u90AA\u6076\u3002\n\n[sine]\u8FC7\u6765\u5427\u2026[/sine]"
+      "cn": "在你的旅程中，你遇到了一个黑色无定形的肉块状生物，你能感觉到它非常古老、并且非常邪恶。\n\n[sine]过来吧…[/sine]"
     },
     "options": []
   },
@@ -1027,11 +1027,11 @@
     "id": "TEA_MASTER",
     "name": {
       "en": "Tea Master",
-      "cn": "\u8336\u827A\u5927\u5E08"
+      "cn": "茶艺大师"
     },
     "description": {
       "en": "You stumble into a dimly lit shack and find yourself immersed in a very peaceful space containing an obsessive variety of tea.\n\nThe man inside gestures to a selection of [green]teas[/green], each neatly labeled with a [gold]premium price[/gold].",
-      "cn": "\u4F60\u4E0D\u77E5\u600E\u4E48\u6643\u8FDB\u4E86\u4E00\u4E2A\u706F\u5149\u660F\u6697\u7684\u5C0F\u68DA\u5C4B\uFF0C\u53D1\u73B0\u91CC\u9762\u7684\u7A7A\u95F4\u611F\u89C9\u975E\u5E38\u548C\u5E73\uFF0C\u56DB\u5468\u6446\u6EE1\u4E86\u79CD\u7C7B\u7E41\u591A\u7684\u8336\u53F6\u3002\n\n\u5C4B\u5B50\u91CC\u9762\u7684\u7537\u4EBA\u505A\u51FA\u624B\u52BF\uFF0C\u8BA9\u4F60\u53BB\u770B\u4E00\u6279[green]\u8336\u53F6[/green]\uFF0C\u6BCF\u4E00\u79CD\u90FD\u6709\u96C5\u81F4\u7684\u6807\u7B7E\u544A\u77E5\u4F60\u8336\u53F6\u7684[gold]\u9AD8\u6602\u4EF7\u683C[/gold]\u3002"
+      "cn": "你不知怎么晃进了一个灯光昏暗的小棚屋，发现里面的空间感觉非常和平，四周摆满了种类繁多的茶叶。\n\n屋子里面的男人做出手势，让你去看一批[green]茶叶[/green]，每一种都有雅致的标签告知你茶叶的[gold]高昂价格[/gold]。"
     },
     "options": []
   },
@@ -1039,11 +1039,11 @@
     "id": "THE_FUTURE_OF_POTIONS",
     "name": {
       "en": "The Future of Potions?",
-      "cn": "\u836F\u6C34\u7684\u672A\u6765\uFF1F"
+      "cn": "药水的未来？"
     },
     "description": {
       "en": "You feel a faint rumbling as you round the corner to discover a gigantic spinning apparatus!\nIt has several slots which appear to convert liquids into a highly compressed digestible tablet.\n\nThe idea of turning these health tonics into a tiny morsel is uncomfortable but perhaps it\u0027s good to try new things?",
-      "cn": "\u8F6C\u8FC7\u62D0\u89D2\uFF0C\u4F60\u611F\u53D7\u5230\u4E00\u9635\u8F7B\u5FAE\u7684\u8F70\u9E23\uFF0C\u968F\u540E\u53D1\u73B0\u4E86\u4E00\u53F0\u5DE8\u5927\u7684\u65CB\u8F6C\u88C5\u7F6E\uFF01\n\u5B83\u5E26\u6709\u51E0\u4E2A\u69FD\u4F4D\uFF0C\u4F3C\u4E4E\u80FD\u5C06\u6DB2\u4F53\u8F6C\u5316\u4E3A\u9AD8\u5EA6\u538B\u7F29\u7684\u6613\u6D88\u5316\u836F\u7247\u3002\n\n\u5C06\u8FD9\u4E9B\u836F\u6C34\u70BC\u6210\u4E00\u5C0F\u7247\u7684\u60F3\u6CD5\u4EE4\u4EBA\u6709\u4E9B\u4E0D\u9002\uFF0C\u4F46\u6216\u8BB8\u5C1D\u8BD5\u65B0\u4E8B\u7269\u4E5F\u4E0D\u9519\uFF1F"
+      "cn": "转过拐角，你感受到一阵轻微的轰鸣，随后发现了一台巨大的旋转装置！\n它带有几个槽位，似乎能将液体转化为高度压缩的易消化药片。\n\n将这些药水炼成一小片的想法令人有些不适，但或许尝试新事物也不错？"
     },
     "options": []
   },
@@ -1051,21 +1051,21 @@
     "id": "THE_LEGENDS_WERE_TRUE",
     "name": {
       "en": "The Legends Were True",
-      "cn": "\u4F20\u8BF4\u662F\u771F\u7684"
+      "cn": "传说是真的"
     },
     "description": {
       "en": "Entering into a pitch dark chamber, a sudden light pierces the darkness from above, just as the door slams behind you.\n\nIlluminated before you appears to be a podium with a map on it. You feel compelled to take it.\n\nSuspicious.",
-      "cn": "\u8E0F\u5165\u6F06\u9ED1\u7684\u5BC6\u5BA4\uFF0C\u4E00\u9053\u4EAE\u5149\u4ECE\u4E0A\u65B9\u523A\u7834\u9ED1\u6697\uFF0C\u4E0E\u6B64\u540C\u65F6\uFF0C\u8EAB\u540E\u7684\u95E8\u7830\u7136\u5173\u4E0A\u3002\n\n\u501F\u7740\u5149\u4EAE\uFF0C\u4F60\u770B\u5230\u524D\u65B9\u7684\u77F3\u53F0\u4E0A\u653E\u7740\u4E00\u5F20\u5730\u56FE\u3002\u4F60\u6709\u4E00\u79CD\u5F3A\u70C8\u7684\u60F3\u8981\u62FF\u8D70\u5B83\u7684\u51B2\u52A8\u3002\n\n\u4E8B\u51FA\u53CD\u5E38\u3002"
+      "cn": "踏入漆黑的密室，一道亮光从上方刺破黑暗，与此同时，身后的门砰然关上。\n\n借着光亮，你看到前方的石台上放着一张地图。你有一种强烈的想要拿走它的冲动。\n\n事出反常。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u987A\u8D70\u5730\u56FE",
+        "text_en": "顺走地图",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u8010\u5FC3\u5BFB\u627E\u51FA\u53E3",
+        "text_en": "耐心寻找出口",
         "isLocked": false
       }
     ]
@@ -1074,21 +1074,21 @@
     "id": "THIS_OR_THAT",
     "name": {
       "en": "This or That?",
-      "cn": "\u8FD9\u4E2A\u8FD8\u662F\u90A3\u4E2A\uFF1F"
+      "cn": "这个还是那个？"
     },
     "description": {
-      "en": "Arms suddenly jut out from a nearby hole, clutching a [gold]suspicious bag of riches[/gold] and a clearly [purple]cursed relic[/purple].\n\n[jitter][blue]\u201CThis... or That?\u201D[/blue][/jitter]\na scratched-up voice whispers from below.",
-      "cn": "\u9644\u8FD1\u7684\u4E00\u4E2A\u5751\u6D1E\u91CC\u7A81\u7136\u8E7F\u51FA\u4E00\u53CC\u624B\u81C2\uFF0C\u4E00\u53EA\u624B\u7D27\u63E1\u7740\u4E00\u888B[gold]\u53EF\u7591\u7684\u8D22\u5B9D[/gold]\uFF0C\u53E6\u4E00\u53EA\u5219\u62FF\u7740\u4E00\u4EF6\u660E\u663E[purple]\u88AB\u8BC5\u5492\u7684\u9057\u7269[/purple]\u3002\n\n[jitter][blue]\u201C\u8FD9\u4E2A\u2026\u2026\u8FD8\u662F\u90A3\u4E2A\uFF1F\u201D[/blue][/jitter]\n\u4E00\u4E2A\u5636\u54D1\u7684\u58F0\u97F3\u4ECE\u5730\u4E0B\u4F20\u6765\uFF0C\u5411\u4F60\u4F4E\u8BED\u3002"
+      "en": "Arms suddenly jut out from a nearby hole, clutching a [gold]suspicious bag of riches[/gold] and a clearly [purple]cursed relic[/purple].\n\n[jitter][blue]“This... or That?”[/blue][/jitter]\na scratched-up voice whispers from below.",
+      "cn": "附近的一个坑洞里突然蹿出一双手臂，一只手紧握着一袋[gold]可疑的财宝[/gold]，另一只则拿着一件明显[purple]被诅咒的遗物[/purple]。\n\n[jitter][blue]“这个……还是那个？”[/blue][/jitter]\n一个嘶哑的声音从地下传来，向你低语。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u8FD9\u4E2A",
+        "text_en": "这个",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u90A3\u4E2A",
+        "text_en": "那个",
         "isLocked": false
       }
     ]
@@ -1097,21 +1097,21 @@
     "id": "WAR_HISTORIAN_REPY",
     "name": {
       "en": "War Historian, Repy",
-      "cn": "\u6218\u53F2\u5B66\u5BB6 \u4ED8\u88AD"
+      "cn": "战史学家 付袭"
     },
     "description": {
-      "en": "An academic is trapped in a [purple]hanging cage[/purple] next to a [gold]treasure chest[/gold].\n\nThe academic is muttering about [sine][orange]\u201COne-Time-Use Keys\u201D[/orange][/sine] while furiously writing something.\n\nLooks like you can unlock the [purple]cage[/purple] or the [gold]chest[/gold].",
-      "cn": "\u4F60\u770B\u5230\u4E00\u4E2A\u5B66\u8005\u88AB\u5173\u5728\u4E00\u4E2A[purple]\u540A\u5728\u7A7A\u4E2D\u7684\u7B3C\u5B50[/purple]\u91CC\uFF0C\u800C\u65C1\u8FB9\u6709\u4E00\u4E2A[gold]\u5927\u5B9D\u7BB1[/gold]\u3002\n\n\u90A3\u4E2A\u5B66\u8005\u4E00\u8FB9\u5495\u54DD\u7740\u4EC0\u4E48[sine][orange]\u201C\u4E00\u6B21\u6027\u7684\u94A5\u5319\u201D[/orange][/sine]\uFF0C\u4E00\u8FB9\u62FC\u547D\u5730\u5728\u5199\u7740\u4E9B\u4EC0\u4E48\u3002\n\n\u770B\u8D77\u6765\u4F60\u53EF\u4EE5\u4E8C\u9009\u4E00\uFF0C\u8981\u4E48\u6253\u5F00[purple]\u7B3C\u5B50[/purple]\uFF0C\u8981\u4E48\u6253\u5F00[gold]\u5B9D\u7BB1[/gold]\u3002"
+      "en": "An academic is trapped in a [purple]hanging cage[/purple] next to a [gold]treasure chest[/gold].\n\nThe academic is muttering about [sine][orange]“One-Time-Use Keys”[/orange][/sine] while furiously writing something.\n\nLooks like you can unlock the [purple]cage[/purple] or the [gold]chest[/gold].",
+      "cn": "你看到一个学者被关在一个[purple]吊在空中的笼子[/purple]里，而旁边有一个[gold]大宝箱[/gold]。\n\n那个学者一边咕哝着什么[sine][orange]“一次性的钥匙”[/orange][/sine]，一边拼命地在写着些什么。\n\n看起来你可以二选一，要么打开[purple]笼子[/purple]，要么打开[gold]宝箱[/gold]。"
     },
     "options": [
       {
         "index": 0,
-        "text_en": "\u6253\u5F00\u7B3C\u5B50",
+        "text_en": "打开笼子",
         "isLocked": false
       },
       {
         "index": 1,
-        "text_en": "\u6253\u5F00\u5B9D\u7BB1",
+        "text_en": "打开宝箱",
         "isLocked": false
       }
     ]
@@ -1120,11 +1120,11 @@
     "id": "WELCOME_TO_WONGOS",
     "name": {
       "en": "Welcome to Wongo\u0027s",
-      "cn": "\u6B22\u8FCE\u6765\u5230\u65FA\u8D2D\u767E\u8D27"
+      "cn": "欢迎来到旺购百货"
     },
     "description": {
-      "en": "\u201CWelcome to Wongo\u0027s. We have what you want at Wongtastic prices.\u201D says the least enthusiastic clerk you have ever met.\n\n\u201CPeruse our wares and enjoy your time at Wongo\u0027s,\u201D they continue, without even looking up.",
-      "cn": "\u201C\u6B22\u8FCE\u6765\u5230\u65FA\u8D2D\u767E\u8D27\uFF0C\u8FD9\u91CC\u6709\u8D85\u65FA\u5546\u54C1\uFF0C\u4E00\u5B9A\u8BA9\u60A8\u8D8A\u8D2D\u8D8A\u65FA\u3002\u201D\u5E97\u5458\u8BF4\u7740\u6B22\u8FCE\u8BCD\uFF0C\u770B\u8D77\u6765\u6CA1\u6709\u4E1D\u6BEB\u70ED\u60C5\u3002\n\n\u201C\u8BF7\u968F\u610F\u67E5\u770B\u6211\u4EEC\u7684\u5546\u54C1\uFF0C\u795D\u60A8\u5728\u65FA\u8D2D\u8FC7\u5F97\u6109\u5FEB\u3002\u201D\u5E97\u5458\u5934\u4E5F\u4E0D\u62AC\u5730\u7EE7\u7EED\u8BF4\u7740\u3002"
+      "en": "“Welcome to Wongo\u0027s. We have what you want at Wongtastic prices.” says the least enthusiastic clerk you have ever met.\n\n“Peruse our wares and enjoy your time at Wongo\u0027s,” they continue, without even looking up.",
+      "cn": "“欢迎来到旺购百货，这里有超旺商品，一定让您越购越旺。”店员说着欢迎词，看起来没有丝毫热情。\n\n“请随意查看我们的商品，祝您在旺购过得愉快。”店员头也不抬地继续说着。"
     },
     "options": []
   }

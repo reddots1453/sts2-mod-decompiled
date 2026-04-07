@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Unicode;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
@@ -72,7 +74,11 @@ public static class Extractor
         GD.Print($"[KBExtractor] Events: {events.Count}");
 
         // Write JSON
-        var jsonOpts = new JsonSerializerOptions { WriteIndented = true };
+        var jsonOpts = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
+        };
         WriteJson("cards.json", cards, jsonOpts);
         WriteJson("relics.json", relics, jsonOpts);
         WriteJson("potions.json", potions, jsonOpts);
