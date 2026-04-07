@@ -1,0 +1,2840 @@
+﻿{
+  "BYGONE_EFFIGY": {
+    "id": "BYGONE_EFFIGY",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 127,
+      "max": 127
+    },
+    "moves": {
+      "INITIAL_SLEEP_MOVE": {
+        "intents": [
+          "Sleep"
+        ]
+      },
+      "WAKE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "SLEEP_MOVE": {
+        "intents": [
+          "Sleep"
+        ]
+      },
+      "SLASHES_MOVE": {
+        "intents": [
+          "Attack(15)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "BYRDONIS": {
+    "id": "BYRDONIS",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 91,
+      "max": 94
+    },
+    "moves": {
+      "SWOOP_MOVE": {
+        "intents": [
+          "Attack(16)"
+        ]
+      },
+      "PECK_MOVE": {
+        "intents": [
+          "Attack(3x3)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "CEREMONIAL_BEAST": {
+    "id": "CEREMONIAL_BEAST",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 252,
+      "max": 252
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "CUBEX_CONSTRUCT": {
+    "id": "CUBEX_CONSTRUCT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 65,
+      "max": 65
+    },
+    "moves": {
+      "CHARGE_UP_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "REPEATER_MOVE": {
+        "intents": [
+          "Attack(7)",
+          "Buff"
+        ]
+      },
+      "REPEATER_MOVE_2": {
+        "intents": [
+          "Attack(7)",
+          "Buff"
+        ]
+      },
+      "EXPEL_BLAST": {
+        "intents": [
+          "Attack(5x2)"
+        ]
+      },
+      "SUBMERGE_MOVE": {
+        "intents": [
+          "Defend"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "FLYCONID": {
+    "id": "FLYCONID",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 47,
+      "max": 49
+    },
+    "moves": {
+      "VULNERABLE_SPORES_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "FRAIL_SPORES_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Debuff"
+        ]
+      },
+      "SMASH_MOVE": {
+        "intents": [
+          "Attack(11)"
+        ]
+      }
+    },
+    "ai": "Random(VULNERABLE_SPORES_MOVE, FRAIL_SPORES_MOVE, SMASH_MOVE) \u2192 Random(FRAIL_SPORES_MOVE, SMASH_MOVE)"
+  },
+  "LEAF_SLIME_M": {
+    "id": "LEAF_SLIME_M",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 32,
+      "max": 35
+    },
+    "moves": {
+      "CLUMP_SHOT": {
+        "intents": [
+          "Attack(8)"
+        ]
+      },
+      "STICKY_SHOT": {
+        "intents": [
+          "Status"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "TWIG_SLIME_M": {
+    "id": "TWIG_SLIME_M",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 26,
+      "max": 28
+    },
+    "moves": {
+      "CLUMP_SHOT_MOVE": {
+        "intents": [
+          "Attack(11)"
+        ]
+      },
+      "STICKY_SHOT_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      }
+    },
+    "ai": "Random(CLUMP_SHOT_MOVE, STICKY_SHOT_MOVE)"
+  },
+  "FOGMOG": {
+    "id": "FOGMOG",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 74,
+      "max": 74
+    },
+    "moves": {
+      "ILLUSION_MOVE": {
+        "intents": [
+          "Summon"
+        ]
+      },
+      "SWIPE_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Buff"
+        ]
+      },
+      "SWIPE_RANDOM_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Buff"
+        ]
+      },
+      "HEADBUTT_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      }
+    },
+    "ai": "Random(SWIPE_RANDOM_MOVE, HEADBUTT_MOVE)"
+  },
+  "EYE_WITH_TEETH": {
+    "id": "EYE_WITH_TEETH",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 6,
+      "max": 6
+    },
+    "moves": {
+      "DISTRACT_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "FUZZY_WURM_CRAWLER": {
+    "id": "FUZZY_WURM_CRAWLER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 55,
+      "max": 57
+    },
+    "moves": {
+      "FIRST_ACID_GOOP": {
+        "intents": [
+          "Attack(4)"
+        ]
+      },
+      "ACID_GOOP": {
+        "intents": [
+          "Attack(4)"
+        ]
+      },
+      "INHALE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "INKLET": {
+    "id": "INKLET",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 11,
+      "max": 17
+    },
+    "moves": {
+      "JAB_MOVE": {
+        "intents": [
+          "Attack(3)"
+        ]
+      },
+      "PIERCING_GAZE_MOVE": {
+        "intents": [
+          "Attack(10)"
+        ]
+      },
+      "WHIRLWIND_MOVE": {
+        "intents": [
+          "Attack(2x3)"
+        ]
+      }
+    },
+    "ai": "Random(PIERCING_GAZE_MOVE, WHIRLWIND_MOVE)"
+  },
+  "MAWLER": {
+    "id": "MAWLER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 72,
+      "max": 72
+    },
+    "moves": {
+      "RIP_AND_TEAR_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      },
+      "ROAR_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "CLAW_MOVE": {
+        "intents": [
+          "Attack(4x2)"
+        ]
+      }
+    },
+    "ai": "Random(RIP_AND_TEAR_MOVE, ROAR_MOVE, CLAW_MOVE)"
+  },
+  "NIBBIT": {
+    "id": "NIBBIT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 42,
+      "max": 46
+    },
+    "moves": {
+      "BUTT_MOVE": {
+        "intents": [
+          "Attack(12)"
+        ]
+      },
+      "SLICE_MOVE": {
+        "intents": [
+          "Attack(6)",
+          "Defend"
+        ]
+      },
+      "HISS_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": "Conditional(INIT_MOVE)"
+  },
+  "SHRINKER_BEETLE": {
+    "id": "SHRINKER_BEETLE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 38,
+      "max": 40
+    },
+    "moves": {
+      "SHRINKER_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "CHOMP_MOVE": {
+        "intents": [
+          "Attack(7)"
+        ]
+      },
+      "STOMP_MOVE": {
+        "intents": [
+          "Attack(13)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "PHROG_PARASITE": {
+    "id": "PHROG_PARASITE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 61,
+      "max": 64
+    },
+    "moves": {
+      "INFECT_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      },
+      "LASH_MOVE": {
+        "intents": [
+          "Attack(4x4)"
+        ]
+      }
+    },
+    "ai": "Random(INFECT_MOVE, LASH_MOVE)"
+  },
+  "WRIGGLER": {
+    "id": "WRIGGLER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 17,
+      "max": 21
+    },
+    "moves": {
+      "SPAWNED_MOVE": {
+        "intents": [
+          "Stun"
+        ]
+      },
+      "NASTY_BITE_MOVE": {
+        "intents": [
+          "Attack(6)"
+        ]
+      },
+      "WRIGGLE_MOVE": {
+        "intents": [
+          "Buff",
+          "Status"
+        ]
+      }
+    },
+    "ai": "Conditional(INIT_MOVE)"
+  },
+  "AXE_RUBY_RAIDER": {
+    "id": "AXE_RUBY_RAIDER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 20,
+      "max": 22
+    },
+    "moves": {
+      "SWING_1": {
+        "intents": [
+          "Attack(5)",
+          "Defend"
+        ]
+      },
+      "SWING_2": {
+        "intents": [
+          "Attack(5)",
+          "Defend"
+        ]
+      },
+      "BIG_SWING": {
+        "intents": [
+          "Attack(12)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "ASSASSIN_RUBY_RAIDER": {
+    "id": "ASSASSIN_RUBY_RAIDER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 18,
+      "max": 23
+    },
+    "moves": {
+      "KILLSHOT_MOVE": {
+        "intents": [
+          "Attack(11)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "BRUTE_RUBY_RAIDER": {
+    "id": "BRUTE_RUBY_RAIDER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 30,
+      "max": 33
+    },
+    "moves": {
+      "BEAT_MOVE": {
+        "intents": [
+          "Attack(7)"
+        ]
+      },
+      "ROAR_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "CROSSBOW_RUBY_RAIDER": {
+    "id": "CROSSBOW_RUBY_RAIDER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 18,
+      "max": 21
+    },
+    "moves": {
+      "RELOAD_MOVE": {
+        "intents": [
+          "Defend"
+        ]
+      },
+      "FIRE_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "TRACKER_RUBY_RAIDER": {
+    "id": "TRACKER_RUBY_RAIDER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 21,
+      "max": 25
+    },
+    "moves": {
+      "TRACK_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "HOUNDS_MOVE": {
+        "intents": [
+          "Attack(1x8)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "LEAF_SLIME_S": {
+    "id": "LEAF_SLIME_S",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 11,
+      "max": 15
+    },
+    "moves": {
+      "BUTT_MOVE": {
+        "intents": [
+          "Attack(3)"
+        ]
+      },
+      "GOOP_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      }
+    },
+    "ai": "Random(BUTT_MOVE, GOOP_MOVE)"
+  },
+  "TWIG_SLIME_S": {
+    "id": "TWIG_SLIME_S",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 7,
+      "max": 11
+    },
+    "moves": {
+      "BUTT_MOVE": {
+        "intents": [
+          "Attack(4)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SNAPPING_JAXFRUIT": {
+    "id": "SNAPPING_JAXFRUIT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 31,
+      "max": 33
+    },
+    "moves": {
+      "ENERGY_ORB_MOVE": {
+        "intents": [
+          "Attack(3)",
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SLITHERING_STRANGLER": {
+    "id": "SLITHERING_STRANGLER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 53,
+      "max": 55
+    },
+    "moves": {
+      "TWACK": {
+        "intents": [
+          "Attack(7)",
+          "Defend"
+        ]
+      },
+      "CONSTRICT": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "LASH": {
+        "intents": [
+          "Attack(12)"
+        ]
+      }
+    },
+    "ai": "Random(TWACK, LASH)"
+  },
+  "KIN_FOLLOWER": {
+    "id": "KIN_FOLLOWER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 58,
+      "max": 59
+    },
+    "moves": {
+      "QUICK_SLASH_MOVE": {
+        "intents": [
+          "Attack(5)"
+        ]
+      },
+      "BOOMERANG_MOVE": {
+        "intents": [
+          "Attack(2x2)"
+        ]
+      },
+      "POWER_DANCE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "KIN_PRIEST": {
+    "id": "KIN_PRIEST",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 190,
+      "max": 190
+    },
+    "moves": {
+      "ORB_OF_FRAILTY_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Debuff"
+        ]
+      },
+      "ORB_OF_WEAKNESS_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Debuff"
+        ]
+      },
+      "BEAM_MOVE": {
+        "intents": [
+          "Attack(3x3)"
+        ]
+      },
+      "RITUAL_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "VANTOM": {
+    "id": "VANTOM",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 173,
+      "max": 173
+    },
+    "moves": {
+      "INK_BLOT_MOVE": {
+        "intents": [
+          "Attack(7)"
+        ]
+      },
+      "INKY_LANCE_MOVE": {
+        "intents": [
+          "Attack(6x2)"
+        ]
+      },
+      "DISMEMBER_MOVE": {
+        "intents": [
+          "Attack(27)",
+          "Status"
+        ]
+      },
+      "PREPARE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "VINE_SHAMBLER": {
+    "id": "VINE_SHAMBLER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 61,
+      "max": 61
+    },
+    "moves": {
+      "GRASPING_VINES_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "CardDebuff"
+        ]
+      },
+      "SWIPE_MOVE": {
+        "intents": [
+          "Attack(6x2)"
+        ]
+      },
+      "CHOMP_MOVE": {
+        "intents": [
+          "Attack(16)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "BOWLBUG_EGG": {
+    "id": "BOWLBUG_EGG",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 21,
+      "max": 22
+    },
+    "moves": {
+      "BITE_MOVE": {
+        "intents": [
+          "Attack(7)",
+          "Defend"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "BOWLBUG_SILK": {
+    "id": "BOWLBUG_SILK",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 40,
+      "max": 43
+    },
+    "moves": {
+      "TRASH_MOVE": {
+        "intents": [
+          "Attack(4x2)"
+        ]
+      },
+      "TOXIC_SPIT_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "BOWLBUG_NECTAR": {
+    "id": "BOWLBUG_NECTAR",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 35,
+      "max": 38
+    },
+    "moves": {
+      "BUFF_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "THRASH2_MOVE": {
+        "intents": [
+          "Attack(3)"
+        ]
+      },
+      "THRASH_MOVE": {
+        "intents": [
+          "Attack(3)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "BOWLBUG_ROCK": {
+    "id": "BOWLBUG_ROCK",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 45,
+      "max": 48
+    },
+    "moves": {
+      "DIZZY_MOVE": {
+        "intents": [
+          "Stun"
+        ]
+      },
+      "HEADBUTT_MOVE": {
+        "intents": [
+          "Attack(15)"
+        ]
+      }
+    },
+    "ai": "Conditional(POST_HEADBUTT)"
+  },
+  "CHOMPER": {
+    "id": "CHOMPER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 60,
+      "max": 64
+    },
+    "moves": {
+      "CLAMP_MOVE": {
+        "intents": [
+          "Attack(8x2)"
+        ]
+      },
+      "SCREECH_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "DECIMILLIPEDE_SEGMENT_FRONT": {
+    "id": "DECIMILLIPEDE_SEGMENT_FRONT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 42,
+      "max": 48
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "DECIMILLIPEDE_SEGMENT_MIDDLE": {
+    "id": "DECIMILLIPEDE_SEGMENT_MIDDLE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 42,
+      "max": 48
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "DECIMILLIPEDE_SEGMENT_BACK": {
+    "id": "DECIMILLIPEDE_SEGMENT_BACK",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 42,
+      "max": 48
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "ENTOMANCER": {
+    "id": "ENTOMANCER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 145,
+      "max": 145
+    },
+    "moves": {
+      "PHEROMONE_SPIT_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "BEES_MOVE": {
+        "intents": [
+          "Attack(3x7)"
+        ]
+      },
+      "SPEAR_MOVE": {
+        "intents": [
+          "Attack(18)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "EXOSKELETON": {
+    "id": "EXOSKELETON",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 24,
+      "max": 28
+    },
+    "moves": {
+      "SKITTER_MOVE": {
+        "intents": [
+          "Attack(1x3)"
+        ]
+      },
+      "MANDIBLE_MOVE": {
+        "intents": [
+          "Attack(8)"
+        ]
+      },
+      "ENRAGE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": "Conditional(INIT_MOVE) \u2192 Random(SKITTER_MOVE, MANDIBLE_MOVE)"
+  },
+  "HUNTER_KILLER": {
+    "id": "HUNTER_KILLER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 121,
+      "max": 121
+    },
+    "moves": {
+      "TENDERIZING_GOOP_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "BITE_MOVE": {
+        "intents": [
+          "Attack(17)"
+        ]
+      },
+      "PUNCTURE_MOVE": {
+        "intents": [
+          "Attack(7x3)"
+        ]
+      }
+    },
+    "ai": "Random(BITE_MOVE, PUNCTURE_MOVE)"
+  },
+  "CRUSHER": {
+    "id": "CRUSHER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 199,
+      "max": 199
+    },
+    "moves": {
+      "THRASH_MOVE": {
+        "intents": [
+          "Attack(12)"
+        ]
+      },
+      "ENLARGING_STRIKE_MOVE": {
+        "intents": [
+          "Attack(4)"
+        ]
+      },
+      "BUG_STING_MOVE": {
+        "intents": [
+          "Attack(6x2)",
+          "Debuff"
+        ]
+      },
+      "ADAPT_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "GUARDED_STRIKE_MOVE": {
+        "intents": [
+          "Attack(12)",
+          "Defend"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "ROCKET": {
+    "id": "ROCKET",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 189,
+      "max": 189
+    },
+    "moves": {
+      "TARGETING_RETICLE_MOVE": {
+        "intents": [
+          "Attack(3)"
+        ]
+      },
+      "PRECISION_BEAM_MOVE": {
+        "intents": [
+          "Attack(18)"
+        ]
+      },
+      "CHARGE_UP_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "LASER_MOVE": {
+        "intents": [
+          "Attack(31)"
+        ]
+      },
+      "RECHARGE_MOVE": {
+        "intents": [
+          "Sleep"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "INFESTED_PRISM": {
+    "id": "INFESTED_PRISM",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 200,
+      "max": 200
+    },
+    "moves": {
+      "JAB_MOVE": {
+        "intents": [
+          "Attack(22)"
+        ]
+      },
+      "RADIATE_MOVE": {
+        "intents": [
+          "Attack(16)",
+          "Defend"
+        ]
+      },
+      "WHIRLWIND_MOVE": {
+        "intents": [
+          "Attack(9x3)"
+        ]
+      },
+      "PULSATE_MOVE": {
+        "intents": [
+          "Buff",
+          "Defend"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "KNOWLEDGE_DEMON": {
+    "id": "KNOWLEDGE_DEMON",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 379,
+      "max": 379
+    },
+    "moves": {
+      "CURSE_OF_KNOWLEDGE_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "SLAP_MOVE": {
+        "intents": [
+          "Attack(17)"
+        ]
+      },
+      "PONDER_MOVE": {
+        "intents": [
+          "Attack(11)",
+          "Heal",
+          "Buff"
+        ]
+      },
+      "KNOWLEDGE_OVERWHELMING_MOVE": {
+        "intents": [
+          "Attack(8x3)"
+        ]
+      }
+    },
+    "ai": "Conditional(CurseOfKnowledgeBranch)"
+  },
+  "LOUSE_PROGENITOR": {
+    "id": "LOUSE_PROGENITOR",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 134,
+      "max": 136
+    },
+    "moves": {
+      "CURL_AND_GROW_MOVE": {
+        "intents": [
+          "Defend",
+          "Buff"
+        ]
+      },
+      "WEB_CANNON_MOVE": {
+        "intents": [
+          "Attack(9)",
+          "Debuff"
+        ]
+      },
+      "POUNCE_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "MYTE": {
+    "id": "MYTE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 61,
+      "max": 67
+    },
+    "moves": {
+      "TOXIC_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      },
+      "BITE_MOVE": {
+        "intents": [
+          "Attack(13)"
+        ]
+      },
+      "SUCK_MOVE": {
+        "intents": [
+          "Attack(4)",
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "OVICOPTER": {
+    "id": "OVICOPTER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 124,
+      "max": 130
+    },
+    "moves": {
+      "NUTRITIONAL_PASTE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "LAY_EGGS_MOVE": {
+        "intents": [
+          "Summon"
+        ]
+      },
+      "SMASH_MOVE": {
+        "intents": [
+          "Attack(16)"
+        ]
+      },
+      "TENDERIZER_MOVE": {
+        "intents": [
+          "Attack(7)",
+          "Debuff"
+        ]
+      }
+    },
+    "ai": "Conditional(SUMMON_BRANCH_STATE)"
+  },
+  "TOUGH_EGG": {
+    "id": "TOUGH_EGG",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 14,
+      "max": 18
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "SLUMBERING_BEETLE": {
+    "id": "SLUMBERING_BEETLE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 86,
+      "max": 86
+    },
+    "moves": {
+      "SNORE_MOVE": {
+        "intents": [
+          "Sleep"
+        ]
+      },
+      "ROLL_OUT_MOVE": {
+        "intents": [
+          "Attack(16)",
+          "Buff"
+        ]
+      }
+    },
+    "ai": "Conditional(SNORE_NEXT)"
+  },
+  "SPINY_TOAD": {
+    "id": "SPINY_TOAD",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 116,
+      "max": 119
+    },
+    "moves": {
+      "PROTRUDING_SPIKES_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "SPIKE_EXPLOSION_MOVE": {
+        "intents": [
+          "Attack(23)"
+        ]
+      },
+      "TONGUE_LASH_MOVE": {
+        "intents": [
+          "Attack(17)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "THE_INSATIABLE": {
+    "id": "THE_INSATIABLE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 321,
+      "max": 321
+    },
+    "moves": {
+      "LIQUIFY_GROUND_MOVE": {
+        "intents": [
+          "Buff",
+          "Status"
+        ]
+      },
+      "LUNGING_BITE_MOVE": {
+        "intents": [
+          "Attack(28)"
+        ]
+      },
+      "THRASH_MOVE_1": {
+        "intents": [
+          "Attack(8x2)"
+        ]
+      },
+      "THRASH_MOVE_2": {
+        "intents": [
+          "Attack(8x2)"
+        ]
+      },
+      "SALIVATE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "THE_OBSCURA": {
+    "id": "THE_OBSCURA",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 123,
+      "max": 123
+    },
+    "moves": {
+      "ILLUSION_MOVE": {
+        "intents": [
+          "Summon"
+        ]
+      },
+      "PIERCING_GAZE_MOVE": {
+        "intents": [
+          "Attack(10)"
+        ]
+      },
+      "SAIL_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "HARDENING_STRIKE_MOVE": {
+        "intents": [
+          "Attack(6)",
+          "Defend"
+        ]
+      }
+    },
+    "ai": "Random(PIERCING_GAZE_MOVE, SAIL_MOVE, HARDENING_STRIKE_MOVE)"
+  },
+  "THIEVING_HOPPER": {
+    "id": "THIEVING_HOPPER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 79,
+      "max": 79
+    },
+    "moves": {
+      "THIEVERY_MOVE": {
+        "intents": [
+          "Attack(17)",
+          "CardDebuff"
+        ]
+      },
+      "NAB_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      },
+      "HAT_TRICK_MOVE": {
+        "intents": [
+          "Attack(21)"
+        ]
+      },
+      "FLUTTER_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "ESCAPE_MOVE": {
+        "intents": [
+          "Escape"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "TUNNELER": {
+    "id": "TUNNELER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 87,
+      "max": 87
+    },
+    "moves": {
+      "BITE_MOVE": {
+        "intents": [
+          "Attack(13)"
+        ]
+      },
+      "BURROW_MOVE": {
+        "intents": [
+          "Buff",
+          "Defend"
+        ]
+      },
+      "BELOW_MOVE_1": {
+        "intents": [
+          "Attack(23)"
+        ]
+      },
+      "DIZZY_MOVE": {
+        "intents": [
+          "Stun"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "AXEBOT": {
+    "id": "AXEBOT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 40,
+      "max": 44
+    },
+    "moves": {
+      "BOOT_UP_MOVE": {
+        "intents": [
+          "Defend",
+          "Buff"
+        ]
+      },
+      "ONE_TWO_MOVE": {
+        "intents": [
+          "Attack(5x2)"
+        ]
+      },
+      "SHARPEN_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "HAMMER_UPPERCUT_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Debuff"
+        ]
+      }
+    },
+    "ai": "Random(ONE_TWO_MOVE, SHARPEN_MOVE, HAMMER_UPPERCUT_MOVE)"
+  },
+  "PUNCH_CONSTRUCT": {
+    "id": "PUNCH_CONSTRUCT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 55,
+      "max": 55
+    },
+    "moves": {
+      "READY_MOVE": {
+        "intents": [
+          "Defend"
+        ]
+      },
+      "FAST_PUNCH_MOVE": {
+        "intents": [
+          "Attack(5x2)",
+          "Debuff"
+        ]
+      },
+      "STRONG_PUNCH_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "DEVOTED_SCULPTOR": {
+    "id": "DEVOTED_SCULPTOR",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 162,
+      "max": 162
+    },
+    "moves": {
+      "FORBIDDEN_INCANTATION_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "SAVAGE_MOVE": {
+        "intents": [
+          "Attack(12)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "DOOR": {
+    "id": "DOOR",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 155,
+      "max": 155
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "DOORMAKER": {
+    "id": "DOORMAKER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 489,
+      "max": 489
+    },
+    "moves": {
+      "WHAT_IS_IT_MOVE": {
+        "intents": [
+          "Stun"
+        ]
+      },
+      "BEAM_MOVE": {
+        "intents": [
+          "Attack(31)"
+        ]
+      },
+      "GET_BACK_IN_MOVE": {
+        "intents": [
+          "Attack(40)",
+          "Buff",
+          "Escape"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "FABRICATOR": {
+    "id": "FABRICATOR",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 150,
+      "max": 150
+    },
+    "moves": {
+      "FABRICATE_MOVE": {
+        "intents": [
+          "Summon"
+        ]
+      },
+      "FABRICATING_STRIKE_MOVE": {
+        "intents": [
+          "Attack(18)",
+          "Summon"
+        ]
+      },
+      "DISINTEGRATE_MOVE": {
+        "intents": [
+          "Attack(11)"
+        ]
+      }
+    },
+    "ai": "Conditional(fabricateBranch) \u2192 Random(FABRICATE_MOVE, FABRICATING_STRIKE_MOVE)"
+  },
+  "GUARDBOT": {
+    "id": "GUARDBOT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 21,
+      "max": 25
+    },
+    "moves": {
+      "GUARD_MOVE": {
+        "intents": [
+          "Defend"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "NOISEBOT": {
+    "id": "NOISEBOT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 23,
+      "max": 28
+    },
+    "moves": {
+      "NOISE_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "ZAPBOT": {
+    "id": "ZAPBOT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 23,
+      "max": 28
+    },
+    "moves": {
+      "ZAP": {
+        "intents": [
+          "Attack(14)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "STABBOT": {
+    "id": "STABBOT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 23,
+      "max": 28
+    },
+    "moves": {
+      "STAB_MOVE": {
+        "intents": [
+          "Attack(11)",
+          "Debuff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "FROG_KNIGHT": {
+    "id": "FROG_KNIGHT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 191,
+      "max": 191
+    },
+    "moves": {
+      "FOR_THE_QUEEN": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "STRIKE_DOWN_EVIL": {
+        "intents": [
+          "Attack(21)"
+        ]
+      },
+      "TONGUE_LASH": {
+        "intents": [
+          "Attack(13)",
+          "Debuff"
+        ]
+      },
+      "BEETLE_CHARGE": {
+        "intents": [
+          "Attack(35)"
+        ]
+      }
+    },
+    "ai": "Conditional(HALF_HEALTH)"
+  },
+  "GLOBE_HEAD": {
+    "id": "GLOBE_HEAD",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 148,
+      "max": 148
+    },
+    "moves": {
+      "SHOCKING_SLAP": {
+        "intents": [
+          "Attack(13)",
+          "Debuff"
+        ]
+      },
+      "THUNDER_STRIKE": {
+        "intents": [
+          "Attack(6x3)"
+        ]
+      },
+      "GALVANIC_BURST": {
+        "intents": [
+          "Attack(16)",
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "FLAIL_KNIGHT": {
+    "id": "FLAIL_KNIGHT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 101,
+      "max": 101
+    },
+    "moves": {
+      "WAR_CHANT": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "FLAIL_MOVE": {
+        "intents": [
+          "Attack(9x2)"
+        ]
+      },
+      "RAM_MOVE": {
+        "intents": [
+          "Attack(15)"
+        ]
+      }
+    },
+    "ai": "Random(WAR_CHANT, FLAIL_MOVE, RAM_MOVE)"
+  },
+  "SPECTRAL_KNIGHT": {
+    "id": "SPECTRAL_KNIGHT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 93,
+      "max": 93
+    },
+    "moves": {
+      "HEX": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "SOUL_SLASH": {
+        "intents": [
+          "Attack(15)"
+        ]
+      },
+      "SOUL_FLAME": {
+        "intents": [
+          "Attack(3x3)"
+        ]
+      }
+    },
+    "ai": "Random(SOUL_SLASH, SOUL_FLAME)"
+  },
+  "MAGI_KNIGHT": {
+    "id": "MAGI_KNIGHT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 82,
+      "max": 82
+    },
+    "moves": {
+      "FIRST_POWER_SHIELD_MOVE": {
+        "intents": [
+          "Attack(6)",
+          "Defend"
+        ]
+      },
+      "DAMPEN_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "RAM_MOVE": {
+        "intents": [
+          "Attack(10)"
+        ]
+      },
+      "PREP_MOVE": {
+        "intents": [
+          "Defend"
+        ]
+      },
+      "MAGIC_BOMB": {
+        "intents": [
+          "Attack(35)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "MECHA_KNIGHT": {
+    "id": "MECHA_KNIGHT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 300,
+      "max": 300
+    },
+    "moves": {
+      "CHARGE_MOVE": {
+        "intents": [
+          "Attack(25)"
+        ]
+      },
+      "HEAVY_CLEAVE_MOVE": {
+        "intents": [
+          "Attack(35)"
+        ]
+      },
+      "WINDUP_MOVE": {
+        "intents": [
+          "Defend",
+          "Buff"
+        ]
+      },
+      "FLAMETHROWER_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "OWL_MAGISTRATE": {
+    "id": "OWL_MAGISTRATE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 234,
+      "max": 234
+    },
+    "moves": {
+      "MAGISTRATE_SCRUTINY": {
+        "intents": [
+          "Attack(16)"
+        ]
+      },
+      "PECK_ASSAULT": {
+        "intents": [
+          "Attack(4x6)"
+        ]
+      },
+      "JUDICIAL_FLIGHT": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "VERDICT": {
+        "intents": [
+          "Attack(33)",
+          "Debuff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "QUEEN": {
+    "id": "QUEEN",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 400,
+      "max": 400
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "TORCH_HEAD_AMALGAM": {
+    "id": "TORCH_HEAD_AMALGAM",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 199,
+      "max": 199
+    },
+    "moves": {
+      "TACKLE_1_MOVE": {
+        "intents": [
+          "Attack(18)"
+        ]
+      },
+      "TACKLE_2_MOVE": {
+        "intents": [
+          "Attack(18)"
+        ]
+      },
+      "BEAM_MOVE": {
+        "intents": [
+          "Attack(8x3)"
+        ]
+      },
+      "TACKLE_3_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      },
+      "TACKLE_4_MOVE": {
+        "intents": [
+          "Attack(14)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SCROLL_OF_BITING": {
+    "id": "SCROLL_OF_BITING",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 31,
+      "max": 38
+    },
+    "moves": {
+      "CHOMP": {
+        "intents": [
+          "Attack(14)"
+        ]
+      },
+      "CHEW": {
+        "intents": [
+          "Attack(5x2)"
+        ]
+      },
+      "MORE_TEETH": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": "Random(CHOMP, CHEW)"
+  },
+  "SLIMED_BERSERKER": {
+    "id": "SLIMED_BERSERKER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 266,
+      "max": 266
+    },
+    "moves": {
+      "VOMIT_ICHOR_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      },
+      "SMOTHER_MOVE": {
+        "intents": [
+          "Attack(30)"
+        ]
+      },
+      "LEECHING_HUG_MOVE": {
+        "intents": [
+          "Debuff",
+          "Buff"
+        ]
+      },
+      "FURIOUS_PUMMELING_MOVE": {
+        "intents": [
+          "Attack(4x4)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SOUL_NEXUS": {
+    "id": "SOUL_NEXUS",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 234,
+      "max": 234
+    },
+    "moves": {
+      "SOUL_BURN_MOVE": {
+        "intents": [
+          "Attack(29)"
+        ]
+      },
+      "MAELSTROM_MOVE": {
+        "intents": [
+          "Attack(6x4)"
+        ]
+      },
+      "DRAIN_LIFE_MOVE": {
+        "intents": [
+          "Attack(18)",
+          "Debuff"
+        ]
+      }
+    },
+    "ai": "Random(SOUL_BURN_MOVE, MAELSTROM_MOVE, DRAIN_LIFE_MOVE)"
+  },
+  "TEST_SUBJECT": {
+    "id": "TEST_SUBJECT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 100,
+      "max": 100
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "THE_LOST": {
+    "id": "THE_LOST",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 93,
+      "max": 93
+    },
+    "moves": {
+      "DEBILITATING_SMOG": {
+        "intents": [
+          "Debuff",
+          "Buff"
+        ]
+      },
+      "EYE_LASERS": {
+        "intents": [
+          "Attack(4x2)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "THE_FORGOTTEN": {
+    "id": "THE_FORGOTTEN",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 106,
+      "max": 106
+    },
+    "moves": {
+      "MIASMA": {
+        "intents": [
+          "Debuff",
+          "Defend",
+          "Buff"
+        ]
+      },
+      "DREAD": {
+        "intents": [
+          "Attack(15)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "LIVING_SHIELD": {
+    "id": "LIVING_SHIELD",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 55,
+      "max": 55
+    },
+    "moves": {
+      "SHIELD_SLAM_MOVE": {
+        "intents": [
+          "Attack(6)"
+        ]
+      },
+      "SMASH_MOVE": {
+        "intents": [
+          "Attack(16)",
+          "Buff"
+        ]
+      }
+    },
+    "ai": "Conditional(SHIELD_SLAM_BRANCH)"
+  },
+  "TURRET_OPERATOR": {
+    "id": "TURRET_OPERATOR",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 41,
+      "max": 41
+    },
+    "moves": {
+      "UNLOAD_MOVE_1": {
+        "intents": [
+          "Attack(3x5)"
+        ]
+      },
+      "UNLOAD_MOVE_2": {
+        "intents": [
+          "Attack(3x5)"
+        ]
+      },
+      "RELOAD_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "CORPSE_SLUG": {
+    "id": "CORPSE_SLUG",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 25,
+      "max": 27
+    },
+    "moves": {
+      "WHIP_SLAP_MOVE": {
+        "intents": [
+          "Attack(3x2)"
+        ]
+      },
+      "GLOMP_MOVE": {
+        "intents": [
+          "Attack(8)"
+        ]
+      },
+      "GOOP_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "CALCIFIED_CULTIST": {
+    "id": "CALCIFIED_CULTIST",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 38,
+      "max": 41
+    },
+    "moves": {
+      "INCANTATION_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "DARK_STRIKE_MOVE": {
+        "intents": [
+          "Attack(9)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "DAMP_CULTIST": {
+    "id": "DAMP_CULTIST",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 51,
+      "max": 53
+    },
+    "moves": {
+      "INCANTATION_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "DARK_STRIKE_MOVE": {
+        "intents": [
+          "Attack(1)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "LIVING_FOG": {
+    "id": "LIVING_FOG",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 80,
+      "max": 80
+    },
+    "moves": {
+      "ADVANCED_GAS_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "CardDebuff"
+        ]
+      },
+      "SUPER_GAS_BLAST_MOVE": {
+        "intents": [
+          "Attack(8)"
+        ]
+      },
+      "BLOAT_MOVE": {
+        "intents": [
+          "Attack(5)",
+          "Summon"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "GAS_BOMB": {
+    "id": "GAS_BOMB",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 10,
+      "max": 10
+    },
+    "moves": {
+      "EXPLODE_MOVE": {
+        "intents": [
+          "Attack(8)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "FOSSIL_STALKER": {
+    "id": "FOSSIL_STALKER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 51,
+      "max": 53
+    },
+    "moves": {
+      "TACKLE_MOVE": {
+        "intents": [
+          "Attack(9)",
+          "Debuff"
+        ]
+      },
+      "LATCH_MOVE": {
+        "intents": [
+          "Attack(12)"
+        ]
+      },
+      "LASH_MOVE": {
+        "intents": [
+          "Attack(3x2)"
+        ]
+      }
+    },
+    "ai": "Random(LATCH_MOVE, TACKLE_MOVE, LASH_MOVE)"
+  },
+  "GREMLIN_MERC": {
+    "id": "GREMLIN_MERC",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 47,
+      "max": 49
+    },
+    "moves": {
+      "GIMME_MOVE": {
+        "intents": [
+          "Attack(7x2)"
+        ]
+      },
+      "DOUBLE_SMASH_MOVE": {
+        "intents": [
+          "Attack(6x2)",
+          "Debuff"
+        ]
+      },
+      "HEHE_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "FAT_GREMLIN": {
+    "id": "FAT_GREMLIN",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 13,
+      "max": 17
+    },
+    "moves": {
+      "SPAWNED_MOVE": {
+        "intents": [
+          "Stun"
+        ]
+      },
+      "FLEE_MOVE": {
+        "intents": [
+          "Escape"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SNEAKY_GREMLIN": {
+    "id": "SNEAKY_GREMLIN",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 10,
+      "max": 14
+    },
+    "moves": {
+      "SPAWNED_MOVE": {
+        "intents": [
+          "Stun"
+        ]
+      },
+      "TACKLE_MOVE": {
+        "intents": [
+          "Attack(9)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "HAUNTED_SHIP": {
+    "id": "HAUNTED_SHIP",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 63,
+      "max": 63
+    },
+    "moves": {
+      "RAMMING_SPEED_MOVE": {
+        "intents": [
+          "Attack(10)",
+          "Status"
+        ]
+      },
+      "SWIPE_MOVE": {
+        "intents": [
+          "Attack(13)"
+        ]
+      },
+      "STOMP_MOVE": {
+        "intents": [
+          "Attack(4x3)"
+        ]
+      },
+      "HAUNT_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      }
+    },
+    "ai": "Random(RAMMING_SPEED_MOVE, SWIPE_MOVE, STOMP_MOVE, HAUNT_MOVE)"
+  },
+  "LAGAVULIN_MATRIARCH": {
+    "id": "LAGAVULIN_MATRIARCH",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 222,
+      "max": 222
+    },
+    "moves": {
+      "SLEEP_MOVE": {
+        "intents": [
+          "Sleep"
+        ]
+      },
+      "SLASH_MOVE": {
+        "intents": [
+          "Attack(19)"
+        ]
+      },
+      "SLASH2_MOVE": {
+        "intents": [
+          "Attack(12)",
+          "Defend"
+        ]
+      },
+      "SOUL_SIPHON_MOVE": {
+        "intents": [
+          "Debuff",
+          "Buff"
+        ]
+      },
+      "DISEMBOWEL_MOVE": {
+        "intents": [
+          "Attack(9x2)"
+        ]
+      }
+    },
+    "ai": "Conditional(SLEEP_BRANCH)"
+  },
+  "SKULKING_COLONY": {
+    "id": "SKULKING_COLONY",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 79,
+      "max": 79
+    },
+    "moves": {
+      "INERTIA_MOVE": {
+        "intents": [
+          "Defend",
+          "Buff"
+        ]
+      },
+      "ZOOM_MOVE": {
+        "intents": [
+          "Attack(16)"
+        ]
+      },
+      "SUPER_CRAB_MOVE": {
+        "intents": [
+          "Attack(6x2)"
+        ]
+      },
+      "SMASH_MOVE": {
+        "intents": [
+          "Attack(9)",
+          "Status"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "PHANTASMAL_GARDENER": {
+    "id": "PHANTASMAL_GARDENER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 28,
+      "max": 32
+    },
+    "moves": {
+      "BITE_MOVE": {
+        "intents": [
+          "Attack(5)"
+        ]
+      },
+      "LASH_MOVE": {
+        "intents": [
+          "Attack(7)"
+        ]
+      },
+      "ENLARGE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "FLAIL_MOVE": {
+        "intents": [
+          "Attack(1x3)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SEAPUNK": {
+    "id": "SEAPUNK",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 44,
+      "max": 46
+    },
+    "moves": {
+      "SEA_KICK_MOVE": {
+        "intents": [
+          "Attack(11)"
+        ]
+      },
+      "SPINNING_KICK_MOVE": {
+        "intents": [
+          "Attack(2x4)"
+        ]
+      },
+      "BUBBLE_BURP_MOVE": {
+        "intents": [
+          "Buff",
+          "Defend"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SEWER_CLAM": {
+    "id": "SEWER_CLAM",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 56,
+      "max": 56
+    },
+    "moves": {
+      "PRESSURIZE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "JET_MOVE": {
+        "intents": [
+          "Attack(10)"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "SLUDGE_SPINNER": {
+    "id": "SLUDGE_SPINNER",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 37,
+      "max": 39
+    },
+    "moves": {
+      "OIL_SPRAY_MOVE": {
+        "intents": [
+          "Attack(8)",
+          "Debuff"
+        ]
+      },
+      "SLAM_MOVE": {
+        "intents": [
+          "Attack(11)"
+        ]
+      },
+      "RAGE_MOVE": {
+        "intents": [
+          "Attack(6)",
+          "Buff"
+        ]
+      }
+    },
+    "ai": "Random(OIL_SPRAY_MOVE, SLAM_MOVE, RAGE_MOVE)"
+  },
+  "SOUL_FYSH": {
+    "id": "SOUL_FYSH",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 211,
+      "max": 211
+    },
+    "moves": {
+      "BECKON_MOVE": {
+        "intents": [
+          "Status"
+        ]
+      },
+      "DE_GAS_MOVE": {
+        "intents": [
+          "Attack(16)"
+        ]
+      },
+      "GAZE_MOVE": {
+        "intents": [
+          "Attack(7)",
+          "Status"
+        ]
+      },
+      "SCREAM_MOVE": {
+        "intents": [
+          "Attack(11)",
+          "Debuff"
+        ]
+      },
+      "FADE_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      }
+    },
+    "ai": ""
+  },
+  "TERROR_EEL": {
+    "id": "TERROR_EEL",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 140,
+      "max": 140
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  },
+  "TOADPOLE": {
+    "id": "TOADPOLE",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 21,
+      "max": 25
+    },
+    "moves": {
+      "SPIKEN_MOVE": {
+        "intents": [
+          "Buff"
+        ]
+      },
+      "SPIKE_SPIT_MOVE": {
+        "intents": [
+          "Attack(3x3)"
+        ]
+      },
+      "WHIRL_MOVE": {
+        "intents": [
+          "Attack(7)"
+        ]
+      }
+    },
+    "ai": "Conditional(INIT_MOVE)"
+  },
+  "TWO_TAILED_RAT": {
+    "id": "TWO_TAILED_RAT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 17,
+      "max": 21
+    },
+    "moves": {
+      "SCRATCH_MOVE": {
+        "intents": [
+          "Attack(8)"
+        ]
+      },
+      "DISEASE_BITE_MOVE": {
+        "intents": [
+          "Attack(6)"
+        ]
+      },
+      "SCREECH_MOVE": {
+        "intents": [
+          "Debuff"
+        ]
+      },
+      "CALL_FOR_BACKUP_MOVE": {
+        "intents": [
+          "Summon"
+        ]
+      }
+    },
+    "ai": "Random(SCRATCH_MOVE, DISEASE_BITE_MOVE, SCREECH_MOVE, CALL_FOR_BACKUP_MOVE)"
+  },
+  "WATERFALL_GIANT": {
+    "id": "WATERFALL_GIANT",
+    "name": {
+      "en": "",
+      "cn": ""
+    },
+    "hp": {
+      "min": 250,
+      "max": 250
+    },
+    "moves": {},
+    "ai": "(could not extract)"
+  }
+}

@@ -1,0 +1,1267 @@
+﻿{
+  "BYGONE_EFFIGY_ELITE": {
+    "id": "BYGONE_EFFIGY_ELITE",
+    "name": {
+      "en": "Bygone Effigy",
+      "cn": "\u65E7\u65E5\u96D5\u50CF"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "BYGONE_EFFIGY"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "BYRDONIS_ELITE": {
+    "id": "BYRDONIS_ELITE",
+    "name": {
+      "en": "Byrdonis",
+      "cn": "\u591A\u5C3C\u65AF\u5F02\u9E1F"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "BYRDONIS"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "CEREMONIAL_BEAST_BOSS": {
+    "id": "CEREMONIAL_BEAST_BOSS",
+    "name": {
+      "en": "Ceremonial Beast",
+      "cn": "\u4EEA\u5F0F\u517D"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "CEREMONIAL_BEAST"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "CUBEX_CONSTRUCT_NORMAL": {
+    "id": "CUBEX_CONSTRUCT_NORMAL",
+    "name": {
+      "en": "Cubex Construct",
+      "cn": "\u65B9\u67F1\u6784\u88C5\u4F53"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "CUBEX_CONSTRUCT"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "FLYCONID_NORMAL": {
+    "id": "FLYCONID_NORMAL",
+    "name": {
+      "en": "Shroom and Slime",
+      "cn": "\u771F\u83CC\u4E0E\u53F2\u83B1\u59C6"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "FLYCONID",
+      "LEAF_SLIME_M",
+      "TWIG_SLIME_M"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "FOGMOG_NORMAL": {
+    "id": "FOGMOG_NORMAL",
+    "name": {
+      "en": "Fogmog",
+      "cn": "\u96FE\u83C7"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "FOGMOG",
+      "EYE_WITH_TEETH"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "FUZZY_WURM_CRAWLER_WEAK": {
+    "id": "FUZZY_WURM_CRAWLER_WEAK",
+    "name": {
+      "en": "Fuzzy Wurm Crawler",
+      "cn": "\u6BDB\u7ED2\u4F0F\u5730\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "FUZZY_WURM_CRAWLER"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "INKLETS_NORMAL": {
+    "id": "INKLETS_NORMAL",
+    "name": {
+      "en": "Inklets",
+      "cn": "\u58A8\u5B9D"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "INKLET"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "MAWLER_NORMAL": {
+    "id": "MAWLER_NORMAL",
+    "name": {
+      "en": "Mawler",
+      "cn": "\u86EE\u517D"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "MAWLER"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "NIBBITS_NORMAL": {
+    "id": "NIBBITS_NORMAL",
+    "name": {
+      "en": "A Pair of Nibbits",
+      "cn": "\u4E24\u53EA\u5C0F\u5543\u517D"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "NIBBIT"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "NIBBITS_WEAK": {
+    "id": "NIBBITS_WEAK",
+    "name": {
+      "en": "A Lone Nibbit",
+      "cn": "\u4E00\u53EA\u843D\u5355\u7684\u5C0F\u5543\u517D"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "NIBBIT"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "OVERGROWTH_CRAWLERS": {
+    "id": "OVERGROWTH_CRAWLERS",
+    "name": {
+      "en": "Overgrowth Crawlers",
+      "cn": "\u5BC6\u6797\u722C\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "SHRINKER_BEETLE",
+      "FUZZY_WURM_CRAWLER"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "PHROG_PARASITE_ELITE": {
+    "id": "PHROG_PARASITE_ELITE",
+    "name": {
+      "en": "Phrog Parasite",
+      "cn": "\u5F02\u86D9\u5BC4\u751F\u866B"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "PHROG_PARASITE",
+      "WRIGGLER"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "RUBY_RAIDERS_NORMAL": {
+    "id": "RUBY_RAIDERS_NORMAL",
+    "name": {
+      "en": "Ruby Raiders",
+      "cn": "\u7EA2\u5B9D\u77F3\u52AB\u63A0\u8005"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "AXE_RUBY_RAIDER",
+      "ASSASSIN_RUBY_RAIDER",
+      "BRUTE_RUBY_RAIDER",
+      "CROSSBOW_RUBY_RAIDER",
+      "TRACKER_RUBY_RAIDER"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "SHRINKER_BEETLE_WEAK": {
+    "id": "SHRINKER_BEETLE_WEAK",
+    "name": {
+      "en": "Shrinker Beetle",
+      "cn": "\u7F29\u5C0F\u7532\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "SHRINKER_BEETLE"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "SLIMES_NORMAL": {
+    "id": "SLIMES_NORMAL",
+    "name": {
+      "en": "Swarm of Slimes",
+      "cn": "\u4E00\u5927\u7FA4\u53F2\u83B1\u59C6"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "LEAF_SLIME_S",
+      "TWIG_SLIME_S",
+      "TWIG_SLIME_M",
+      "LEAF_SLIME_M"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "SLIMES_WEAK": {
+    "id": "SLIMES_WEAK",
+    "name": {
+      "en": "Group of Slimes",
+      "cn": "\u4E00\u7FA4\u53F2\u83B1\u59C6"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "LEAF_SLIME_S",
+      "TWIG_SLIME_S",
+      "LEAF_SLIME_M",
+      "TWIG_SLIME_M"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "SLITHERING_STRANGLER_NORMAL": {
+    "id": "SLITHERING_STRANGLER_NORMAL",
+    "name": {
+      "en": "Strangler and Friend",
+      "cn": "\u627C\u6740\u8005\u4E0E\u4F19\u4F34"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "LEAF_SLIME_S",
+      "TWIG_SLIME_S",
+      "LEAF_SLIME_M",
+      "TWIG_SLIME_M",
+      "SNAPPING_JAXFRUIT",
+      "SLITHERING_STRANGLER"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "SNAPPING_JAXFRUIT_NORMAL": {
+    "id": "SNAPPING_JAXFRUIT_NORMAL",
+    "name": {
+      "en": "Overgrowth Flora",
+      "cn": "\u5BC6\u6797\u690D\u7269"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "SNAPPING_JAXFRUIT",
+      "FLYCONID"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "THE_KIN_BOSS": {
+    "id": "THE_KIN_BOSS",
+    "name": {
+      "en": "The Kin",
+      "cn": "\u540C\u65CF\u5C0F\u961F"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "KIN_FOLLOWER",
+      "KIN_PRIEST"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "VANTOM_BOSS": {
+    "id": "VANTOM_BOSS",
+    "name": {
+      "en": "Vantom",
+      "cn": "\u58A8\u5F71\u5E7B\u7075"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "VANTOM"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "VINE_SHAMBLER_NORMAL": {
+    "id": "VINE_SHAMBLER_NORMAL",
+    "name": {
+      "en": "Vine Shambler",
+      "cn": "\u85E4\u8513\u8E52\u8DDA\u8005"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "VINE_SHAMBLER"
+    ],
+    "acts": [
+      "OVERGROWTH"
+    ]
+  },
+  "BOWLBUGS_NORMAL": {
+    "id": "BOWLBUGS_NORMAL",
+    "name": {
+      "en": "Bowlbug Swarm",
+      "cn": "\u76DB\u7897\u866B\u7FA4"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "BOWLBUG_EGG",
+      "BOWLBUG_SILK",
+      "BOWLBUG_NECTAR"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "BOWLBUGS_WEAK": {
+    "id": "BOWLBUGS_WEAK",
+    "name": {
+      "en": "Bowlbugs",
+      "cn": "\u76DB\u7897\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "BOWLBUG_EGG",
+      "BOWLBUG_NECTAR",
+      "BOWLBUG_ROCK"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "CHOMPERS_NORMAL": {
+    "id": "CHOMPERS_NORMAL",
+    "name": {
+      "en": "An Automaton Pair",
+      "cn": "\u4E00\u5BF9\u81EA\u52A8\u673A\u68B0"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "CHOMPER"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "DECIMILLIPEDE_ELITE": {
+    "id": "DECIMILLIPEDE_ELITE",
+    "name": {
+      "en": "The Decimillipede",
+      "cn": "\u6B8B\u6740\u5343\u8DB3\u866B"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "DECIMILLIPEDE_SEGMENT_FRONT",
+      "DECIMILLIPEDE_SEGMENT_MIDDLE",
+      "DECIMILLIPEDE_SEGMENT_BACK"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "ENTOMANCER_ELITE": {
+    "id": "ENTOMANCER_ELITE",
+    "name": {
+      "en": "Entomancer",
+      "cn": "\u8702\u7FA4\u672F\u58EB"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "ENTOMANCER"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "EXOSKELETONS_NORMAL": {
+    "id": "EXOSKELETONS_NORMAL",
+    "name": {
+      "en": "Many Exoskeletons",
+      "cn": "\u8BB8\u591A\u5916\u9AA8\u9ABC\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "EXOSKELETON"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "EXOSKELETONS_WEAK": {
+    "id": "EXOSKELETONS_WEAK",
+    "name": {
+      "en": "Exoskeletons",
+      "cn": "\u5916\u9AA8\u9ABC\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "EXOSKELETON"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "HUNTER_KILLER_NORMAL": {
+    "id": "HUNTER_KILLER_NORMAL",
+    "name": {
+      "en": "Hunter Killer",
+      "cn": "\u730E\u4EBA\u6740\u624B"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "HUNTER_KILLER"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "KAISER_CRAB_BOSS": {
+    "id": "KAISER_CRAB_BOSS",
+    "name": {
+      "en": "Kaiser Crab",
+      "cn": "\u5E1D\u7687\u87F9"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "CRUSHER",
+      "ROCKET"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "INFESTED_PRISMS_ELITE": {
+    "id": "INFESTED_PRISMS_ELITE",
+    "name": {
+      "en": "Infested Prism",
+      "cn": "\u611F\u67D3\u68F1\u67F1"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "INFESTED_PRISM"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "KNOWLEDGE_DEMON_BOSS": {
+    "id": "KNOWLEDGE_DEMON_BOSS",
+    "name": {
+      "en": "Knowledge Demon",
+      "cn": "\u77E5\u8BC6\u6076\u9B54"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "KNOWLEDGE_DEMON"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "LOUSE_PROGENITOR_NORMAL": {
+    "id": "LOUSE_PROGENITOR_NORMAL",
+    "name": {
+      "en": "Louse Progenitor",
+      "cn": "\u8671\u866B\u4E4B\u7956"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "LOUSE_PROGENITOR"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "MYTES_NORMAL": {
+    "id": "MYTES_NORMAL",
+    "name": {
+      "en": "Mass of Mytes",
+      "cn": "\u4E00\u7FA4\u5F02\u87A8"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "MYTE"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "OVICOPTER_NORMAL": {
+    "id": "OVICOPTER_NORMAL",
+    "name": {
+      "en": "Ovicopter",
+      "cn": "\u76F4\u98DE\u4EA7\u5375\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "OVICOPTER",
+      "TOUGH_EGG"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "SLUMBERING_BEETLE_NORMAL": {
+    "id": "SLUMBERING_BEETLE_NORMAL",
+    "name": {
+      "en": "Slumber Party",
+      "cn": "\u719F\u7761\u6D3E\u5BF9"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "BOWLBUG_ROCK",
+      "SLUMBERING_BEETLE",
+      "BOWLBUG_SILK"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "SPINY_TOAD_NORMAL": {
+    "id": "SPINY_TOAD_NORMAL",
+    "name": {
+      "en": "Spiny Toad",
+      "cn": "\u68D8\u523A\u87FE\u870D"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "SPINY_TOAD"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "THE_INSATIABLE_BOSS": {
+    "id": "THE_INSATIABLE_BOSS",
+    "name": {
+      "en": "The Insatiable",
+      "cn": "\u65E0\u538C\u6C99\u866B"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "THE_INSATIABLE"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "THE_OBSCURA_NORMAL": {
+    "id": "THE_OBSCURA_NORMAL",
+    "name": {
+      "en": "The Obscura",
+      "cn": "\u80E7\u5149\u602A"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "THE_OBSCURA"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "THIEVING_HOPPER_WEAK": {
+    "id": "THIEVING_HOPPER_WEAK",
+    "name": {
+      "en": "Thieving Hopper",
+      "cn": "\u5077\u7A83\u8349\u8722"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "THIEVING_HOPPER"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "TUNNELER_NORMAL": {
+    "id": "TUNNELER_NORMAL",
+    "name": {
+      "en": "Tunneling Twosome",
+      "cn": "\u5730\u9053\u7EC4\u5408"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "TUNNELER",
+      "BOWLBUG_EGG",
+      "BOWLBUG_SILK"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "TUNNELER_WEAK": {
+    "id": "TUNNELER_WEAK",
+    "name": {
+      "en": "Tunneler",
+      "cn": "\u5730\u9053\u866B"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "TUNNELER"
+    ],
+    "acts": [
+      "HIVE"
+    ]
+  },
+  "AXEBOTS_NORMAL": {
+    "id": "AXEBOTS_NORMAL",
+    "name": {
+      "en": "Bot Buddies",
+      "cn": "\u673A\u68B0\u4F19\u4F34"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "AXEBOT"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "CONSTRUCT_MENAGERIE_NORMAL": {
+    "id": "CONSTRUCT_MENAGERIE_NORMAL",
+    "name": {
+      "en": "Construct Menagerie",
+      "cn": "\u4E00\u4E9B\u6784\u88C5\u4F53"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "PUNCH_CONSTRUCT",
+      "CUBEX_CONSTRUCT"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "DEVOTED_SCULPTOR_WEAK": {
+    "id": "DEVOTED_SCULPTOR_WEAK",
+    "name": {
+      "en": "Devoted Sculptor",
+      "cn": "\u8654\u8BDA\u96D5\u523B\u5E08"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "DEVOTED_SCULPTOR"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "DOORMAKER_BOSS": {
+    "id": "DOORMAKER_BOSS",
+    "name": {
+      "en": "The Doormaker",
+      "cn": "\u95E8\u6249\u7F14\u9020\u8005"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "DOOR",
+      "DOORMAKER"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "FABRICATOR_NORMAL": {
+    "id": "FABRICATOR_NORMAL",
+    "name": {
+      "en": "Fabricator",
+      "cn": "\u7EC4\u88C5\u5E08"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "FABRICATOR",
+      "GUARDBOT",
+      "NOISEBOT",
+      "ZAPBOT",
+      "STABBOT"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "FROG_KNIGHT_NORMAL": {
+    "id": "FROG_KNIGHT_NORMAL",
+    "name": {
+      "en": "Frog Knight",
+      "cn": "\u9752\u86D9\u9A91\u58EB"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "FROG_KNIGHT"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "GLOBE_HEAD_NORMAL": {
+    "id": "GLOBE_HEAD_NORMAL",
+    "name": {
+      "en": "A Lone Globe Head",
+      "cn": "\u4E00\u4E2A\u5B64\u5355\u7684\u7535\u7403\u5934"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "GLOBE_HEAD"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "KNIGHTS_ELITE": {
+    "id": "KNIGHTS_ELITE",
+    "name": {
+      "en": "Knight Gang",
+      "cn": "\u9A91\u58EB\u56E2\u4F19"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "FLAIL_KNIGHT",
+      "SPECTRAL_KNIGHT",
+      "MAGI_KNIGHT"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "MECHA_KNIGHT_ELITE": {
+    "id": "MECHA_KNIGHT_ELITE",
+    "name": {
+      "en": "Mecha Knight",
+      "cn": "\u673A\u7532\u9A91\u58EB"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "MECHA_KNIGHT"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "OWL_MAGISTRATE_NORMAL": {
+    "id": "OWL_MAGISTRATE_NORMAL",
+    "name": {
+      "en": "Owl Magistrate",
+      "cn": "\u732B\u5934\u9E70\u6CD5\u5B98"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "OWL_MAGISTRATE"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "QUEEN_BOSS": {
+    "id": "QUEEN_BOSS",
+    "name": {
+      "en": "Queen",
+      "cn": "\u5973\u738B"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "QUEEN",
+      "TORCH_HEAD_AMALGAM"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "SCROLLS_OF_BITING_NORMAL": {
+    "id": "SCROLLS_OF_BITING_NORMAL",
+    "name": {
+      "en": "Many Scrolls of Biting",
+      "cn": "\u8BB8\u591A\u54AC\u4EBA\u5377\u8F74"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "SCROLL_OF_BITING"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "SCROLLS_OF_BITING_WEAK": {
+    "id": "SCROLLS_OF_BITING_WEAK",
+    "name": {
+      "en": "Scrolls of Biting",
+      "cn": "\u54AC\u4EBA\u5377\u8F74"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "SCROLL_OF_BITING"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "SLIMED_BERSERKER_NORMAL": {
+    "id": "SLIMED_BERSERKER_NORMAL",
+    "name": {
+      "en": "Slimed Berserker",
+      "cn": "\u53F2\u83B1\u59C6\u72C2\u6218\u58EB"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "SLIMED_BERSERKER"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "SOUL_NEXUS_ELITE": {
+    "id": "SOUL_NEXUS_ELITE",
+    "name": {
+      "en": "Soul Nexus",
+      "cn": "\u7075\u9B42\u67A2\u7EBD"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "SOUL_NEXUS"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "TEST_SUBJECT_BOSS": {
+    "id": "TEST_SUBJECT_BOSS",
+    "name": {
+      "en": "Test Subject",
+      "cn": "\u5B9E\u9A8C\u4F53"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "TEST_SUBJECT"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "THE_LOST_AND_FORGOTTEN_NORMAL": {
+    "id": "THE_LOST_AND_FORGOTTEN_NORMAL",
+    "name": {
+      "en": "Lost and Forgotten",
+      "cn": "\u5931\u843D\u4E0E\u9057\u5FD8\u4E4B\u7269"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "THE_LOST",
+      "THE_FORGOTTEN"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "TURRET_OPERATOR_WEAK": {
+    "id": "TURRET_OPERATOR_WEAK",
+    "name": {
+      "en": "Turret Operator",
+      "cn": "\u9AD8\u5854\u70AE\u624B"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "LIVING_SHIELD",
+      "TURRET_OPERATOR"
+    ],
+    "acts": [
+      "GLORY"
+    ]
+  },
+  "CORPSE_SLUGS_NORMAL": {
+    "id": "CORPSE_SLUGS_NORMAL",
+    "name": {
+      "en": "Many Corpse Slugs",
+      "cn": "\u8BB8\u591A\u566C\u5C38\u86DE\u8753"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "CORPSE_SLUG"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "CORPSE_SLUGS_WEAK": {
+    "id": "CORPSE_SLUGS_WEAK",
+    "name": {
+      "en": "Corpse Slugs",
+      "cn": "\u4E00\u4E9B\u566C\u5C38\u86DE\u8753"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "CORPSE_SLUG"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "CULTISTS_NORMAL": {
+    "id": "CULTISTS_NORMAL",
+    "name": {
+      "en": "Cultists",
+      "cn": "\u90AA\u6559\u5F92\u4EEC"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "CALCIFIED_CULTIST",
+      "DAMP_CULTIST"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "LIVING_FOG_NORMAL": {
+    "id": "LIVING_FOG_NORMAL",
+    "name": {
+      "en": "Evil Gas",
+      "cn": "\u90AA\u6076\u6C14\u4F53"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "LIVING_FOG",
+      "GAS_BOMB"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "FOSSIL_STALKER_NORMAL": {
+    "id": "FOSSIL_STALKER_NORMAL",
+    "name": {
+      "en": "Fossil Stalker",
+      "cn": "\u5316\u77F3\u8FFD\u8E2A\u8005"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "FOSSIL_STALKER"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "GREMLIN_MERC_NORMAL": {
+    "id": "GREMLIN_MERC_NORMAL",
+    "name": {
+      "en": "Two Gremlins in a Trenchcoat",
+      "cn": "\u7A7F\u7740\u4E00\u4EF6\u5927\u8863\u7684\u4E24\u53EA\u5730\u7CBE"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "GREMLIN_MERC",
+      "FAT_GREMLIN",
+      "SNEAKY_GREMLIN"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "HAUNTED_SHIP_NORMAL": {
+    "id": "HAUNTED_SHIP_NORMAL",
+    "name": {
+      "en": "Haunted Ship",
+      "cn": "\u5E7D\u7075\u8239"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "HAUNTED_SHIP"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "LAGAVULIN_MATRIARCH_BOSS": {
+    "id": "LAGAVULIN_MATRIARCH_BOSS",
+    "name": {
+      "en": "Lagavulin Matriarch",
+      "cn": "\u4E50\u52A0\u7EF4\u6797\u65CF\u6BCD"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "LAGAVULIN_MATRIARCH"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "SKULKING_COLONY_ELITE": {
+    "id": "SKULKING_COLONY_ELITE",
+    "name": {
+      "en": "Skulking Colony",
+      "cn": "\u9B3C\u795F\u73CA\u745A\u7FA4"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "SKULKING_COLONY"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "PHANTASMAL_GARDENERS_ELITE": {
+    "id": "PHANTASMAL_GARDENERS_ELITE",
+    "name": {
+      "en": "Phantasmal Gardeners",
+      "cn": "\u82B1\u56ED\u5E7D\u7075\u9CD7"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "PHANTASMAL_GARDENER"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "PUNCH_CONSTRUCT_NORMAL": {
+    "id": "PUNCH_CONSTRUCT_NORMAL",
+    "name": {
+      "en": "Punch Construct",
+      "cn": "\u62F3\u51FB\u6784\u88C5\u4F53"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "PUNCH_CONSTRUCT"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "SEAPUNK_WEAK": {
+    "id": "SEAPUNK_WEAK",
+    "name": {
+      "en": "Seapunk",
+      "cn": "\u6D77\u6D0B\u6DF7\u6DF7"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "SEAPUNK"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "SEWER_CLAM_NORMAL": {
+    "id": "SEWER_CLAM_NORMAL",
+    "name": {
+      "en": "Sewer Clam",
+      "cn": "\u4E0B\u6C34\u9053\u868C"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "SEWER_CLAM"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "SLUDGE_SPINNER_WEAK": {
+    "id": "SLUDGE_SPINNER_WEAK",
+    "name": {
+      "en": "Sludge Spinner",
+      "cn": "\u6DE4\u6CE5\u65CB\u87BA"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "SLUDGE_SPINNER"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "SOUL_FYSH_BOSS": {
+    "id": "SOUL_FYSH_BOSS",
+    "name": {
+      "en": "Soul Fysh",
+      "cn": "\u7075\u9B42\u5F02\u9C7C"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "SOUL_FYSH"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "TERROR_EEL_ELITE": {
+    "id": "TERROR_EEL_ELITE",
+    "name": {
+      "en": "Terror Eel",
+      "cn": "\u9A87\u9CD7"
+    },
+    "roomType": "Elite",
+    "isWeak": false,
+    "monsters": [
+      "TERROR_EEL"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "TOADPOLES_NORMAL": {
+    "id": "TOADPOLES_NORMAL",
+    "name": {
+      "en": "Underdocks Wildlife",
+      "cn": "\u6697\u6E2F\u91CE\u751F\u52A8\u7269"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "TOADPOLE",
+      "CALCIFIED_CULTIST"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "TOADPOLES_WEAK": {
+    "id": "TOADPOLES_WEAK",
+    "name": {
+      "en": "Toadpoles",
+      "cn": "\u87FE\u870D\u874C\u86AA"
+    },
+    "roomType": "Monster",
+    "isWeak": true,
+    "monsters": [
+      "TOADPOLE"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "TWO_TAILED_RATS_NORMAL": {
+    "id": "TWO_TAILED_RATS_NORMAL",
+    "name": {
+      "en": "Two-Tailed Rats",
+      "cn": "\u53CC\u5C3E\u9F20"
+    },
+    "roomType": "Monster",
+    "isWeak": false,
+    "monsters": [
+      "TWO_TAILED_RAT"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  },
+  "WATERFALL_GIANT_BOSS": {
+    "id": "WATERFALL_GIANT_BOSS",
+    "name": {
+      "en": "Waterfall Giant",
+      "cn": "\u7011\u5E03\u5DE8\u517D"
+    },
+    "roomType": "Boss",
+    "isWeak": false,
+    "monsters": [
+      "WATERFALL_GIANT"
+    ],
+    "acts": [
+      "UNDERDOCKS"
+    ]
+  }
+}

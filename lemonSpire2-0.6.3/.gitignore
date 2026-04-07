@@ -1,0 +1,19 @@
+.godot/
+bin/
+/android/
+.git/
+.idea/
+.vs/
+publish/
+Properties/
+.editorconfig
+*.import
+
+# 本地开发环境配置
+Directory.Build.props
+
+*.uid
+*.user
+/.codebase/*
+/.sts2/*
+*.import
