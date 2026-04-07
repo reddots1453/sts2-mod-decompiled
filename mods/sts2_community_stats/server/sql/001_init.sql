@@ -165,6 +165,8 @@ CREATE TABLE IF NOT EXISTS contributions (
     cards_drawn       INT          DEFAULT 0,
     energy_gained     INT          DEFAULT 0,
     hp_healed         INT          DEFAULT 0,
+    stars_contribution INT         DEFAULT 0,
+    mitigated_by_str  INT          DEFAULT 0,
     created_at        TIMESTAMPTZ  DEFAULT NOW()
 );
 

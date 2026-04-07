@@ -59,8 +59,8 @@ python scripts/seed_test_data.py --runs 100 --api-url https://域名
 
 #### 步骤 3：统计查询
 ```
-GET https://域名/v1/stats/bulk?char=IRONCLAD&min_asc=0&max_asc=20
-期望：返回 BulkStatsBundle，cards/relics/events/encounters 非空
+GET https://域名/v1/stats/bulk?char=IRONCLAD&ver=v0.99.1&min_asc=0&max_asc=20
+期望：返回 BulkStatsBundle，cards/relics/events/encounters 非空（ver 为必填参数）
 ```
 
 #### 步骤 4：客户端真实上传

@@ -54,7 +54,7 @@ class EncounterUpload(BaseModel):
 
 class ContributionUpload(BaseModel):
     source_id: str = Field(..., max_length=64)
-    source_type: str = Field(..., pattern=r"^(card|relic)$")
+    source_type: str = Field(..., pattern=r"^(card|relic|potion)$")
     encounter_id: str | None = None
     times_played: int = Field(0, ge=0)
     direct_damage: int = Field(0, ge=0)
@@ -65,6 +65,8 @@ class ContributionUpload(BaseModel):
     cards_drawn: int = Field(0, ge=0)
     energy_gained: int = Field(0, ge=0)
     hp_healed: int = Field(0, ge=0)
+    stars_contribution: int = Field(0, ge=0)
+    mitigated_by_str: int = Field(0, ge=0)
 
 
 class RunUploadPayload(BaseModel):
