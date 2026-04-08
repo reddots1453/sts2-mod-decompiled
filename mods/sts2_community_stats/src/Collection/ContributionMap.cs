@@ -146,6 +146,76 @@ public class ContributionMap
         return _creatureDebuffSources.GetValueOrDefault((creatureHash, powerId));
     }
 
+    // ── FIFO Debuff Layer Attribution (H1) ──────────────────
+    // Tracks per-layer source for duration-based debuffs (Vulnerable, Weak).
+    // When multiple cards apply the same debuff, each application records its source + duration.
+    // Attribution uses FIFO: earliest layers are consumed first.
+
+    public record DebuffLayerEntry(string SourceId, string SourceType, int Duration);
+
+    private readonly Dictionary<(int creatureHash, string powerId), List<DebuffLayerEntry>> _debuffLayers = new();
+
+    /// <summary>
+    /// Record a debuff layer application. Called when a power is applied to a creature.
+    /// </summary>
+    public void RecordDebuffLayer(int creatureHash, string powerId, string sourceId, string sourceType, int duration)
+    {
+        var key = (creatureHash, powerId);
+        if (!_debuffLayers.TryGetValue(key, out var layers))
+        {
+            layers = new List<DebuffLayerEntry>();
+            _debuffLayers[key] = layers;
+        }
+        layers.Add(new DebuffLayerEntry(sourceId, sourceType, duration));
+    }
+
+    /// <summary>
+    /// Get fractional attribution for a debuff's sources (FIFO-based).
+    /// Returns list of (sourceId, sourceType, fraction) where fractions sum to 1.0.
+    /// Falls back to single-source GetDebuffSource if no layers recorded.
+    /// </summary>
+    public List<(string SourceId, string SourceType, float Fraction)> GetDebuffSourceFractions(int creatureHash, string powerId)
+    {
+        var result = new List<(string, string, float)>();
+        var key = (creatureHash, powerId);
+
+        if (_debuffLayers.TryGetValue(key, out var layers) && layers.Count > 0)
+        {
+            int totalDuration = 0;
+            foreach (var l in layers) totalDuration += l.Duration;
+            if (totalDuration > 0)
+            {
+                foreach (var l in layers)
+                {
+                    float frac = (float)l.Duration / totalDuration;
+                    result.Add((l.SourceId, l.SourceType, frac));
+                }
+                return result;
+            }
+        }
+
+        // Fallback to single source
+        var single = GetDebuffSource(creatureHash, powerId);
+        if (single != null)
+            result.Add((single.SourceId, single.SourceType, 1.0f));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Decrement debuff layers at turn end (FIFO: earliest layers consumed first).
+    /// </summary>
+    public void DecrementDebuffLayers(int creatureHash, string powerId)
+    {
+        var key = (creatureHash, powerId);
+        if (!_debuffLayers.TryGetValue(key, out var layers) || layers.Count == 0) return;
+
+        // FIFO: decrement first layer, remove if expired
+        layers[0] = layers[0] with { Duration = layers[0].Duration - 1 };
+        if (layers[0].Duration <= 0)
+            layers.RemoveAt(0);
+    }
+
     public PowerSource? GetPlayerBuffSource(string powerId)
     {
         return _playerBuffSources.GetValueOrDefault(powerId);
@@ -435,10 +505,16 @@ public class ContributionMap
         return _upgradeDeltaMap.GetValueOrDefault(cardHash);
     }
 
+    // ── Enemy base damage tracking (for C1 str reduction formula) ──
+    // Set by EnemyDamageIntentPatch Prefix on Hook.ModifyDamage when dealer is not player
+    public int PendingEnemyBaseDamage { get; set; }
+    public int PendingEnemyHitCount { get; set; } = 1;
+
     public void Clear()
     {
         _powerSources.Clear();
         _creatureDebuffSources.Clear();
+        _debuffLayers.Clear();
         _playerBuffSources.Clear();
         _blockPool.Clear();
         LastDamageModifiers.Clear();
@@ -446,6 +522,8 @@ public class ContributionMap
         _cardOriginMap.Clear();
         _upgradeDeltaMap.Clear();
         _enemyStrReductions.Clear();
+        PendingEnemyBaseDamage = 0;
+        PendingEnemyHitCount = 1;
         _seekingEdgeActive = false;
         _seekingEdgePrimaryTargetHash = 0;
         _hasPendingCostSaving = false;

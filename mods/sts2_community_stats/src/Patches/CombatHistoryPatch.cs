@@ -82,11 +82,34 @@ public static class CombatHistoryPatch
             // Defense attribution: Weak on enemy attacker reduces damage to player
             if (isPlayerReceiver && dealer != null && result.TotalDamage > 0)
             {
-                bool dealerHasWeak = dealer.HasPower<WeakPower>();
-                if (dealerHasWeak)
+                var weakPower = dealer.GetPower<WeakPower>();
+                if (weakPower != null)
                 {
+                    // Fix-2: Compute actual weak multiplier including PaperKrane/Debilitate
+                    decimal weakMult = 0.75m;
+                    if (receiver?.Player != null)
+                    {
+                        var krane = receiver.Player.GetRelic<PaperKrane>();
+                        if (krane != null) weakMult -= 0.15m;
+                    }
+                    var debilitate = dealer.GetPower<DebilitatePower>();
+                    if (debilitate != null)
+                        weakMult = 1m - (1m - weakMult) * 2m; // doubles the reduction
+                    // Floor at 0.1 to avoid division issues
+                    if (weakMult < 0.1m) weakMult = 0.1m;
+
                     CombatTracker.Instance.OnWeakMitigation(
-                        result.TotalDamage, dealer.GetHashCode());
+                        result.TotalDamage, dealer.GetHashCode(), (float)weakMult);
+                }
+
+                // Defense attribution: ColossusPower on player halves damage from Vulnerable enemies
+                var colossusPower = receiver.GetPower<ColossusPower>();
+                if (colossusPower != null && dealer.HasPower<VulnerablePower>())
+                {
+                    // Colossus multiplier is 0.5 (DamageDecrease dynamic var)
+                    // prevented = actualDamage / 0.5 - actualDamage = actualDamage
+                    CombatTracker.Instance.OnColossusMitigation(
+                        result.TotalDamage, receiver.GetHashCode());
                 }
             }
         });
@@ -420,6 +443,8 @@ public static class DamageModifierPatch
     public static void BeforeModifyDamage(decimal damage, out decimal __state)
     {
         __state = damage;
+        // Fix-3: Clear stale modifiers from previous call to prevent leaking
+        ContributionMap.Instance.LastDamageModifiers.Clear();
     }
 
     [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyDamage))]
@@ -457,29 +482,43 @@ public static class DamageModifierPatch
 
                     // For additive modifiers (Strength, Vigor, etc.), get the additive contribution
                     decimal additive = power.ModifyDamageAdditive(target, baseDmg, props, dealer, cardSource);
-                    // For multiplicative modifiers, the bonus is harder to isolate per-modifier.
-                    // We use a simplified approach: attribute proportionally.
-                    decimal multiplicative = power.ModifyDamageMultiplicative(target, baseDmg + additive, props, dealer, cardSource);
 
-                    int contribution = 0;
                     if (additive != 0)
                     {
-                        contribution = (int)additive;
-                    }
-                    else if (multiplicative != 1m && multiplicative > 0)
-                    {
-                        // Multiplicative bonus = (multiplier - 1) * current damage
-                        contribution = (int)((multiplicative - 1m) * baseDmg);
+                        var source = ContributionMap.Instance.GetPowerSource(powerId);
+                        if (source != null)
+                            modList.Add(new ContributionMap.ModifierContribution(
+                                source.SourceId, source.SourceType, Math.Abs((int)additive)));
+                        continue;
                     }
 
+                    // For multiplicative modifiers
+                    decimal multiplicative = power.ModifyDamageMultiplicative(target, baseDmg + additive, props, dealer, cardSource);
+                    if (multiplicative == 1m || multiplicative <= 0) continue;
+
+                    // H2-R: Decompose VulnerablePower/WeakPower internal modifiers
+                    if (powerId == "VULNERABLE_POWER")
+                    {
+                        DecomposeVulnerableContribution(power, target, dealer, props, cardSource,
+                            finalDmg, multiplicative, modList);
+                        continue;
+                    }
+                    if (powerId == "WEAK_POWER")
+                    {
+                        DecomposeWeakContribution(power, target, dealer, props, cardSource,
+                            finalDmg, multiplicative, modList);
+                        continue;
+                    }
+
+                    // Standard multiplicative: contribution = finalDmg - finalDmg/multiplier
+                    int contribution = (int)(finalDmg - finalDmg / multiplicative);
                     if (contribution == 0) continue;
 
-                    // Find the source of this power
-                    var source = ContributionMap.Instance.GetPowerSource(powerId);
-                    if (source != null)
+                    var powerSource = ContributionMap.Instance.GetPowerSource(powerId);
+                    if (powerSource != null)
                     {
                         modList.Add(new ContributionMap.ModifierContribution(
-                            source.SourceId, source.SourceType, Math.Abs(contribution)));
+                            powerSource.SourceId, powerSource.SourceType, Math.Abs(contribution)));
                     }
                 }
                 else if (mod is RelicModel relic)
@@ -498,6 +537,228 @@ public static class DamageModifierPatch
                     }
                 }
             }
+        });
+    }
+
+    /// <summary>
+    /// H2-R: Decompose VulnerablePower's combined multiplier into individual contributions:
+    /// Vulnerable base (1.5) + PaperPhrog (+0.25) + Cruelty (+Amount/100) + Debilitate (doubles bonus).
+    /// Each sub-contributor gets a proportional share of the total Vulnerable damage bonus.
+    /// </summary>
+    private static void DecomposeVulnerableContribution(
+        PowerModel vulnPower, Creature? target, Creature? dealer, ValueProp props, CardModel? cardSource,
+        decimal finalDmg, decimal combinedMult,
+        List<ContributionMap.ModifierContribution> modList)
+    {
+        // Total damage bonus from Vulnerable = finalDmg - finalDmg / combinedMult
+        int totalContrib = (int)(finalDmg - finalDmg / combinedMult);
+        if (totalContrib <= 0) return;
+
+        // Base Vulnerable multiplier bonus (typically 0.5 from 1.5)
+        decimal vulnBaseDelta = 0.5m;
+        decimal phrogDelta = 0;
+        decimal crueltyDelta = 0;
+        decimal debilitateDelta = 0;
+
+        // Check PaperPhrog relic on dealer
+        if (dealer?.Player != null)
+        {
+            var phrog = dealer.Player.GetRelic<PaperPhrog>();
+            if (phrog != null)
+                phrogDelta = 0.25m;
+        }
+
+        // Check CrueltyPower on dealer
+        if (dealer != null)
+        {
+            var cruelty = dealer.GetPower<CrueltyPower>();
+            if (cruelty != null)
+                crueltyDelta = (decimal)cruelty.Amount / 100m;
+        }
+
+        // Debilitate on target doubles the bonus
+        if (target != null)
+        {
+            var debilitate = target.GetPower<DebilitatePower>();
+            if (debilitate != null)
+            {
+                decimal preDebilMult = 1m + vulnBaseDelta + phrogDelta + crueltyDelta;
+                debilitateDelta = preDebilMult - 1m; // doubles the bonus
+            }
+        }
+
+        // Proportional share of total contribution
+        decimal subTotal = vulnBaseDelta + phrogDelta + crueltyDelta + debilitateDelta;
+        if (subTotal <= 0) return;
+
+        // Vulnerable base — split among FIFO sources (Fix-4)
+        int vulnShare = (int)Math.Round(totalContrib * (vulnBaseDelta / subTotal));
+        if (vulnShare > 0 && target != null)
+        {
+            var fractions = ContributionMap.Instance.GetDebuffSourceFractions(target.GetHashCode(), "VULNERABLE_POWER");
+            if (fractions.Count > 0)
+            {
+                foreach (var (srcId, srcType, frac) in fractions)
+                {
+                    int srcShare = (int)Math.Round(vulnShare * frac);
+                    if (srcShare > 0)
+                        modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, srcShare));
+                }
+            }
+            else
+            {
+                var vulnSource = ContributionMap.Instance.GetPowerSource("VULNERABLE_POWER");
+                if (vulnSource != null)
+                    modList.Add(new ContributionMap.ModifierContribution(vulnSource.SourceId, vulnSource.SourceType, vulnShare));
+            }
+        }
+
+        // PaperPhrog relic
+        if (phrogDelta > 0)
+        {
+            int phrogShare = (int)Math.Round(totalContrib * (phrogDelta / subTotal));
+            if (phrogShare > 0)
+                modList.Add(new ContributionMap.ModifierContribution("PAPER_PHROG", "relic", phrogShare));
+        }
+
+        // CrueltyPower
+        if (crueltyDelta > 0)
+        {
+            var crueltySource = ContributionMap.Instance.GetPowerSource("CRUELTY_POWER");
+            int crueltyShare = (int)Math.Round(totalContrib * (crueltyDelta / subTotal));
+            if (crueltyShare > 0 && crueltySource != null)
+                modList.Add(new ContributionMap.ModifierContribution(crueltySource.SourceId, crueltySource.SourceType, crueltyShare));
+        }
+
+        // DebilitatePower
+        if (debilitateDelta > 0)
+        {
+            var debilSource = ContributionMap.Instance.GetPowerSource("DEBILITATE_POWER");
+            int debilShare = (int)Math.Round(totalContrib * (debilitateDelta / subTotal));
+            if (debilShare > 0 && debilSource != null)
+                modList.Add(new ContributionMap.ModifierContribution(debilSource.SourceId, debilSource.SourceType, debilShare));
+        }
+    }
+
+    /// <summary>
+    /// H2-R: Decompose WeakPower's combined multiplier into individual contributions:
+    /// Weak base (0.75) + PaperKrane (-0.15) + Debilitate (doubles reduction).
+    /// </summary>
+    private static void DecomposeWeakContribution(
+        PowerModel weakPower, Creature? target, Creature? dealer, ValueProp props, CardModel? cardSource,
+        decimal finalDmg, decimal combinedMult,
+        List<ContributionMap.ModifierContribution> modList)
+    {
+        // Weak reduces damage: the "bonus" is negative (damage was reduced)
+        // We track this as a positive number representing damage mitigated
+        int totalContrib = (int)(finalDmg / combinedMult - finalDmg);
+        if (totalContrib <= 0) return;
+
+        decimal baseReduction = 0.25m; // from 0.75 multiplier
+        decimal kraneDelta = 0;
+        decimal debilitateDelta = 0;
+
+        // Check PaperKrane relic on target (player)
+        if (target?.Player != null)
+        {
+            var krane = target.Player.GetRelic<PaperKrane>();
+            if (krane != null)
+                kraneDelta = 0.15m;
+        }
+
+        // Debilitate on dealer doubles the reduction
+        if (dealer != null)
+        {
+            var debilitate = dealer.GetPower<DebilitatePower>();
+            if (debilitate != null)
+                debilitateDelta = baseReduction + kraneDelta; // doubles
+        }
+
+        decimal subTotal = baseReduction + kraneDelta + debilitateDelta;
+        if (subTotal <= 0) return;
+
+        // Weak base share
+        var weakSource = ContributionMap.Instance.GetPowerSource("WEAK_POWER");
+        int weakShare = (int)Math.Round(totalContrib * (baseReduction / subTotal));
+        if (weakShare > 0 && weakSource != null)
+            modList.Add(new ContributionMap.ModifierContribution(weakSource.SourceId, weakSource.SourceType, weakShare));
+
+        // PaperKrane relic
+        if (kraneDelta > 0)
+        {
+            int kraneShare = (int)Math.Round(totalContrib * (kraneDelta / subTotal));
+            if (kraneShare > 0)
+                modList.Add(new ContributionMap.ModifierContribution("PAPER_KRANE", "relic", kraneShare));
+        }
+
+        // DebilitatePower
+        if (debilitateDelta > 0)
+        {
+            var debilSource = ContributionMap.Instance.GetPowerSource("DEBILITATE_POWER");
+            int debilShare = (int)Math.Round(totalContrib * (debilitateDelta / subTotal));
+            if (debilShare > 0 && debilSource != null)
+                modList.Add(new ContributionMap.ModifierContribution(debilSource.SourceId, debilSource.SourceType, debilShare));
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// C1: Enemy base damage capture (for str reduction formula)
+// Captures enemy's base damage BEFORE modifiers so we can compute
+// how much strength reduction actually mitigated.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class EnemyDamageIntentPatch
+{
+    [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyDamage))]
+    [HarmonyPrefix]
+    public static void BeforeModifyDamage_Enemy(decimal damage, Creature? dealer)
+    {
+        Safe.Run(() =>
+        {
+            // Only track damage dealt BY enemies TO player
+            if (dealer == null || dealer.IsPlayer) return;
+            ContributionMap.Instance.PendingEnemyBaseDamage = (int)damage;
+        });
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Fix-1: Decrement FIFO debuff layers when duration ticks down
+// PowerModel.SetAmount is synchronous void — safe for Harmony.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class DebuffDurationPatch
+{
+    [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.SetAmount))]
+    [HarmonyPrefix]
+    public static void BeforeSetAmount(PowerModel __instance, out int __state)
+    {
+        __state = __instance.Amount;
+    }
+
+    [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.SetAmount))]
+    [HarmonyPostfix]
+    public static void AfterSetAmount(PowerModel __instance, int amount, int __state)
+    {
+        Safe.Run(() =>
+        {
+            // Only care about duration decrements (amount < old) on non-player creatures
+            if (amount >= __state) return;
+            var owner = __instance.Owner;
+            if (owner == null || owner.IsPlayer) return;
+
+            var powerId = __instance.Id.Entry;
+            if (string.IsNullOrEmpty(powerId)) return;
+
+            // Only decrement for duration-based debuffs we track (Vulnerable, Weak)
+            if (powerId != "VULNERABLE_POWER" && powerId != "WEAK_POWER") return;
+
+            int decremented = __state - amount;
+            for (int i = 0; i < decremented; i++)
+                ContributionMap.Instance.DecrementDebuffLayers(owner.GetHashCode(), powerId);
         });
     }
 }
@@ -532,6 +793,8 @@ public static class BlockModifierPatch
             var modList = ContributionMap.Instance.LastBlockModifiers;
             modList.Clear();
 
+            // Each modifier's actual contribution is its ModifyBlockAdditive return value
+            // The game calls each power with a running block total, and each returns its additive delta
             foreach (var mod in modifiers)
             {
                 if (mod is PowerModel power)
@@ -542,8 +805,8 @@ public static class BlockModifierPatch
                     var source = ContributionMap.Instance.GetPowerSource(powerId);
                     if (source == null) continue;
 
-                    // Approximate contribution
-                    int contribution = (int)(totalBonus / modifiers.Count());
+                    // Use the power's actual additive contribution (Amount for most powers like Dexterity)
+                    int contribution = Math.Abs(power.Amount);
                     if (contribution > 0)
                     {
                         modList.Add(new ContributionMap.ModifierContribution(
@@ -655,9 +918,12 @@ public static class CardUpgradeTrackerPatch
             if (damageDelta <= 0 && blockDelta <= 0) return;
 
             // Store the delta for later attribution when the upgraded card is played.
-            // The upgrade source (e.g., Armaments, Aggression) is tracked separately.
+            // Source = the card that triggered the upgrade (e.g., Armaments), or "upgrade" fallback
+            var tracker = CombatTracker.Instance;
+            string sourceId = tracker.ActiveCardId ?? "upgrade";
+            string sourceType = tracker.ActiveCardId != null ? "card" : "upgrade";
             ContributionMap.Instance.RecordUpgradeDelta(card.GetHashCode(),
-                damageDelta, blockDelta, "upgrade", "card");
+                damageDelta, blockDelta, sourceId, sourceType);
         });
     }
 }

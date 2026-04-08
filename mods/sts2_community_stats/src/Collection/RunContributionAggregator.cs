@@ -86,6 +86,7 @@ public sealed class RunContributionAggregator
                 HpHealed = src.HpHealed,
                 StarsContribution = src.StarsContribution,
                 OriginSourceId = src.OriginSourceId,
+                SelfDamage = src.SelfDamage,
                 UpgradeDamage = src.UpgradeDamage,
                 UpgradeBlock = src.UpgradeBlock
             };
@@ -163,7 +164,13 @@ public sealed class RunContributionAggregator
             EnergyGained = accum.EnergyGained,
             HpHealed = accum.HpHealed,
             StarsContribution = accum.StarsContribution,
-            MitigatedByStrReduction = accum.MitigatedByStrReduction
+            MitigatedByStrReduction = accum.MitigatedByStrReduction,
+            ModifierDamage = accum.ModifierDamage,
+            ModifierBlock = accum.ModifierBlock,
+            SelfDamage = accum.SelfDamage,
+            UpgradeDamage = accum.UpgradeDamage,
+            UpgradeBlock = accum.UpgradeBlock,
+            OriginSourceId = accum.OriginSourceId
         };
     }
 }

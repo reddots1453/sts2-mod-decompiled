@@ -32,6 +32,13 @@ public sealed class CombatTracker
     // so KillingBlowPatcher doesn't double-count them.
     private readonly HashSet<int> _processedDamageResults = new();
 
+    // Pending upgrade delta for the currently playing card (per-hit split, per Review R3)
+    private int _pendingUpgradeDamageDelta;
+    private int _pendingUpgradeBlockDelta;
+
+    // H3: Deferred Osty death negative defense — only applied when enemy next attacks player
+    private (string sourceId, string sourceType, int amount)? _pendingOstyDeathDefense;
+
     // Current encounter info
     private string _encounterId = "";
     private string _encounterType = "";
@@ -63,6 +70,9 @@ public sealed class CombatTracker
         _turnCount = 0;
         _playerDied = false;
         _floor = floor;
+        _pendingOstyDeathDefense = null;
+        _pendingUpgradeDamageDelta = 0;
+        _pendingUpgradeBlockDelta = 0;
         _processedDamageResults.Clear();
         ContributionMap.Instance.Clear();
     }
@@ -108,6 +118,10 @@ public sealed class CombatTracker
         // Reset orb first-trigger flag so first orb trigger during this card play
         // goes to channeling source, subsequent triggers go to this card.
         ContributionMap.Instance.ResetOrbFirstTrigger();
+        // Load upgrade delta for per-hit split (C2: activated upgrade tracking)
+        var upgDelta = ContributionMap.Instance.GetUpgradeDelta(cardHash);
+        _pendingUpgradeDamageDelta = upgDelta?.DamageDelta ?? 0;
+        _pendingUpgradeBlockDelta = upgDelta?.BlockDelta ?? 0;
     }
 
     public void OnCardPlayFinished()
@@ -156,7 +170,7 @@ public sealed class CombatTracker
     // ── Resolve Source ───────────────────────────────────────
     // Fallback chain: cardSourceId → _activeCardId → _activePotionId → _activeRelicId → _activePowerSource → _activeOrbContext
 
-    private (string? id, string type) ResolveSource(string? cardSourceId)
+    private (string id, string type) ResolveSource(string? cardSourceId)
     {
         if (cardSourceId != null)
             return (cardSourceId, "card");
@@ -172,7 +186,9 @@ public sealed class CombatTracker
         var orbCtx = ContributionMap.Instance.ActiveOrbContext;
         if (orbCtx != null)
             return (orbCtx.Value.sourceId, orbCtx.Value.sourceType);
-        return (null, "card");
+        // No context found — use UNTRACKED sentinel so data is never silently lost
+        Plugin.Log.LogWarning($"[CombatTracker] ResolveSource: no active context, using UNTRACKED");
+        return ("UNTRACKED", "untracked");
     }
 
     // ── Damage Dealt to Enemies ─────────────────────────────
@@ -203,6 +219,14 @@ public sealed class CombatTracker
 
         if (isPlayerReceiver)
         {
+            // H3: Apply deferred Osty death negative defense on first enemy damage to player
+            if (_pendingOstyDeathDefense != null && dealerHash != targetHash)
+            {
+                var (ostySourceId, ostySourceType, ostyAmount) = _pendingOstyDeathDefense.Value;
+                GetOrCreate(ostySourceId, ostySourceType).EffectiveBlock -= ostyAmount;
+                _pendingOstyDeathDefense = null;
+            }
+
             _damageTakenByPlayer += totalDamage;
 
             // Self-damage: player dealing damage to themselves via a card (Bloodletting, Offering, etc.)
@@ -211,8 +235,7 @@ public sealed class CombatTracker
             if (dealerHash != 0 && dealerHash == targetHash && unblockedSelf > 0)
             {
                 var (srcId, srcType) = ResolveSource(cardSourceId);
-                if (srcId != null)
-                    GetOrCreate(srcId, srcType).SelfDamage += unblockedSelf;
+                GetOrCreate(srcId, srcType).SelfDamage += unblockedSelf;
             }
 
             // Attribute blocked damage to block sources via FIFO pool
@@ -235,9 +258,13 @@ public sealed class CombatTracker
                     foreach (var r in reductions) totalReduction += r.Amount;
                     if (totalReduction > 0)
                     {
+                        // C1 fix: cap effective reduction to enemy base damage per hit
+                        int enemyBase = ContributionMap.Instance.PendingEnemyBaseDamage;
+                        int effectiveReduction = enemyBase > 0 ? Math.Min(totalReduction, enemyBase) : totalReduction;
+                        // Proportional share per source
                         foreach (var entry in reductions)
                         {
-                            int share = (int)Math.Round((float)entry.Amount / totalReduction * totalReduction);
+                            int share = (int)Math.Round((float)entry.Amount / totalReduction * effectiveReduction);
                             if (share > 0)
                                 GetOrCreate(entry.SourceId, entry.SourceType).MitigatedByStrReduction += share;
                         }
@@ -312,10 +339,27 @@ public sealed class CombatTracker
             }
 
             var (sourceId2, sourceType2) = ResolveSource(cardSourceId);
-            if (sourceId2 != null)
+
+            // Per-hit upgrade delta split (C2): each hit of a multi-hit card gets its upgrade bonus
+            if (_pendingUpgradeDamageDelta > 0 && directDamage > 0)
             {
-                GetOrCreate(sourceId2, sourceType2).DirectDamage += directDamage;
+                int upgSplit = Math.Min(_pendingUpgradeDamageDelta, directDamage);
+                GetOrCreate(sourceId2, sourceType2).UpgradeDamage += upgSplit;
+                directDamage -= upgSplit;
             }
+
+            // Indirect damage (poison, thorns, orbs via power context) → AttributedDamage
+            // Direct damage (cards, relics, potions) → DirectDamage
+            bool isIndirect = cardSourceId == null
+                && _activeCardId == null
+                && _activePotionId == null
+                && _activeRelicId == null
+                && (_activePowerSourceId != null || ContributionMap.Instance.ActiveOrbContext != null);
+
+            if (isIndirect)
+                GetOrCreate(sourceId2, sourceType2).AttributedDamage += directDamage;
+            else
+                GetOrCreate(sourceId2, sourceType2).DirectDamage += directDamage;
         }
 
         modifiers.Clear();
@@ -323,17 +367,25 @@ public sealed class CombatTracker
 
     // ── Defense: Weak on enemies ────────────────────────────
 
-    public void OnWeakMitigation(int actualDamage, int dealerHash)
+    public void OnWeakMitigation(int actualDamage, int dealerHash, float weakMultiplier = 0.75f)
     {
         if (actualDamage <= 0) return;
 
-        int prevented = actualDamage / 3;
+        // Fix-2: Use actual multiplier to compute prevented damage
+        // prevented = damage_before_weak - damage_after_weak = actualDamage/mult - actualDamage
+        int prevented = (int)Math.Round(actualDamage / weakMultiplier - actualDamage);
         if (prevented <= 0) return;
 
-        var weakSource = ContributionMap.Instance.GetDebuffSource(dealerHash, "WEAK_POWER");
-        if (weakSource != null)
+        // H1: Use FIFO fractional attribution for multi-source Weak
+        var fractions = ContributionMap.Instance.GetDebuffSourceFractions(dealerHash, "WEAK_POWER");
+        if (fractions.Count > 0)
         {
-            GetOrCreate(weakSource.SourceId, weakSource.SourceType).MitigatedByDebuff += prevented;
+            foreach (var (sourceId, sourceType, frac) in fractions)
+            {
+                int share = (int)Math.Round(prevented * frac);
+                if (share > 0)
+                    GetOrCreate(sourceId, sourceType).MitigatedByDebuff += share;
+            }
         }
     }
 
@@ -362,13 +414,31 @@ public sealed class CombatTracker
         }
     }
 
+    /// <summary>
+    /// Called when ColossusPower on the player halves damage from a Vulnerable enemy.
+    /// Colossus multiplier = 0.5, so prevented = actualDamage (damage would have been 2x).
+    /// </summary>
+    public void OnColossusMitigation(int actualDamage, int playerHash)
+    {
+        if (actualDamage <= 0) return;
+
+        // Colossus is 0.5x, so prevented = actualDamage / 0.5 - actualDamage = actualDamage
+        int prevented = actualDamage;
+
+        var source = ContributionMap.Instance.GetPlayerBuffSource("COLOSSUS_POWER");
+        if (source != null)
+        {
+            GetOrCreate(source.SourceId, source.SourceType).MitigatedByBuff += prevented;
+        }
+    }
+
     // ── Block Tracking ──────────────────────────────────────
 
     public void OnBlockGained(int amount, string? cardPlayId)
     {
         var (sourceId, sourceType) = ResolveSource(cardPlayId);
 
-        if (sourceId != null && amount > 0)
+        if (amount > 0)
         {
             ContributionMap.Instance.AddBlock(sourceId, sourceType, amount);
 
@@ -379,6 +449,13 @@ public sealed class CombatTracker
                 int focusAmount = Math.Min(focusContrib.Value.amount, amount);
                 if (focusAmount > 0)
                     GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType).ModifierBlock += focusAmount;
+            }
+
+            // Per-hit upgrade block delta split (C2)
+            if (_pendingUpgradeBlockDelta > 0 && amount > 0)
+            {
+                int upgSplit = Math.Min(_pendingUpgradeBlockDelta, amount);
+                GetOrCreate(sourceId, sourceType).UpgradeBlock += upgSplit;
             }
 
             // Consume block modifier context (Dexterity, etc.)
@@ -433,6 +510,10 @@ public sealed class CombatTracker
         else
         {
             ContributionMap.Instance.RecordDebuffSource(creatureHash, powerId, sourceId, sourceType);
+            // H1: Record FIFO debuff layer for duration-based debuffs (Vulnerable, Weak)
+            int duration = (int)amount;
+            if (duration > 0)
+                ContributionMap.Instance.RecordDebuffLayer(creatureHash, powerId, sourceId, sourceType, duration);
         }
     }
 
@@ -591,8 +672,8 @@ public sealed class CombatTracker
 
         if (remainingHp > 0 && _activeCardId != null)
         {
-            // The active card destroyed Osty's HP pool → negative defense
-            GetOrCreate(_activeCardId, "card").EffectiveBlock -= remainingHp;
+            // H3: Defer negative defense until next enemy attack hits player
+            _pendingOstyDeathDefense = (_activeCardId, "card", remainingHp);
         }
 
         ContributionMap.Instance.ClearOstyHpStack();
@@ -668,13 +749,12 @@ public sealed class CombatTracker
         if (amount <= 0) return;
         var (sourceId, sourceType) = ResolveSource(null);
 
-        // Use fallback when no active source context
-        if (sourceId == null && fallbackId != null)
+        // Use fallback when no active source context (UNTRACKED means ResolveSource found nothing)
+        if (sourceId == "UNTRACKED" && fallbackId != null)
         {
             sourceId = fallbackId;
             sourceType = fallbackType ?? "other";
         }
-        if (sourceId == null) return;
 
         if (_currentCombat.Count > 0)
         {

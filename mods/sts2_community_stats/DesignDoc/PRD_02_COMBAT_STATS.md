@@ -146,7 +146,7 @@
 | DEF-2a | 虚弱减伤 | 敌人有虚弱（系数 α，来源：某卡牌），攻击 D1 | 虚弱来源 MitigatedByDebuff = D1 × α |
 | DEF-2b | 非独立减伤修正器 | 纸鹤 Paper Krane 改变虚弱系数（虚弱 β₀ + 纸鹤 β₁），敌人攻击 | 虚弱贡献 = 区间总减免 × β₀/(β₀+β₁)，纸鹤贡献 = 区间总减免 × β₁/(β₀+β₁) |
 | DEF-2c | 多来源虚弱层数 FIFO | 先由卡牌 A 施加 2 层虚弱，再由卡牌 B 施加 1 层 | 卡牌 A 的层数先生效（FIFO），贡献优先归因到 A |
-| DEF-2d | 独立乘区减伤 | 巨像 Colossus（独立乘区减伤系数 γ），敌人攻击 | 巨像 MitigatedByDebuff = D1 × γ（独立计算） |
+| DEF-2d | 独立乘区减伤（Colossus） | 巨像 Colossus：玩家 buff（由巨像卡施加），当有易伤的敌人攻击玩家时伤害 ×0.5。敌人有易伤状态并攻击玩家 | Colossus 来源 MitigatedByBuff += actualDamage（0.5x 乘数，prevented = actualDamage） |
 
 #### 第 3 步：无实体增益减伤
 

@@ -96,6 +96,12 @@ public class ContributionUpload
     [JsonPropertyName("hp_healed")]          public int HpHealed { get; set; }
     [JsonPropertyName("stars_contribution")] public int StarsContribution { get; set; }
     [JsonPropertyName("mitigated_by_str")]   public int MitigatedByStrReduction { get; set; }
+    [JsonPropertyName("modifier_damage")]    public int ModifierDamage { get; set; }
+    [JsonPropertyName("modifier_block")]     public int ModifierBlock { get; set; }
+    [JsonPropertyName("self_damage")]        public int SelfDamage { get; set; }
+    [JsonPropertyName("upgrade_damage")]     public int UpgradeDamage { get; set; }
+    [JsonPropertyName("upgrade_block")]      public int UpgradeBlock { get; set; }
+    [JsonPropertyName("origin_source_id")]   public string? OriginSourceId { get; set; }
 }
 
 // ============================================================

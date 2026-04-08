@@ -1,0 +1,11 @@
+{
+  "id": "sts2_contrib_tests",
+  "name": "STS2 Contribution Tests",
+  "author": "Dev",
+  "description": "Automated in-game tests for combat contribution tracking. Press F10 in combat to run.",
+  "version": "0.1.0",
+  "has_dll": true,
+  "has_pck": false,
+  "affects_gameplay": false,
+  "dependencies": ["sts2_community_stats"]
+}
