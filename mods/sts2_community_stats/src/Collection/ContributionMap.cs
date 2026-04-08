@@ -300,33 +300,58 @@ public class ContributionMap
         _seekingEdgePrimaryTargetHash = 0;
     }
 
-    // ── Pending Cost Savings ────────────────────────────────
-    // Recorded when VoidFormPower reduces card cost, consumed at card play.
+    // ── Cost Reduction Source Tags (NEW-1/NEW-2) ──────────────
+    // Layer 1: records which source last reduced a card's cost.
+    // Only tags (no amounts) — safe even when triggered by UI display.
+    // Layer 2 (in CombatHistoryPatch.AfterCardPlayStarted) computes actual savings at play time.
 
-    private (string sourceId, string sourceType, int energy, int stars) _pendingCostSaving;
-    private bool _hasPendingCostSaving;
+    private readonly Dictionary<int, (string sourceId, string sourceType)> _costReductionSourceTag = new();
+    private readonly HashSet<int> _generatedAndFreedCards = new();
 
-    public void RecordPendingCostSavings(string sourceId, string sourceType, int energySaved, int starsSaved)
+    public void TagCostReductionSource(int cardHash, string sourceId, string sourceType)
     {
-        if (_hasPendingCostSaving)
-        {
-            _pendingCostSaving = (_pendingCostSaving.sourceId, _pendingCostSaving.sourceType,
-                _pendingCostSaving.energy + energySaved, _pendingCostSaving.stars + starsSaved);
-        }
-        else
-        {
-            _pendingCostSaving = (sourceId, sourceType, energySaved, starsSaved);
-            _hasPendingCostSaving = true;
-        }
+        _costReductionSourceTag[cardHash] = (sourceId, sourceType);
     }
 
-    public (string sourceId, string sourceType, int energy, int stars)? ConsumePendingCostSavings()
+    public (string sourceId, string sourceType)? GetCostReductionSourceTag(int cardHash)
     {
-        if (!_hasPendingCostSaving) return null;
-        var result = _pendingCostSaving;
-        _hasPendingCostSaving = false;
-        _pendingCostSaving = default;
-        return result;
+        return _costReductionSourceTag.TryGetValue(cardHash, out var tag) ? tag : null;
+    }
+
+    public void ClearCostReductionSourceTag(int cardHash)
+    {
+        _costReductionSourceTag.Remove(cardHash);
+    }
+
+    public void MarkCardAsGeneratedAndFree(int cardHash)
+    {
+        _generatedAndFreedCards.Add(cardHash);
+    }
+
+    public bool IsCardGeneratedAndFree(int cardHash)
+    {
+        return _generatedAndFreedCards.Contains(cardHash);
+    }
+
+    // ── GainMaxHp Context Flag (NEW-3) ─────────────────────────
+    // Set in GainMaxHp Prefix, cleared in HealingPatch when the internal Heal fires.
+    // Prevents double-counting: GainMaxHp already records HpHealed, so its internal Heal is skipped.
+
+    private bool _isFromGainMaxHp;
+
+    public void SetGainMaxHpFlag(bool value) { _isFromGainMaxHp = value; }
+
+    /// <summary>
+    /// Returns true if current Heal is from GainMaxHp (should be suppressed). Clears flag after check.
+    /// </summary>
+    public bool CheckAndClearGainMaxHpFlag()
+    {
+        if (_isFromGainMaxHp)
+        {
+            _isFromGainMaxHp = false;
+            return true;
+        }
+        return false;
     }
 
     // ── Pending Hand Draw Bonus ─────────────────────────────
@@ -526,8 +551,9 @@ public class ContributionMap
         PendingEnemyHitCount = 1;
         _seekingEdgeActive = false;
         _seekingEdgePrimaryTargetHash = 0;
-        _hasPendingCostSaving = false;
-        _pendingCostSaving = default;
+        _costReductionSourceTag.Clear();
+        _generatedAndFreedCards.Clear();
+        _isFromGainMaxHp = false;
         _pendingHandDrawBonus.Clear();
         _ostyHpStack.Clear();
         _pendingDoomHp.Clear();

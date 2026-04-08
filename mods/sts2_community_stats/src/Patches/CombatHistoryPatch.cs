@@ -38,6 +38,20 @@ public static class CombatHistoryPatch
             var cardId = card?.Id.Entry;
             if (cardId != null)
                 CombatTracker.Instance.OnCardPlayStarted(cardId, card!.GetHashCode());
+
+            // NEW-1/NEW-2: Centralized cost savings attribution at play time
+            if (card != null)
+            {
+                int canonicalEnergy = card.EnergyCost.Canonical;
+                int canonicalStars = card.BaseStarCost;
+                int energySpent = cardPlay.Resources.EnergySpent;
+                int starsSpent = cardPlay.Resources.StarsSpent;
+                bool costsX = card.EnergyCost.CostsX;
+
+                CombatTracker.Instance.AttributeCostSavings(
+                    card.GetHashCode(), canonicalEnergy, energySpent,
+                    canonicalStars, starsSpent, costsX);
+            }
         });
     }
 
@@ -46,6 +60,19 @@ public static class CombatHistoryPatch
     public static void AfterCardPlayFinished(CombatState combatState, CardPlay cardPlay)
     {
         Safe.Run(() => CombatTracker.Instance.OnCardPlayFinished());
+    }
+
+    // Sync block pool when block is naturally cleared at turn start.
+    // Without this, _blockPool retains stale entries from previous turns.
+    [HarmonyPatch(typeof(Hook), nameof(Hook.AfterBlockCleared))]
+    [HarmonyPrefix]
+    public static void BeforeBlockCleared(Creature creature)
+    {
+        Safe.Run(() =>
+        {
+            if (creature.IsPlayer)
+                ContributionMap.Instance.ClearBlockPool();
+        });
     }
 
     [HarmonyPatch(typeof(CombatHistory), nameof(CombatHistory.DamageReceived))]
@@ -102,15 +129,8 @@ public static class CombatHistoryPatch
                         result.TotalDamage, dealer.GetHashCode(), (float)weakMult);
                 }
 
-                // Defense attribution: ColossusPower on player halves damage from Vulnerable enemies
-                var colossusPower = receiver.GetPower<ColossusPower>();
-                if (colossusPower != null && dealer.HasPower<VulnerablePower>())
-                {
-                    // Colossus multiplier is 0.5 (DamageDecrease dynamic var)
-                    // prevented = actualDamage / 0.5 - actualDamage = actualDamage
-                    CombatTracker.Instance.OnColossusMitigation(
-                        result.TotalDamage, receiver.GetHashCode());
-                }
+                // Colossus mitigation is now tracked in EnemyDamageIntentPatch.AfterModifyDamage_Enemy
+                // (at ModifyDamage stage, before block consumption)
             }
         });
     }
@@ -486,9 +506,10 @@ public static class DamageModifierPatch
                     if (additive != 0)
                     {
                         var source = ContributionMap.Instance.GetPowerSource(powerId);
-                        if (source != null)
-                            modList.Add(new ContributionMap.ModifierContribution(
-                                source.SourceId, source.SourceType, Math.Abs((int)additive)));
+                        string srcId = source?.SourceId ?? powerId;
+                        string srcType = source?.SourceType ?? "power";
+                        modList.Add(new ContributionMap.ModifierContribution(
+                            srcId, srcType, Math.Abs((int)additive)));
                         continue;
                     }
 
@@ -515,11 +536,10 @@ public static class DamageModifierPatch
                     if (contribution == 0) continue;
 
                     var powerSource = ContributionMap.Instance.GetPowerSource(powerId);
-                    if (powerSource != null)
-                    {
-                        modList.Add(new ContributionMap.ModifierContribution(
-                            powerSource.SourceId, powerSource.SourceType, Math.Abs(contribution)));
-                    }
+                    string psId = powerSource?.SourceId ?? powerId;
+                    string psType = powerSource?.SourceType ?? "power";
+                    modList.Add(new ContributionMap.ModifierContribution(
+                        psId, psType, Math.Abs(contribution)));
                 }
                 else if (mod is RelicModel relic)
                 {
@@ -608,8 +628,9 @@ public static class DamageModifierPatch
             else
             {
                 var vulnSource = ContributionMap.Instance.GetPowerSource("VULNERABLE_POWER");
-                if (vulnSource != null)
-                    modList.Add(new ContributionMap.ModifierContribution(vulnSource.SourceId, vulnSource.SourceType, vulnShare));
+                string vsId = vulnSource?.SourceId ?? "VULNERABLE_POWER";
+                string vsType = vulnSource?.SourceType ?? "power";
+                modList.Add(new ContributionMap.ModifierContribution(vsId, vsType, vulnShare));
             }
         }
 
@@ -626,8 +647,9 @@ public static class DamageModifierPatch
         {
             var crueltySource = ContributionMap.Instance.GetPowerSource("CRUELTY_POWER");
             int crueltyShare = (int)Math.Round(totalContrib * (crueltyDelta / subTotal));
-            if (crueltyShare > 0 && crueltySource != null)
-                modList.Add(new ContributionMap.ModifierContribution(crueltySource.SourceId, crueltySource.SourceType, crueltyShare));
+            if (crueltyShare > 0)
+                modList.Add(new ContributionMap.ModifierContribution(
+                    crueltySource?.SourceId ?? "CRUELTY_POWER", crueltySource?.SourceType ?? "power", crueltyShare));
         }
 
         // DebilitatePower
@@ -635,8 +657,9 @@ public static class DamageModifierPatch
         {
             var debilSource = ContributionMap.Instance.GetPowerSource("DEBILITATE_POWER");
             int debilShare = (int)Math.Round(totalContrib * (debilitateDelta / subTotal));
-            if (debilShare > 0 && debilSource != null)
-                modList.Add(new ContributionMap.ModifierContribution(debilSource.SourceId, debilSource.SourceType, debilShare));
+            if (debilShare > 0)
+                modList.Add(new ContributionMap.ModifierContribution(
+                    debilSource?.SourceId ?? "DEBILITATE_POWER", debilSource?.SourceType ?? "power", debilShare));
         }
     }
 
@@ -680,8 +703,9 @@ public static class DamageModifierPatch
         // Weak base share
         var weakSource = ContributionMap.Instance.GetPowerSource("WEAK_POWER");
         int weakShare = (int)Math.Round(totalContrib * (baseReduction / subTotal));
-        if (weakShare > 0 && weakSource != null)
-            modList.Add(new ContributionMap.ModifierContribution(weakSource.SourceId, weakSource.SourceType, weakShare));
+        if (weakShare > 0)
+            modList.Add(new ContributionMap.ModifierContribution(
+                weakSource?.SourceId ?? "WEAK_POWER", weakSource?.SourceType ?? "power", weakShare));
 
         // PaperKrane relic
         if (kraneDelta > 0)
@@ -696,8 +720,9 @@ public static class DamageModifierPatch
         {
             var debilSource = ContributionMap.Instance.GetPowerSource("DEBILITATE_POWER");
             int debilShare = (int)Math.Round(totalContrib * (debilitateDelta / subTotal));
-            if (debilShare > 0 && debilSource != null)
-                modList.Add(new ContributionMap.ModifierContribution(debilSource.SourceId, debilSource.SourceType, debilShare));
+            if (debilShare > 0)
+                modList.Add(new ContributionMap.ModifierContribution(
+                    debilSource?.SourceId ?? "DEBILITATE_POWER", debilSource?.SourceType ?? "power", debilShare));
         }
     }
 }
@@ -706,6 +731,7 @@ public static class DamageModifierPatch
 // C1: Enemy base damage capture (for str reduction formula)
 // Captures enemy's base damage BEFORE modifiers so we can compute
 // how much strength reduction actually mitigated.
+// Also captures Colossus/Intangible reduction for enemy→player damage.
 // ═══════════════════════════════════════════════════════════
 
 [HarmonyPatch]
@@ -713,13 +739,56 @@ public static class EnemyDamageIntentPatch
 {
     [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyDamage))]
     [HarmonyPrefix]
-    public static void BeforeModifyDamage_Enemy(decimal damage, Creature? dealer)
+    public static void BeforeModifyDamage_Enemy(decimal damage, Creature? target, Creature? dealer,
+        out decimal __state)
+    {
+        __state = damage;
+        Safe.Run(() =>
+        {
+            if (dealer == null || dealer.IsPlayer) return;
+            ContributionMap.Instance.PendingEnemyBaseDamage = (int)damage;
+        });
+    }
+
+    [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyDamage))]
+    [HarmonyPostfix]
+    public static void AfterModifyDamage_Enemy(decimal __result, decimal __state,
+        Creature? target, Creature? dealer, IEnumerable<AbstractModel> modifiers)
     {
         Safe.Run(() =>
         {
-            // Only track damage dealt BY enemies TO player
+            // Only track enemy→player damage reduction (Colossus, Intangible)
+            if (target == null || !target.IsPlayer) return;
             if (dealer == null || dealer.IsPlayer) return;
-            ContributionMap.Instance.PendingEnemyBaseDamage = (int)damage;
+
+            decimal baseDmg = __state;
+            decimal finalDmg = __result;
+            decimal reduced = baseDmg - finalDmg;
+            if (reduced <= 0 || modifiers == null) return;
+
+            foreach (var mod in modifiers)
+            {
+                if (mod is PowerModel power)
+                {
+                    var powerId = power.Id.Entry;
+                    if (string.IsNullOrEmpty(powerId)) continue;
+
+                    // Intangible: ModifyDamageCap reduced damage
+                    if (powerId == "INTANGIBLE_POWER")
+                    {
+                        int prevented = (int)(baseDmg - finalDmg);
+                        if (prevented > 0)
+                            CombatTracker.Instance.OnIntangibleReduction((int)baseDmg, (int)finalDmg);
+                    }
+                    // Colossus: ModifyDamageMultiplicative with 0.5x
+                    else if (powerId == "COLOSSUS_POWER")
+                    {
+                        int prevented = (int)(baseDmg - finalDmg);
+                        if (prevented > 0)
+                            CombatTracker.Instance.OnColossusMitigation(prevented, target.GetHashCode());
+                    }
+                }
+            }
         });
     }
 }
@@ -929,6 +998,22 @@ public static class CardUpgradeTrackerPatch
 }
 
 // ═══════════════════════════════════════════════════════════
+// Stars gained tracking
+// Patches PlayerCmd.GainStars to record StarsContribution.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class StarsGainedPatch
+{
+    [HarmonyPatch(typeof(PlayerCmd), nameof(PlayerCmd.GainStars))]
+    [HarmonyPostfix]
+    public static void AfterGainStars(decimal amount)
+    {
+        Safe.Run(() => CombatTracker.Instance.OnStarsGained((int)amount));
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
 // Existing patches: Buffer, Intangible, Potion
 // ═══════════════════════════════════════════════════════════
 
@@ -1052,6 +1137,10 @@ public static class HealingPatch
         {
             if (creature == null || !creature.IsPlayer) return;
             if (__state.hash != creature.GetHashCode()) return;
+
+            // NEW-3: Skip if this heal was triggered internally by GainMaxHp
+            // (MaxHpGainPatch already recorded it as HpHealed)
+            if (ContributionMap.Instance.CheckAndClearGainMaxHpFlag()) return;
 
             // Skip initial HP setup (character created with 0 HP then healed to full)
             if (__state.hpBefore <= 0) return;
@@ -1209,59 +1298,249 @@ public static class SovereignBladeSeekingEdgePatch
 }
 
 // ═══════════════════════════════════════════════════════════
-// VoidForm / BulletTime cost savings tracking
-// Records energy and star cost reductions as contributions.
+// NEW-1/NEW-2: Cost Reduction Source Tagging
+// Layer 1: Records WHICH source reduced a card's cost (tag only, no amounts).
+// Layer 2: CardPlayStarted postfix computes actual savings at play time.
 // ═══════════════════════════════════════════════════════════
 
 [HarmonyPatch]
-public static class CostSavingsPatch
+public static class CostReductionSourceTagPatch
 {
-    // ── VoidFormPower: TryModifyEnergyCostInCombat → energy savings ──
+    // ── Generic helpers ──
+
+    private static void TagPowerReduction(bool result, AbstractModel instance, CardModel card,
+        decimal originalCost, decimal modifiedCost)
+    {
+        if (!result || originalCost <= modifiedCost) return;
+        var powerId = instance.Id.Entry;
+        var source = ContributionMap.Instance.GetPowerSource(powerId);
+        string srcId = source?.SourceId ?? powerId;
+        string srcType = source?.SourceType ?? "power";
+        ContributionMap.Instance.TagCostReductionSource(card.GetHashCode(), srcId, srcType);
+    }
+
+    private static void TagRelicReduction(bool result, AbstractModel instance, CardModel card,
+        decimal originalCost, decimal modifiedCost)
+    {
+        if (!result || originalCost <= modifiedCost) return;
+        ContributionMap.Instance.TagCostReductionSource(
+            card.GetHashCode(), instance.Id.Entry, "relic");
+    }
+
+    // ── Hook-based energy reduction tagging ──
+
     [HarmonyPatch(typeof(VoidFormPower), nameof(VoidFormPower.TryModifyEnergyCostInCombat))]
     [HarmonyPostfix]
     public static void AfterVoidFormEnergy(bool __result, VoidFormPower __instance,
-        decimal originalCost, decimal modifiedCost)
+        CardModel card, decimal originalCost, decimal modifiedCost)
     {
-        Safe.Run(() =>
-        {
-            if (!__result || originalCost <= modifiedCost) return;
-            int saved = (int)(originalCost - modifiedCost);
-            if (saved <= 0) return;
-            var source = ContributionMap.Instance.GetPowerSource(__instance.Id.Entry);
-            if (source != null)
-                ContributionMap.Instance.RecordPendingCostSavings(
-                    source.SourceId, source.SourceType, saved, 0);
-        });
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
     }
 
-    // ── VoidFormPower: TryModifyStarCost → star savings ──
+    [HarmonyPatch(typeof(FreeAttackPower), nameof(FreeAttackPower.TryModifyEnergyCostInCombat))]
+    [HarmonyPostfix]
+    public static void AfterFreeAttackEnergy(bool __result, FreeAttackPower __instance,
+        CardModel card, decimal originalCost, decimal modifiedCost)
+    {
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
+    }
+
+    [HarmonyPatch(typeof(FreeSkillPower), nameof(FreeSkillPower.TryModifyEnergyCostInCombat))]
+    [HarmonyPostfix]
+    public static void AfterFreeSkillEnergy(bool __result, FreeSkillPower __instance,
+        CardModel card, decimal originalCost, decimal modifiedCost)
+    {
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
+    }
+
+    [HarmonyPatch(typeof(FreePowerPower), nameof(FreePowerPower.TryModifyEnergyCostInCombat))]
+    [HarmonyPostfix]
+    public static void AfterFreePowerEnergy(bool __result, FreePowerPower __instance,
+        CardModel card, decimal originalCost, decimal modifiedCost)
+    {
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
+    }
+
+    [HarmonyPatch(typeof(CorruptionPower), nameof(CorruptionPower.TryModifyEnergyCostInCombat))]
+    [HarmonyPostfix]
+    public static void AfterCorruptionEnergy(bool __result, CorruptionPower __instance,
+        CardModel card, decimal originalCost, decimal modifiedCost)
+    {
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
+    }
+
+    [HarmonyPatch(typeof(VeilpiercerPower), nameof(VeilpiercerPower.TryModifyEnergyCostInCombat))]
+    [HarmonyPostfix]
+    public static void AfterVeilpiercerEnergy(bool __result, VeilpiercerPower __instance,
+        CardModel card, decimal originalCost, decimal modifiedCost)
+    {
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
+    }
+
+    [HarmonyPatch(typeof(CuriousPower), nameof(CuriousPower.TryModifyEnergyCostInCombat))]
+    [HarmonyPostfix]
+    public static void AfterCuriousEnergy(bool __result, CuriousPower __instance,
+        CardModel card, decimal originalCost, decimal modifiedCost)
+    {
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
+    }
+
+    // ── Hook-based star reduction tagging ──
+
     [HarmonyPatch(typeof(VoidFormPower), nameof(VoidFormPower.TryModifyStarCost))]
     [HarmonyPostfix]
     public static void AfterVoidFormStar(bool __result, VoidFormPower __instance,
-        decimal originalCost, decimal modifiedCost)
+        CardModel card, decimal originalCost, decimal modifiedCost)
+    {
+        Safe.Run(() => TagPowerReduction(__result, __instance, card, originalCost, modifiedCost));
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// NEW-1: Local cost modifier source tagging
+// Patches SetToFreeThisTurn, SetToFreeThisCombat to record which source
+// made a card free via local modifiers (BulletTime, potions, relics, etc.)
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class LocalCostModifierSourceTagPatch
+{
+    [HarmonyPatch(typeof(CardModel), nameof(CardModel.SetToFreeThisTurn))]
+    [HarmonyPrefix]
+    public static void BeforeSetFreeThisTurn(CardModel __instance)
+    {
+        Safe.Run(() => TagLocalCostReduction(__instance));
+    }
+
+    [HarmonyPatch(typeof(CardModel), nameof(CardModel.SetToFreeThisCombat))]
+    [HarmonyPrefix]
+    public static void BeforeSetFreeThisCombat(CardModel __instance)
+    {
+        Safe.Run(() => TagLocalCostReduction(__instance));
+    }
+
+    private static void TagLocalCostReduction(CardModel card)
+    {
+        int baseCost = card.EnergyCost.Canonical;
+        if (baseCost <= 0) return; // already free by default
+
+        var tracker = CombatTracker.Instance;
+
+        string sourceId;
+        string sourceType;
+
+        if (tracker.ActiveCardId != null)
+        {
+            sourceId = tracker.ActiveCardId;
+            sourceType = "card";
+        }
+        else if (tracker.ActivePotionId != null)
+        {
+            sourceId = tracker.ActivePotionId;
+            sourceType = "potion";
+        }
+        else if (tracker.ActiveRelicId != null)
+        {
+            sourceId = tracker.ActiveRelicId;
+            sourceType = "relic";
+        }
+        else
+        {
+            return; // no context — can't attribute
+        }
+
+        // Exception rule: if source ALSO generated this card, mark as generated-and-free
+        // (e.g., Attack Potion generates a card AND makes it free — only sub-bar, no energy credit)
+        var origin = ContributionMap.Instance.GetCardOrigin(card.GetHashCode());
+        if (origin != null && origin.Value.originId == sourceId)
+        {
+            ContributionMap.Instance.MarkCardAsGeneratedAndFree(card.GetHashCode());
+            return;
+        }
+
+        ContributionMap.Instance.TagCostReductionSource(
+            card.GetHashCode(), sourceId, sourceType);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// NEW-3: Max HP Gain as Healing
+// GainMaxHp increases are recorded as HpHealed.
+// Uses context flag to suppress the internal Heal call from double-counting.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class MaxHpGainPatch
+{
+    [HarmonyPatch(typeof(CreatureCmd), nameof(CreatureCmd.GainMaxHp),
+        new Type[] { typeof(Creature), typeof(decimal) })]
+    [HarmonyPrefix]
+    public static void BeforeGainMaxHp(Creature creature, decimal amount, out int __state)
+    {
+        __state = 0;
+        try
+        {
+            if (creature != null && creature.IsPlayer && amount > 0m)
+            {
+                __state = creature.MaxHp;
+                // Flag tells HealingPatch to skip the internal Heal from GainMaxHp
+                ContributionMap.Instance.SetGainMaxHpFlag(true);
+            }
+        }
+        catch { /* safe */ }
+    }
+
+    [HarmonyPatch(typeof(CreatureCmd), nameof(CreatureCmd.GainMaxHp),
+        new Type[] { typeof(Creature), typeof(decimal) })]
+    [HarmonyPostfix]
+    public static void AfterGainMaxHp(Creature creature, int __state)
     {
         Safe.Run(() =>
         {
-            if (!__result || originalCost <= modifiedCost) return;
-            int saved = (int)(originalCost - modifiedCost);
-            if (saved <= 0) return;
-            var source = ContributionMap.Instance.GetPowerSource(__instance.Id.Entry);
-            if (source != null)
-                ContributionMap.Instance.RecordPendingCostSavings(
-                    source.SourceId, source.SourceType, 0, saved);
+            if (creature == null || !creature.IsPlayer || __state == 0) return;
+
+            int actualGain = creature.MaxHp - __state;
+            if (actualGain <= 0)
+            {
+                ContributionMap.Instance.SetGainMaxHpFlag(false);
+                return;
+            }
+            // Note: do NOT clear the flag here — it must stay set until
+            // HealingPatch sees and clears it (GainMaxHp calls Heal AFTER this Postfix)
+
+            // Determine source context
+            string? fallbackId = null;
+            string? fallbackType = null;
+
+            var tracker = CombatTracker.Instance;
+            if (tracker.ActiveRelicId != null)
+            {
+                fallbackId = tracker.ActiveRelicId;
+                fallbackType = "relic";
+            }
+            else
+            {
+                var room = creature.Player?.RunState?.CurrentRoom;
+                if (room is EventRoom)
+                {
+                    fallbackId = "EVENT";
+                    fallbackType = "event";
+                }
+                else if (room is RestSiteRoom)
+                {
+                    fallbackId = "REST_SITE";
+                    fallbackType = "rest_site";
+                }
+            }
+
+            // Record max HP gain as healing contribution
+            CombatTracker.Instance.OnHealingReceived(actualGain, fallbackId, fallbackType);
         });
     }
-
-    // ── Consume pending cost savings when a card actually plays ──
-    // VoidFormPower.AfterCardPlayed fires after the card is played,
-    // confirming the cost reduction was actually used.
-    [HarmonyPatch(typeof(VoidFormPower), nameof(VoidFormPower.AfterCardPlayed))]
-    [HarmonyPostfix]
-    public static void AfterVoidFormCardPlayed()
-    {
-        Safe.Run(() => CombatTracker.Instance.ConsumePendingCostSavings());
-    }
 }
+
+// NEW-3 heal suppression is handled directly in AfterHeal (HealingPatch) above,
+// using ContributionMap.CheckAndClearGainMaxHpFlag().
 
 // ═══════════════════════════════════════════════════════════
 // ModifyHandDraw extra draw tracking (PaleBlueDot, Tyranny)

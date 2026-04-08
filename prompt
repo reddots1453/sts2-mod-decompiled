@@ -10,3 +10,17 @@
 5.本场战斗贡献实时更新，而非等到战斗结束再更新；
 6.尖啸等减少力量的效果在一些场景下的防御贡献被明显高估了，让我看看具体逻辑实现；
 7.所有生成卡牌的药水贡献溯源不完整；
+
+进度保存完成。跨设备衔接的信息链路：
+
+另一台设备的新会话会自动加载：
+
+CLAUDE.md — 指向所有关键文档，包含新增的 PRD_04_ITERATION2.md 和 ITERATION2_STATUS.md 引用
+新会话需要阅读：
+
+DesignDoc/ITERATION2_STATUS.md — 完整的跨设备上下文（当前进度、所有探索成果、第一轮成果、下一步操作指令）
+DesignDoc/PRD_04_ITERATION2.md — 第二轮迭代完整需求（15 个功能 + 6 条补全 + 12 条验收）
+DesignDoc/WORKFLOW.md — 工作流定义
+启动指令（可复制到新会话）：
+
+请阅读 DesignDoc/ITERATION2_STATUS.md 了解第二轮迭代的当前进度和完整上下文。然后从 WORKFLOW Stage 3（Plan + Review）开始推进。

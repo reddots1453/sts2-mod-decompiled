@@ -124,11 +124,23 @@ public sealed class TestContext
     public T CreateCard<T>() where T : CardModel
         => CombatState.CreateCard<T>(Player);
 
+    /// <summary>
+    /// Create a card and add it to the player's hand (with skipVisuals to avoid UI crash).
+    /// Use this instead of CreateCard when you intend to PlayCard afterwards.
+    /// </summary>
+    public async Task<T> CreateCardInHand<T>() where T : CardModel
+    {
+        var card = CombatState.CreateCard<T>(Player);
+        await CardPileCmd.Add(card, PileType.Hand, skipVisuals: true);
+        await Task.Delay(100);
+        return card;
+    }
+
     /// <summary>Play a card against an optional target.</summary>
     public async Task PlayCard(CardModel card, Creature? target = null)
     {
         await CardCmd.AutoPlay(new BlockingPlayerChoiceContext(), card, target);
-        await Task.Delay(100); // Allow patches to fire
+        await Task.Delay(300); // Allow patches to fire + Godot scene tree to process
     }
 
     /// <summary>Apply a power to a creature.</summary>
@@ -173,6 +185,28 @@ public sealed class TestContext
     public void EndTurn()
     {
         PlayerCmd.EndTurn(Player, canBackOut: false);
+    }
+
+    /// <summary>
+    /// End turn and wait for enemy turn to fully resolve.
+    /// Polls until it's the player's turn again (or timeout).
+    /// </summary>
+    public async Task EndTurnAndWaitForPlayerTurn(int timeoutMs = 8000)
+    {
+        PlayerCmd.EndTurn(Player, canBackOut: false);
+        await Task.Delay(500); // initial delay for turn transition
+
+        // Wait until player can act again (enemy turn resolved)
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            if (!CombatManager.Instance.IsInProgress) break; // combat ended
+            if (CombatState.CurrentSide == MegaCrit.Sts2.Core.Combat.CombatSide.Player) break;
+            await Task.Delay(200);
+        }
+        // Critical: enemy attack animations and DamageReceived callbacks may still
+        // be processing after CurrentSide flips back to Player. Wait longer.
+        await Task.Delay(1500);
     }
 
     /// <summary>Get the first hittable enemy.</summary>

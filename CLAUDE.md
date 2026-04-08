@@ -89,9 +89,12 @@ cd mods/sts2_kb_extractor && dotnet build
 - `WORKFLOW.md` — 文档驱动 AI 编程工作流
 - `PRD_00_MASTER.md` — 项目总体 PRD
 - `PRD_01_SERVER_DEPLOYMENT.md` — 服务器部署 PRD
-- `PRD_02_COMBAT_STATS.md` — 战斗统计 PRD
+- `PRD_02_COMBAT_STATS.md` — 战斗统计 PRD（第一轮迭代，已完成）
 - `PRD_03_UI_POLISH.md` — UI 打磨 PRD
-- `PLAN_COMBAT_STATS.md` — 战斗贡献系统实现计划
+- `PRD_04_ITERATION2.md` — **第二轮迭代 PRD**（当前工作重点）
+- `PLAN_COMBAT_STATS.md` — 战斗贡献系统实现计划（第一轮，已完成）
+- `PLAN_NEW_FEATURES.md` — NEW 功能实现计划（第一轮，已完成）
+- `ITERATION2_STATUS.md` — **第二轮迭代进度与上下文**（跨设备衔接用）
 
 ## 反编译代码查询
 

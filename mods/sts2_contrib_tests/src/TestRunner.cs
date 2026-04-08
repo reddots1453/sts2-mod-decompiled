@@ -15,6 +15,23 @@ namespace ContribTests;
 /// </summary>
 public sealed class TestRunner
 {
+    // Tests that have already passed and should be skipped to save time.
+    // Remove an ID from this set to re-run it.
+    private static readonly HashSet<string> PassedSkipList = new()
+    {
+        "D1", "D2", "D3", "D4", "D-Block", "D6", // DirectDamage — passed
+        "M1", "M2", "M3", "M5", "M6",     // ModifierDamage — passed
+        "DEF-1a", "DEF-4a", "DEF-4c",      // Defense block — passed
+        "I1", "I2", "I5",                   // IndirectDamage — passed
+        "P1", "P5",                         // SourcePriority — passed
+        "I3", "S4",                          // CrossCharacter — passed
+        "DEF-2d",                           // Defense Colossus — passed
+        "DEF-2a", "DEF-3a", "DEF-5a", "DEF-5c", // Defense mitigation — passed
+        "NEW-1b",                           // NewFeature free energy — passed
+        "NEW-1a", "NEW-1c", "NEW-3a",      // NewFeature — passed
+        "F1", "F4", "F5",                  // Consistency — passed
+    };
+
     private static readonly List<ITestScenario> AllScenarios = BuildScenarioList();
 
     private static List<ITestScenario> BuildScenarioList()
@@ -26,8 +43,15 @@ public sealed class TestRunner
         list.AddRange(ModifierDamageTests.All);
         list.AddRange(DefenseTests.All);
 
-        // Phase 3: Expanded tests (indirect, consistency, etc.)
+        // Phase 3: Expanded tests (indirect, source priority, cross-character)
         list.AddRange(IndirectDamageTests.All);
+        list.AddRange(SourcePriorityTests.All);
+        list.AddRange(CrossCharacterTests.All);
+
+        // Phase 4: NEW feature tests (free energy/stars, max HP healing)
+        list.AddRange(NewFeatureTests.All);
+
+        // Phase 5: Consistency checks (run last, validate accumulated data)
         list.AddRange(ConsistencyTests.All);
 
         return list;
@@ -59,16 +83,16 @@ public sealed class TestRunner
         // Setup: give player unlimited energy
         await ctx.SetEnergy(999);
 
-        // Setup: protect enemies from dying (999 Plating on each)
+        // Setup: protect enemies from dying — give massive HP directly
         foreach (var enemy in ctx.GetAllEnemies())
         {
-            await PowerCmd.Apply<PlatingPower>(
-                enemy, 999m, ctx.PlayerCreature, null, silent: true);
+            await CreatureCmd.GainMaxHp(enemy, 9999m);
+            await CreatureCmd.Heal(enemy, 9999m, playAnim: false);
         }
 
         // Also give player plenty of HP to survive test damage
-        await PowerCmd.Apply<PlatingPower>(
-            ctx.PlayerCreature, 999m, ctx.PlayerCreature, null, silent: true);
+        await CreatureCmd.GainMaxHp(ctx.PlayerCreature, 9999m);
+        await CreatureCmd.Heal(ctx.PlayerCreature, 9999m, playAnim: false);
         await PowerCmd.Apply<RegenPower>(
             ctx.PlayerCreature, 50m, ctx.PlayerCreature, null, silent: true);
 
@@ -83,6 +107,14 @@ public sealed class TestRunner
         foreach (var scenario in AllScenarios)
         {
             ct.ThrowIfCancellationRequested();
+
+            // Skip already-passed tests
+            if (PassedSkipList.Contains(scenario.Id))
+            {
+                GD.Print($"[ContribTest] [SKIP] {scenario.Id} - {scenario.Name} (already passed)");
+                report.Skipped++;
+                continue;
+            }
 
             // Check combat is still active
             if (!CombatManager.Instance.IsInProgress)

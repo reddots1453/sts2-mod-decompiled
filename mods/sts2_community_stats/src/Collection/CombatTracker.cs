@@ -24,6 +24,11 @@ public sealed class CombatTracker
     // The potion currently being used (set by PotionContextPatch Prefix, cleared by Postfix)
     private string? _activePotionId;
 
+    // Public accessors for source tagging (NEW-1: local cost modifier patches need active context)
+    // ActiveCardId already exposed above
+    public string? ActivePotionId => _activePotionId;
+    public string? ActiveRelicId => _activeRelicId;
+
     // The power whose hook is currently executing (for indirect effects like Rage, FlameBarrier)
     private string? _activePowerSourceId;
     private string? _activePowerSourceType;
@@ -187,7 +192,7 @@ public sealed class CombatTracker
         if (orbCtx != null)
             return (orbCtx.Value.sourceId, orbCtx.Value.sourceType);
         // No context found — use UNTRACKED sentinel so data is never silently lost
-        Plugin.Log.LogWarning($"[CombatTracker] ResolveSource: no active context, using UNTRACKED");
+        Godot.GD.Print($"[CommunityStats] WARN ResolveSource: no active context, using UNTRACKED");
         return ("UNTRACKED", "untracked");
     }
 
@@ -396,10 +401,9 @@ public sealed class CombatTracker
         if (preventedDamage <= 0) return;
 
         var source = ContributionMap.Instance.GetPlayerBuffSource("BUFFER_POWER");
-        if (source != null)
-        {
-            GetOrCreate(source.SourceId, source.SourceType).MitigatedByBuff += preventedDamage;
-        }
+        string sourceId = source?.SourceId ?? "BUFFER_POWER";
+        string sourceType = source?.SourceType ?? "power";
+        GetOrCreate(sourceId, sourceType).MitigatedByBuff += preventedDamage;
     }
 
     public void OnIntangibleReduction(int originalDamage, int reducedTo)
@@ -408,10 +412,9 @@ public sealed class CombatTracker
         if (prevented <= 0) return;
 
         var source = ContributionMap.Instance.GetPlayerBuffSource("INTANGIBLE_POWER");
-        if (source != null)
-        {
-            GetOrCreate(source.SourceId, source.SourceType).MitigatedByBuff += prevented;
-        }
+        string sourceId = source?.SourceId ?? "INTANGIBLE_POWER";
+        string sourceType = source?.SourceType ?? "power";
+        GetOrCreate(sourceId, sourceType).MitigatedByBuff += prevented;
     }
 
     /// <summary>
@@ -426,10 +429,9 @@ public sealed class CombatTracker
         int prevented = actualDamage;
 
         var source = ContributionMap.Instance.GetPlayerBuffSource("COLOSSUS_POWER");
-        if (source != null)
-        {
-            GetOrCreate(source.SourceId, source.SourceType).MitigatedByBuff += prevented;
-        }
+        string sourceId = source?.SourceId ?? "COLOSSUS_POWER";
+        string sourceType = source?.SourceType ?? "power";
+        GetOrCreate(sourceId, sourceType).MitigatedByBuff += prevented;
     }
 
     // ── Block Tracking ──────────────────────────────────────
@@ -551,19 +553,43 @@ public sealed class CombatTracker
             GetOrCreate(sourceId, sourceType).EnergyGained += amount;
     }
 
-    // ── Cost Savings ─────────────────────────────────────────
+    /// <summary>Called when player gains Stars (GainStars hook).</summary>
+    public void OnStarsGained(int amount)
+    {
+        if (amount <= 0) return;
+        var (sourceId, sourceType) = ResolveSource(null);
+        if (sourceId != null)
+            GetOrCreate(sourceId, sourceType).StarsContribution += amount;
+    }
+
+    // ── Cost Savings (NEW-1/NEW-2: centralized play-time attribution) ──
 
     /// <summary>
-    /// Called when a card is played with reduced cost (VoidForm, BulletTime).
-    /// Consumes pending cost savings recorded during TryModifyEnergyCostInCombat.
+    /// Called from CardPlayStarted to attribute energy/star savings at play time.
+    /// Compares card's canonical cost vs actual cost spent.
     /// </summary>
-    public void ConsumePendingCostSavings()
+    public void AttributeCostSavings(int cardHash, int canonicalEnergy, int energySpent,
+        int canonicalStars, int starsSpent, bool costsX)
     {
-        var saving = ContributionMap.Instance.ConsumePendingCostSavings();
-        if (saving == null) return;
-        var (sourceId, sourceType, energy, stars) = saving.Value;
-        if (energy > 0) GetOrCreate(sourceId, sourceType).EnergyGained += energy;
-        if (stars > 0) GetOrCreate(sourceId, sourceType).StarsContribution += stars;
+        if (costsX) return; // X-cost cards excluded
+
+        int energySaved = canonicalEnergy - energySpent;
+        int starsSaved = canonicalStars - starsSpent;
+
+        if (energySaved <= 0 && starsSaved <= 0) return;
+
+        // Exception rule: generated-and-freed cards only tracked via sub-bar
+        if (ContributionMap.Instance.IsCardGeneratedAndFree(cardHash)) return;
+
+        // Look up source tag
+        var tag = ContributionMap.Instance.GetCostReductionSourceTag(cardHash);
+        if (tag == null) return;
+
+        var (sourceId, sourceType) = tag.Value;
+        if (energySaved > 0) GetOrCreate(sourceId, sourceType).EnergyGained += energySaved;
+        if (starsSaved > 0) GetOrCreate(sourceId, sourceType).StarsContribution += starsSaved;
+
+        ContributionMap.Instance.ClearCostReductionSourceTag(cardHash);
     }
 
     // ── Extra Hand Draw ──────────────────────────────────────
