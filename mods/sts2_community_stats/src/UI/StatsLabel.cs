@@ -33,25 +33,43 @@ public partial class StatsLabel : Label
     public static StatsLabel ForCardStats(CardStats stats)
     {
         var text = string.Format(L.Get("stats.pick"),
-            (stats.PickRate * 100).ToString("F0"),
-            (stats.WinRate * 100).ToString("F0"));
+            (stats.PickRate * 100).ToString("F1"),
+            (stats.WinRate * 100).ToString("F1"));
         return Create(text, WinRateColor(stats.WinRate));
     }
 
     public static StatsLabel ForRelicStats(RelicStats stats)
     {
         var text = string.Format(L.Get("stats.relic"),
-            (stats.PickRate * 100).ToString("F0"),
-            (stats.WinRate * 100).ToString("F0"));
+            (stats.PickRate * 100).ToString("F1"),
+            (stats.WinRate * 100).ToString("F1"));
         return Create(text, WinRateColor(stats.WinRate));
+    }
+
+    /// <summary>
+    /// Relic stats with delta vs global average win rate (PRD 3.3/3.4).
+    /// Format: "Pick X% | Win Y% (±Z%)". Colored by delta sign.
+    /// </summary>
+    public static StatsLabel ForRelicStatsWithDelta(RelicStats stats, float globalAvgWinRate)
+    {
+        var deltaPct = (stats.WinRate - globalAvgWinRate) * 100f;
+        var sign = deltaPct >= 0 ? "+" : "";
+        var baseText = string.Format(L.Get("stats.relic"),
+            (stats.PickRate * 100).ToString("F1"),
+            (stats.WinRate * 100).ToString("F1"));
+        var text = $"{baseText} ({sign}{deltaPct:F1}%)";
+        var color = MathF.Abs(deltaPct) < 1f
+            ? NeutralColor
+            : (deltaPct >= 0 ? HighWinColor : LowWinColor);
+        return Create(text, color);
     }
 
     public static StatsLabel ForEventOption(EventOptionStats stats)
     {
-        var text = string.Format(L.Get("stats.event"),
-            (stats.SelectionRate * 100).ToString("F0"),
-            (stats.WinRate * 100).ToString("F0"));
-        return Create(text, WinRateColor(stats.WinRate));
+        // PRD 3.5: show only selection rate, drop win rate
+        var text = string.Format(L.Get("stats.event_pick"),
+            (stats.SelectionRate * 100).ToString("F1"));
+        return Create(text, NeutralColor);
     }
 
     public static StatsLabel ForEncounter(EncounterStats stats)

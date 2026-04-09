@@ -7,7 +7,7 @@ namespace CommunityStats.Config;
 /// </summary>
 public static class ModConfig
 {
-    public const string ModVersion = "1.0.0";
+    public const string ModVersion = "2.0.0";
 
     // Server (can be overridden via config.json for local testing)
     public static string ApiBaseUrl { get; set; } = "https://api.sts2stats.example.com/v1";
@@ -17,6 +17,20 @@ public static class ModConfig
     // User preferences
     public static bool EnableUpload { get; set; } = true;
     public static string Language { get; set; } = "CN"; // "CN" | "EN"
+
+    // Feature toggles
+    public static FeatureToggles Toggles { get; set; } = new();
+
+    // Panel position (null = default right side)
+    public static float? PanelPositionX { get; set; }
+    public static float? PanelPositionY { get; set; }
+
+    // "My Data" filter
+    public static bool UseMyDataOnly { get; set; }
+
+    // Offline queue limits
+    public static int MaxPendingCount { get; set; } = 10;
+    public static int MaxPendingAgeDays { get; set; } = 7;
 
     // Cache
     public static int MemoryCacheTtlSeconds { get; set; } = 900;   // 15 min
@@ -28,6 +42,7 @@ public static class ModConfig
         "sts2_community_stats");
     public static string CacheDir => Path.Combine(DataDir, "cache");
     public static string PendingDir => Path.Combine(DataDir, "pending");
+    public static string ContributionsDir => Path.Combine(DataDir, "contributions");
     public static string SettingsPath => Path.Combine(DataDir, "settings.json");
 
     // Active filter (mutable at runtime)
@@ -49,6 +64,7 @@ public static class ModConfig
     {
         Directory.CreateDirectory(CacheDir);
         Directory.CreateDirectory(PendingDir);
+        Directory.CreateDirectory(ContributionsDir);
     }
 
     /// <summary>
@@ -74,7 +90,57 @@ public static class ModConfig
                 EnableUpload = eu.GetBoolean();
             if (root.TryGetProperty("language", out var lang))
                 Language = lang.GetString() ?? Language;
+
+            // Feature toggles
+            if (root.TryGetProperty("feature_toggles", out var toggles))
+            {
+                try
+                {
+                    Toggles = JsonSerializer.Deserialize<FeatureToggles>(toggles.GetRawText()) ?? new();
+                }
+                catch { Toggles = new(); }
+            }
+
+            // Panel position
+            if (root.TryGetProperty("panel_position", out var pos))
+            {
+                if (pos.TryGetProperty("x", out var px)) PanelPositionX = px.GetSingle();
+                if (pos.TryGetProperty("y", out var py)) PanelPositionY = py.GetSingle();
+            }
+
+            // My data only filter
+            if (root.TryGetProperty("use_my_data_only", out var myData))
+                UseMyDataOnly = myData.GetBoolean();
         }
         catch { /* ignore malformed config */ }
+    }
+
+    /// <summary>
+    /// Save current settings (feature toggles, panel position, preferences) to config.json.
+    /// </summary>
+    public static void SaveSettings()
+    {
+        try
+        {
+            var data = new Dictionary<string, object?>
+            {
+                ["api_base_url"] = ApiBaseUrl,
+                ["query_timeout_ms"] = QueryTimeoutMs,
+                ["upload_timeout_ms"] = UploadTimeoutMs,
+                ["enable_upload"] = EnableUpload,
+                ["language"] = Language,
+                ["feature_toggles"] = Toggles,
+                ["use_my_data_only"] = UseMyDataOnly,
+            };
+
+            if (PanelPositionX.HasValue && PanelPositionY.HasValue)
+            {
+                data["panel_position"] = new { x = PanelPositionX.Value, y = PanelPositionY.Value };
+            }
+
+            var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(ConfigPath, json);
+        }
+        catch { /* ignore write failures */ }
     }
 }

@@ -33,6 +33,7 @@ public static class EventOptionPatch
     [HarmonyPostfix]
     public static void AfterOptionReady(NEventOptionButton __instance)
     {
+        if (!Config.ModConfig.Toggles.EventPickRate) return;
         Safe.Run(() =>
         {
             var eventModel = __instance.Event;

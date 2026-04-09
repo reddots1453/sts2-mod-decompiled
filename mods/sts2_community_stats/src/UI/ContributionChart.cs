@@ -33,6 +33,10 @@ public partial class ContributionChart : VBoxContainer
 
     public enum Category { Damage, Defense, Draw, Energy, Stars, Healing }
 
+    // Shared expand/collapse state across chart rebuilds, keyed by parent source id.
+    // Default: expanded.
+    private static readonly HashSet<string> _collapsedParents = new();
+
     public static ContributionChart Create(
         IReadOnlyDictionary<string, ContributionAccum> data,
         string title,
@@ -159,24 +163,54 @@ public partial class ContributionChart : VBoxContainer
 
         foreach (var (accum, value) in sorted)
         {
-            BuildEntryRow(accum, value, maxVal, totalVal, category, false);
+            bool hasSubs = subEntries.TryGetValue(accum.SourceId, out var subs);
+            BuildEntryRow(accum, value, maxVal, totalVal, category, false, hasSubs);
 
-            // Render sub-bars if this entry has children
-            if (subEntries.TryGetValue(accum.SourceId, out var subs))
+            // Render sub-bars if this entry has children AND not collapsed
+            if (hasSubs && !_collapsedParents.Contains(accum.SourceId))
             {
-                foreach (var (subAccum, subValue) in subs.OrderByDescending(x => x.value))
+                foreach (var (subAccum, subValue) in subs!.OrderByDescending(x => x.value))
                 {
-                    BuildEntryRow(subAccum, subValue, maxVal, totalVal, category, true);
+                    BuildEntryRow(subAccum, subValue, maxVal, totalVal, category, true, false);
                 }
             }
         }
     }
 
     private void BuildEntryRow(ContributionAccum accum, int value, int maxVal, int totalVal,
-        Category category, bool isSub)
+        Category category, bool isSub, bool hasSubs = false)
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
+
+        // Expand/collapse toggle for parents that have sub-entries
+        if (!isSub && hasSubs)
+        {
+            var isCollapsed = _collapsedParents.Contains(accum.SourceId);
+            var toggle = new Button
+            {
+                Text = isCollapsed ? "▶" : "▼",
+                CustomMinimumSize = new Vector2(18, BarHeight),
+                Flat = true
+            };
+            toggle.AddThemeFontSizeOverride("font_size", 10);
+            var sourceId = accum.SourceId;
+            toggle.Pressed += () =>
+            {
+                if (_collapsedParents.Contains(sourceId))
+                    _collapsedParents.Remove(sourceId);
+                else
+                    _collapsedParents.Add(sourceId);
+                // Request parent panel to refresh — fire event on tracker
+                try { Collection.CombatTracker.Instance.NotifyCombatDataUpdated(); } catch { }
+            };
+            row.AddChild(toggle);
+        }
+        else if (!isSub)
+        {
+            // Spacer so columns align
+            row.AddChild(new Control { CustomMinimumSize = new Vector2(18, BarHeight) });
+        }
 
         // Source name
         var prefix = isSub ? "  \u2514 " : accum.SourceType switch

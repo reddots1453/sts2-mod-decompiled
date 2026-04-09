@@ -42,9 +42,12 @@ public static class CombatLifecyclePatch
         {
             CombatTracker.Instance.OnCombatEnd();
 
-            // Show contribution panel after combat
-            ContributionPanel.ShowCombatResult(CombatTracker.Instance.LastCombatData);
-            Safe.Info("Combat ended, contribution panel shown");
+            // Show contribution panel after combat (respect feature toggle)
+            if (Config.ModConfig.Toggles.ContributionPanel)
+            {
+                ContributionPanel.ShowCombatResult(CombatTracker.Instance.LastCombatData);
+                Safe.Info("Combat ended, contribution panel shown");
+            }
         });
     }
 

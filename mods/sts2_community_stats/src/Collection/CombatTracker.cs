@@ -44,6 +44,9 @@ public sealed class CombatTracker
     // H3: Deferred Osty death negative defense — only applied when enemy next attacks player
     private (string sourceId, string sourceType, int amount)? _pendingOstyDeathDefense;
 
+    // Event fired after card play or potion use completes (for real-time UI refresh)
+    public event Action? CombatDataUpdated;
+
     // Current encounter info
     private string _encounterId = "";
     private string _encounterType = "";
@@ -51,6 +54,7 @@ public sealed class CombatTracker
     private int _turnCount;
     private bool _playerDied;
     private int _floor;
+    private int _totalDamageDealt;
 
     // Snapshot of the last combat (for UI display)
     private Dictionary<string, ContributionAccum>? _lastCombatData;
@@ -58,6 +62,20 @@ public sealed class CombatTracker
 
     public IReadOnlyDictionary<string, ContributionAccum>? LastCombatData => _lastCombatData;
     public string LastEncounterId => _lastEncounterId;
+
+    // Public DPS accessors (PRD 3.7)
+    public int TurnCount => _turnCount;
+    public int TotalDamageDealt => _totalDamageDealt;
+
+    /// <summary>
+    /// Fire CombatDataUpdated event for real-time UI refresh. Called from
+    /// RealTimeCombatPatch after card play finished / potion used.
+    /// </summary>
+    public void NotifyCombatDataUpdated()
+    {
+        try { CombatDataUpdated?.Invoke(); }
+        catch (Exception ex) { Godot.GD.Print($"[StatsTheSpire] CombatDataUpdated error: {ex.Message}"); }
+    }
 
     // ── Lifecycle ────────────────────────────────────────────
 
@@ -73,6 +91,7 @@ public sealed class CombatTracker
         _encounterType = encounterType;
         _damageTakenByPlayer = 0;
         _turnCount = 0;
+        _totalDamageDealt = 0;
         _playerDied = false;
         _floor = floor;
         _pendingOstyDeathDefense = null;
@@ -279,7 +298,9 @@ public sealed class CombatTracker
             return;
         }
 
-        // Damage dealt TO enemies — attribute to source
+        // Damage dealt TO enemies — track DPS (PRD 3.7) and attribute to source
+        _totalDamageDealt += totalDamage;
+
         // First, consume damage modifier context from Hook.ModifyDamageInternal patch
         var modifiers = ContributionMap.Instance.LastDamageModifiers;
         int modifierTotal = 0;

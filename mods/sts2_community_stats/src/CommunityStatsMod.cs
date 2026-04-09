@@ -23,7 +23,7 @@ public static class CommunityStatsMod
 
     public static void Initialize()
     {
-        Safe.Info($"Community Stats v{ModConfig.ModVersion} initializing...");
+        Safe.Info($"Stats the Spire v{ModConfig.ModVersion} initializing...");
 
         // Load config overrides (e.g. api_base_url for local testing)
         ModConfig.LoadOverrides();
@@ -78,7 +78,7 @@ public static class CommunityStatsMod
         // Cleanup stale disk cache
         StatsCache.Instance.CleanupDisk();
 
-        Safe.Info("Community Stats initialized successfully");
+        Safe.Info("Stats the Spire initialized successfully");
     }
 
     private static void OnFilterApplied()

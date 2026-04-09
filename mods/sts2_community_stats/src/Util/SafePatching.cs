@@ -7,7 +7,7 @@ namespace CommunityStats.Util;
 /// </summary>
 public static class Safe
 {
-    private const string Tag = "[CommunityStats]";
+    private const string Tag = "[StatsTheSpire]";
 
     public static void Run(Action action)
     {

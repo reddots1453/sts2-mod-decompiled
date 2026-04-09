@@ -180,6 +180,37 @@ public sealed class StatsProvider
         return null;
     }
 
+    // Cached global average relic win rate (recomputed when bundle changes)
+    private float _globalAvgRelicWinRate = -1f;
+    private int _globalAvgSampleHash;
+
+    /// <summary>
+    /// Compute the sample-weighted average win rate across all known relics.
+    /// Used for per-relic delta display (PRD 3.4).
+    /// Returns 0.5 when no data is available.
+    /// </summary>
+    public float GetGlobalAverageRelicWinRate()
+    {
+        if (_bundle == null || _bundle.Relics.Count == 0) return 0.5f;
+
+        // Cheap change detection: use count as a proxy for bundle identity
+        var sampleHash = _bundle.Relics.Count;
+        if (_globalAvgRelicWinRate >= 0 && _globalAvgSampleHash == sampleHash)
+            return _globalAvgRelicWinRate;
+
+        double totalWeight = 0;
+        double weightedSum = 0;
+        foreach (var stats in _bundle.Relics.Values)
+        {
+            int n = Math.Max(1, stats.SampleSize);
+            totalWeight += n;
+            weightedSum += stats.WinRate * n;
+        }
+        _globalAvgRelicWinRate = totalWeight > 0 ? (float)(weightedSum / totalWeight) : 0.5f;
+        _globalAvgSampleHash = sampleHash;
+        return _globalAvgRelicWinRate;
+    }
+
     public async Task<Dictionary<string, RelicStats?>> GetRelicStatsBatchAsync(
         List<string> relicIds, FilterSettings filter)
     {

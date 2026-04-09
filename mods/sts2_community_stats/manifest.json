@@ -1,6 +1,6 @@
 {
   "id": "sts2_community_stats",
-  "name": "STS2 Community Stats",
+  "name": "Stats the Spire",
   "author": "CommunityStatsDev",
   "description": "Community-shared card pick/win rates, relic win rates, event choice stats, shop buy rates, combat danger/death rates, and per-combat contribution charts.",
   "version": "0.11.0",

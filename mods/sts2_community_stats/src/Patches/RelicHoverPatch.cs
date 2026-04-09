@@ -1,4 +1,5 @@
 using CommunityStats.Api;
+using CommunityStats.Config;
 using CommunityStats.UI;
 using CommunityStats.Util;
 using Godot;
@@ -23,6 +24,7 @@ public static class RelicHoverPatch
     [HarmonyPostfix]
     public static void AfterBasicOnFocus(NRelicBasicHolder __instance)
     {
+        if (!ModConfig.Toggles.RelicStats) return;
         Safe.Run(() => ShowRelicStats(__instance, __instance.Relic));
     }
 
@@ -39,6 +41,7 @@ public static class RelicHoverPatch
     [HarmonyPostfix]
     public static void AfterInventoryOnFocus(NRelicInventoryHolder __instance)
     {
+        if (!ModConfig.Toggles.RelicStats) return;
         Safe.Run(() => ShowRelicStats(__instance, __instance.Relic));
     }
 
@@ -86,7 +89,15 @@ public static class RelicHoverPatch
         else
         {
             var stats = StatsProvider.Instance.GetRelicStats(relicId);
-            label = stats != null ? StatsLabel.ForRelicStats(stats) : StatsLabel.ForUnavailable();
+            if (stats != null)
+            {
+                var globalAvg = StatsProvider.Instance.GetGlobalAverageRelicWinRate();
+                label = StatsLabel.ForRelicStatsWithDelta(stats, globalAvg);
+            }
+            else
+            {
+                label = StatsLabel.ForUnavailable();
+            }
         }
 
         // Position below the relic icon
