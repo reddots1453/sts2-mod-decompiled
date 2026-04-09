@@ -17,7 +17,9 @@ public partial class FilterPanel : PanelContainer
     private Label? _sampleSizeLabel;
     private Button _applyButton = null!;
     private CheckBox? _uploadCheckbox;
+    private CheckBox? _myDataCheckbox;
     private OptionButton? _langDropdown;
+    private readonly Dictionary<string, CheckBox> _toggleCheckboxes = new();
 
     public static event Action? FilterApplied;
 
@@ -42,12 +44,12 @@ public partial class FilterPanel : PanelContainer
         };
         panel.AddThemeStyleboxOverride("panel", style);
 
-        panel.CustomMinimumSize = new Vector2(340, 420);
+        panel.CustomMinimumSize = new Vector2(360, 600);
         panel.AnchorLeft = 0.5f;
         panel.AnchorRight = 0.5f;
-        panel.AnchorTop = 0.2f;
-        panel.OffsetLeft = -170;
-        panel.OffsetRight = 170;
+        panel.AnchorTop = 0.1f;
+        panel.OffsetLeft = -180;
+        panel.OffsetRight = 180;
 
         var vbox = new VBoxContainer();
         vbox.AddThemeConstantOverride("separation", 8);
@@ -69,6 +71,11 @@ public partial class FilterPanel : PanelContainer
         panel._uploadCheckbox = new CheckBox { Text = L.Get("settings.upload") };
         panel._uploadCheckbox.ButtonPressed = ModConfig.EnableUpload;
         vbox.AddChild(panel._uploadCheckbox);
+
+        // ── My-Data Filter (PRD §3.13) ──────────────────────
+        panel._myDataCheckbox = new CheckBox { Text = L.Get("settings.my_data") };
+        panel._myDataCheckbox.ButtonPressed = ModConfig.CurrentFilter.MyDataOnly;
+        vbox.AddChild(panel._myDataCheckbox);
 
         // ── Filter Settings ─────────────────────────────────
 
@@ -118,6 +125,36 @@ public partial class FilterPanel : PanelContainer
         panel._sampleSizeLabel.AddThemeFontSizeOverride("font_size", 12);
         vbox.AddChild(panel._sampleSizeLabel);
         panel.UpdateSampleSizeLabel();
+
+        // ── Feature Toggles (PRD §3.14) ─────────────────────
+        var togglesHeader = new Label { Text = L.Get("settings.toggles_title") };
+        togglesHeader.AddThemeFontSizeOverride("font_size", 14);
+        togglesHeader.AddThemeColorOverride("font_color", new Color("#EFC851"));
+        vbox.AddChild(togglesHeader);
+
+        var togglesScroll = new ScrollContainer
+        {
+            CustomMinimumSize = new Vector2(0, 180),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        vbox.AddChild(togglesScroll);
+
+        var togglesVbox = new VBoxContainer();
+        togglesVbox.AddThemeConstantOverride("separation", 2);
+        togglesVbox.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        togglesScroll.AddChild(togglesVbox);
+
+        foreach (var (key, labelKey) in FeatureToggles.ToggleDefinitions)
+        {
+            var cb = new CheckBox
+            {
+                Text = L.Get(labelKey),
+                ButtonPressed = ModConfig.Toggles.GetByName(key),
+            };
+            cb.AddThemeFontSizeOverride("font_size", 12);
+            togglesVbox.AddChild(cb);
+            panel._toggleCheckboxes[key] = cb;
+        }
 
         // Apply button
         panel._applyButton = new Button { Text = L.Get("settings.apply") };
@@ -187,7 +224,14 @@ public partial class FilterPanel : PanelContainer
             filter.MinPlayerWinRate = wrPercent > 0 ? wrPercent / 100f : null;
             var verIdx = _versionDropdown?.Selected ?? 0;
             filter.GameVersion = verIdx == 1 ? "all" : null;
+            filter.MyDataOnly = _myDataCheckbox?.ButtonPressed ?? false;
             filter.Save();
+
+            // Persist feature toggle values
+            foreach (var (key, cb) in _toggleCheckboxes)
+            {
+                ModConfig.Toggles.SetByName(key, cb.ButtonPressed);
+            }
 
             // Save config overrides to disk
             SaveConfigOverrides();
@@ -199,15 +243,9 @@ public partial class FilterPanel : PanelContainer
 
     private static void SaveConfigOverrides()
     {
-        Safe.Run(() =>
-        {
-            var json = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                api_base_url = ModConfig.ApiBaseUrl,
-                enable_upload = ModConfig.EnableUpload,
-                language = ModConfig.Language
-            });
-            File.WriteAllText(ModConfig.ConfigPath, json);
-        });
+        // ModConfig.SaveSettings() writes the canonical config including
+        // feature_toggles, language, upload prefs, panel position, etc.
+        // It must be called whenever any of those mutate from this panel.
+        Safe.Run(() => ModConfig.SaveSettings());
     }
 }

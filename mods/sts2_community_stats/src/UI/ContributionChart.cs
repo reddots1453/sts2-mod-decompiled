@@ -13,23 +13,32 @@ namespace CommunityStats.UI;
 /// </summary>
 public partial class ContributionChart : VBoxContainer
 {
-    private static readonly Color CardBarColor = new(0.3f, 0.5f, 0.9f);     // blue
-    private static readonly Color RelicBarColor = new(0.9f, 0.75f, 0.2f);   // gold
-    private static readonly Color PotionBarColor = new(0.2f, 0.85f, 0.6f);  // teal
-    private static readonly Color AttrBarColor = new(0.5f, 0.7f, 1.0f);     // light blue (attributed)
-    private static readonly Color ModifierBarColor = new(0.7f, 0.5f, 0.9f); // purple (modifier bonus)
-    private static readonly Color MitigateBarColor = new(0.4f, 0.8f, 0.5f); // green (debuff/buff mitigation)
-    private static readonly Color StrReduceBarColor = new(0.9f, 0.5f, 0.2f);// orange (enemy str reduction)
-    private static readonly Color StarBarColor = new(1.0f, 0.85f, 0.3f);    // gold/yellow for stars
-    private static readonly Color SelfDmgBarColor = new(0.9f, 0.25f, 0.2f);  // red for self-damage
-    private static readonly Color HealBarColor = new(0.2f, 0.9f, 0.3f);     // bright green for healing
-    private static readonly Color OstyBarColor = new(0.6f, 0.9f, 0.5f);     // green for Osty
-    private static readonly Color SubBarColor = new(0.4f, 0.6f, 0.8f, 0.7f);// dimmed blue for sub-bars
-    private static readonly Color HeaderColor = new(1f, 1f, 1f);
-    private static readonly Color PlayCountColor = new(0.6f, 0.6f, 0.7f);
+    // ── Palette (cohesive cool-tone deck with warm accents) ─────
+    private static readonly Color CardBarColor    = new(0.36f, 0.58f, 0.95f); // sky blue
+    private static readonly Color RelicBarColor   = new(0.95f, 0.78f, 0.30f); // saturated gold
+    private static readonly Color PotionBarColor  = new(0.25f, 0.85f, 0.65f); // teal
+    private static readonly Color OstyBarColor    = new(0.55f, 0.85f, 0.55f); // light green (Osty)
+    private static readonly Color AttrBarColor    = new(0.55f, 0.78f, 1.00f); // pale blue
+    private static readonly Color ModifierBarColor= new(0.74f, 0.55f, 0.95f); // lavender
+    private static readonly Color MitigateBarColor= new(0.40f, 0.82f, 0.55f); // emerald
+    private static readonly Color StrReduceBarColor = new(0.95f, 0.55f, 0.25f); // orange
+    private static readonly Color StarBarColor    = new(1.00f, 0.86f, 0.35f); // bright gold
+    private static readonly Color SelfDmgBarColor = new(0.92f, 0.30f, 0.25f); // red
+    private static readonly Color HealBarColor    = new(0.30f, 0.92f, 0.40f); // bright green
+    private static readonly Color UpgradeBarColor = new(0.95f, 0.65f, 0.20f); // amber
+    private static readonly Color SubBarColor     = new(0.42f, 0.62f, 0.82f, 0.65f); // dimmed blue
+    private static readonly Color HeaderColor     = new("#EFC851"); // gold accent
+    private static readonly Color SectionTextColor= new("#FFF6E2"); // cream
+    private static readonly Color PlayCountColor  = new(0.62f, 0.62f, 0.72f);
+    private static readonly Color RowAlt          = new(1f, 1f, 1f, 0.025f);
+    private static readonly Color BarTrackColor   = new(1f, 1f, 1f, 0.06f);
+    private static readonly Color BarBorderColor  = new(0f, 0f, 0f, 0.35f);
+
     private const int MaxBarsPerSection = 10;
-    private const float BarHeight = 20f;
+    private const float BarHeight = 22f;
     private const float MaxBarWidth = 260f;
+    private const int BarCornerRadius = 4;
+    private static int _rowCounter; // alternating background rows
 
     public enum Category { Damage, Defense, Draw, Energy, Stars, Healing }
 
@@ -75,10 +84,27 @@ public partial class ContributionChart : VBoxContainer
 
     private void BuildSection(string header, IReadOnlyDictionary<string, ContributionAccum> data, Category category)
     {
+        // Gold underlined section header — visually distinct from row labels.
+        var headerWrap = new PanelContainer();
+        var headerStyle = new StyleBoxFlat
+        {
+            BgColor = new Color(0.10f, 0.12f, 0.18f, 0.55f),
+            BorderColor = HeaderColor,
+            BorderWidthBottom = 2,
+            CornerRadiusTopLeft = 4,
+            CornerRadiusTopRight = 4,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+        };
+        headerWrap.AddThemeStyleboxOverride("panel", headerStyle);
         var headerLabel = new Label { Text = header };
-        headerLabel.AddThemeColorOverride("font_color", new Color(0.8f, 0.8f, 0.8f));
-        headerLabel.AddThemeFontSizeOverride("font_size", 14);
-        AddChild(headerLabel);
+        headerLabel.AddThemeColorOverride("font_color", HeaderColor);
+        headerLabel.AddThemeFontSizeOverride("font_size", 13);
+        headerWrap.AddChild(headerLabel);
+        AddChild(headerWrap);
+        _rowCounter = 0;
 
         // Separate top-level entries and sub-entries (cards with OriginSourceId)
         var topLevel = new List<(ContributionAccum accum, int value)>();
@@ -151,15 +177,37 @@ public partial class ContributionChart : VBoxContainer
 
         var maxVal = sorted.Max(x => Math.Abs(x.value) + (subEntries.TryGetValue(x.accum.SourceId, out var s)
             ? s.Sum(sub => Math.Abs(sub.value)) : 0));
-        var totalVal = data.Values.Sum(a => category switch
+
+        // PRD §4.5 round 6 fix: defense % was using `TotalDefense` which already
+        // subtracts self-damage, so an Offering self-hit could push the
+        // denominator below the sum of positive contributions and produce
+        // 125%-style nonsense. Compute the percentage denominator from the sum
+        // of *positive* per-source contributions only — self-damage still
+        // displays as a red bar but doesn't pollute the percentages.
+        int totalVal;
+        if (category == Category.Defense)
         {
-            Category.Damage => a.TotalDamage,
-            Category.Defense => a.TotalDefense,
-            Category.Draw => a.CardsDrawn,
-            Category.Energy => a.EnergyGained,
-            Category.Stars => a.StarsContribution,
-            _ => 0
-        });
+            int posSum = 0;
+            foreach (var a in data.Values)
+            {
+                int v = a.EffectiveBlock + a.ModifierBlock + a.MitigatedByDebuff
+                      + a.MitigatedByBuff + a.MitigatedByStrReduction + a.UpgradeBlock;
+                if (v > 0) posSum += v;
+            }
+            totalVal = posSum;
+        }
+        else
+        {
+            totalVal = data.Values.Sum(a => category switch
+            {
+                Category.Damage => a.TotalDamage,
+                Category.Draw => a.CardsDrawn,
+                Category.Energy => a.EnergyGained,
+                Category.Stars => a.StarsContribution,
+                Category.Healing => a.HpHealed,
+                _ => 0
+            });
+        }
 
         foreach (var (accum, value) in sorted)
         {
@@ -180,8 +228,20 @@ public partial class ContributionChart : VBoxContainer
     private void BuildEntryRow(ContributionAccum accum, int value, int maxVal, int totalVal,
         Category category, bool isSub, bool hasSubs = false)
     {
+        var rowWrap = new PanelContainer();
+        var rowStyle = new StyleBoxFlat
+        {
+            BgColor = (_rowCounter++ % 2 == 0) ? RowAlt : new Color(0, 0, 0, 0),
+            ContentMarginTop = 2,
+            ContentMarginBottom = 2,
+            ContentMarginLeft = 4,
+            ContentMarginRight = 4,
+        };
+        rowWrap.AddThemeStyleboxOverride("panel", rowStyle);
+
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 4);
+        rowWrap.AddChild(row);
 
         // Expand/collapse toggle for parents that have sub-entries
         if (!isSub && hasSubs)
@@ -251,8 +311,18 @@ public partial class ContributionChart : VBoxContainer
             row.AddChild(new Control { CustomMinimumSize = new Vector2(30, BarHeight) });
         }
 
-        // Bar container
-        var barContainer = new Control { CustomMinimumSize = new Vector2(MaxBarWidth, BarHeight) };
+        // Bar container with a subtle track background so empty bars are visible.
+        var barContainer = new Panel { CustomMinimumSize = new Vector2(MaxBarWidth, BarHeight) };
+        var trackStyle = new StyleBoxFlat
+        {
+            BgColor = BarTrackColor,
+            CornerRadiusTopLeft = BarCornerRadius,
+            CornerRadiusTopRight = BarCornerRadius,
+            CornerRadiusBottomLeft = BarCornerRadius,
+            CornerRadiusBottomRight = BarCornerRadius,
+        };
+        barContainer.AddThemeStyleboxOverride("panel", trackStyle);
+        barContainer.MouseFilter = Control.MouseFilterEnum.Ignore;
 
         if (category == Category.Damage)
             BuildDamageBar(barContainer, accum, maxVal, isSub);
@@ -267,9 +337,9 @@ public partial class ContributionChart : VBoxContainer
 
         row.AddChild(barContainer);
 
-        // Value + percentage
+        // Value + percentage (PRD AC-15: 1 decimal place)
         var pct = totalVal > 0 ? (float)value / totalVal * 100 : 0;
-        var valText = value < 0 ? $"{value}" : $"{value}  ({pct:F0}%)";
+        var valText = value < 0 ? $"{value}" : $"{value}  ({pct:F1}%)";
         var valLabel = new Label { Text = valText };
         var valColor = value < 0
             ? SelfDmgBarColor  // red for negative
@@ -278,7 +348,7 @@ public partial class ContributionChart : VBoxContainer
         valLabel.AddThemeFontSizeOverride("font_size", isSub ? 11 : 12);
         row.AddChild(valLabel);
 
-        AddChild(row);
+        AddChild(rowWrap);
     }
 
     private static Color GetSourceColor(string sourceType) => sourceType switch
@@ -328,7 +398,7 @@ public partial class ContributionChart : VBoxContainer
         if (accum.UpgradeDamage > 0)
         {
             var w = maxVal > 0 ? (float)accum.UpgradeDamage / maxVal * MaxBarWidth : 0;
-            var bar = CreateBar(w, BarHeight, new Color(0.9f, 0.6f, 0.2f)); // orange for upgrade
+            var bar = CreateBar(w, BarHeight, UpgradeBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
         }
@@ -421,20 +491,38 @@ public partial class ContributionChart : VBoxContainer
         container.AddChild(CreateBar(barWidth, BarHeight, color));
     }
 
-    private static ColorRect CreateBar(float width, float height, Color color)
+    private static Control CreateBar(float width, float height, Color color)
     {
-        return new ColorRect
+        // Use a Panel with a StyleBoxFlat so each bar gets rounded corners
+        // and a subtle dark border — much cleaner than raw ColorRect.
+        var panel = new Panel
         {
-            Color = color,
             CustomMinimumSize = new Vector2(width, height),
-            Size = new Vector2(width, height)
+            Size = new Vector2(width, height),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
         };
+        var style = new StyleBoxFlat
+        {
+            BgColor = color,
+            BorderColor = BarBorderColor,
+            BorderWidthBottom = 1,
+            BorderWidthTop = 0,
+            BorderWidthLeft = 0,
+            BorderWidthRight = 0,
+            CornerRadiusTopLeft = BarCornerRadius,
+            CornerRadiusTopRight = BarCornerRadius,
+            CornerRadiusBottomLeft = BarCornerRadius,
+            CornerRadiusBottomRight = BarCornerRadius,
+        };
+        panel.AddThemeStyleboxOverride("panel", style);
+        return panel;
     }
 
     private void AddSeparator()
     {
-        var sep = new HSeparator();
-        sep.AddThemeConstantOverride("separation", 2);
+        // Vertical breathing room between sections; HSeparator's default look
+        // is too noisy for the polished panel — use an empty spacer instead.
+        var sep = new Control { CustomMinimumSize = new Vector2(0, 6) };
         AddChild(sep);
     }
 

@@ -82,25 +82,26 @@ public partial class StatsLabel : Label
 
     public static StatsLabel ForUpgradeRate(CardStats stats)
     {
+        // PRD AC-15: percentages displayed with 1 decimal place.
         var text = string.Format(L.Get("stats.upgrade"),
-            (stats.UpgradeRate * 100).ToString("F0"),
-            (stats.WinRate * 100).ToString("F0"));
+            (stats.UpgradeRate * 100).ToString("F1"),
+            (stats.WinRate * 100).ToString("F1"));
         return Create(text, WinRateColor(stats.WinRate));
     }
 
     public static StatsLabel ForRemovalRate(CardStats stats)
     {
         var text = string.Format(L.Get("stats.remove"),
-            (stats.RemovalRate * 100).ToString("F0"),
-            (stats.WinRate * 100).ToString("F0"));
+            (stats.RemovalRate * 100).ToString("F1"),
+            (stats.WinRate * 100).ToString("F1"));
         return Create(text, WinRateColor(stats.WinRate));
     }
 
     public static StatsLabel ForShopBuyRate(float shopBuyRate, float winRate)
     {
         var text = string.Format(L.Get("stats.buy"),
-            (shopBuyRate * 100).ToString("F0"),
-            (winRate * 100).ToString("F0"));
+            (shopBuyRate * 100).ToString("F1"),
+            (winRate * 100).ToString("F1"));
         return Create(text, WinRateColor(winRate));
     }
 

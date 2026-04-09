@@ -59,7 +59,19 @@ public static class CombatHistoryPatch
     [HarmonyPostfix]
     public static void AfterCardPlayFinished(CombatState combatState, CardPlay cardPlay)
     {
-        Safe.Run(() => CombatTracker.Instance.OnCardPlayFinished());
+        Safe.Run(() =>
+        {
+            CombatTracker.Instance.OnCardPlayFinished();
+            // Real-time UI refresh — round 6 fix: consolidated from
+            // RealTimeCombatPatch which used a duplicate postfix on the same
+            // method. Two postfixes on the same target are technically
+            // supported by Harmony but the user reported the live refresh
+            // never running, so we collapse the chain into one entry point.
+            if (Config.ModConfig.Toggles.ContributionPanel)
+            {
+                CombatTracker.Instance.NotifyCombatDataUpdated();
+            }
+        });
     }
 
     // Sync block pool when block is naturally cleared at turn start.
@@ -296,6 +308,32 @@ public static class RelicHookContextPatcher
 
         // ── Orb relic ──
         TryPatch(harmony, typeof(EmotionChip), "AfterPlayerTurnStart", prefix, postfix);
+
+        // ── Food relics: +MaxHp on pickup (Catalog §14 Gap #4) ──
+        // These trigger CreatureCmd.GainMaxHp inside AfterObtained, which routes to
+        // MaxHpGainPatch. Setting relic context here lets the source attribute correctly.
+        TryPatch(harmony, typeof(Pear), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(Strawberry), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(Mango), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(FakeMango), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(NutritiousOyster), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(LeesWaffle), "AfterObtained", prefix, postfix);
+
+        // ── Food relics: heal on pickup / per-room / per-turn (Catalog §14 Gap #4) ──
+        TryPatch(harmony, typeof(FakeLeesWaffle), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(BloodVial), "AfterPlayerTurnStartLate", prefix, postfix);
+        TryPatch(harmony, typeof(FakeBloodVial), "AfterPlayerTurnStartLate", prefix, postfix);
+        TryPatch(harmony, typeof(MealTicket), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(EternalFeather), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(ChosenCheese), "AfterCombatEnd", prefix, postfix);
+        TryPatch(harmony, typeof(DragonFruit), "AfterGoldGained", prefix, postfix);
+
+        // ── Combat-start power application relics (Catalog §3 Gap #5) ──
+        // Apply Strength/Focus inside AfterRoomEntered → power source must be recorded
+        // as the relic so subsequent ModifyDamageAdditive bonuses attribute back here.
+        TryPatch(harmony, typeof(Vajra), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(Girya), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(DataDisk), "AfterRoomEntered", prefix, postfix);
     }
 
     private static void TryPatch(Harmony harmony, Type type, string methodName,
@@ -1464,6 +1502,116 @@ public static class LocalCostModifierSourceTagPatch
 }
 
 // ═══════════════════════════════════════════════════════════
+// PRD-04 §4.2 — Confused/SneckoEye energy contribution (negative-allowed).
+// ConfusedPower.AfterCardDrawn → SetThisCombat → randomized cost.
+// We tag the card with the upstream Snecko source so AttributeCostSavings
+// credits the energy delta (which can be negative) at play time.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class ConfusedSourceTagPatch
+{
+    [HarmonyPatch(typeof(ConfusedPower), nameof(ConfusedPower.AfterCardDrawn))]
+    [HarmonyPostfix]
+    public static void AfterConfusedRandomizesCost(
+        ConfusedPower __instance, CardModel card)
+    {
+        Safe.Run(() =>
+        {
+            if (card == null || card.Owner != __instance.Owner.Player) return;
+            if (card.EnergyCost.Canonical < 0) return;
+
+            // Identify the relic that gave the player Confused.
+            // Order matters: check FakeSneckoEye first (more specific), then SneckoEye.
+            string sourceId;
+            try
+            {
+                var player = __instance.Owner.Player;
+                if (player == null) return;
+                if (player.GetRelic<FakeSneckoEye>() != null)      sourceId = "FAKE_SNECKO_EYE";
+                else if (player.GetRelic<SneckoEye>() != null)     sourceId = "SNECKO_EYE";
+                else return; // Confused from some other source — skip
+            }
+            catch (System.Exception ex)
+            {
+                Safe.Warn($"ConfusedSourceTagPatch: relic lookup failed: {ex.Message}");
+                return;
+            }
+
+            ContributionMap.Instance.TagCostReductionSource(
+                card.GetHashCode(), sourceId, "relic");
+        });
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRD-04 §4.2 (SneckoOil) — local-cost modifier path that bypasses
+// CardModel.SetToFreeThis*. SneckoOil iterates each hand card and calls
+// CardEnergyCost.SetThisTurnOrUntilPlayed directly, so we hook the
+// underlying setter and pick up the active potion / relic context.
+// PRD-04 §4.3 (Enlightenment partial cost reduction) — Enlightenment
+// rewrites every hand card to cost 1 via SetThisTurnOrUntilPlayed; this
+// patch credits the delta when the card is later played.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class EnergyCostSetterTagPatch
+{
+    [HarmonyPatch(typeof(CardEnergyCost), nameof(CardEnergyCost.SetThisTurnOrUntilPlayed))]
+    [HarmonyPostfix]
+    public static void AfterSetThisTurnOrUntilPlayed(CardEnergyCost __instance)
+    {
+        Safe.Run(() => TagFromActiveContext(__instance));
+    }
+
+    [HarmonyPatch(typeof(CardEnergyCost), nameof(CardEnergyCost.SetThisCombat))]
+    [HarmonyPostfix]
+    public static void AfterSetThisCombat(CardEnergyCost __instance)
+    {
+        Safe.Run(() => TagFromActiveContext(__instance));
+    }
+
+    private static void TagFromActiveContext(CardEnergyCost energyCost)
+    {
+        // Read the private CardEnergyCost._card field via Traverse
+        CardModel? card;
+        try
+        {
+            card = Traverse.Create(energyCost).Field("_card").GetValue<CardModel>();
+        }
+        catch
+        {
+            return;
+        }
+        if (card == null || card.EnergyCost.Canonical < 0) return;
+
+        // If something already tagged this card (e.g. ConfusedSourceTagPatch),
+        // don't overwrite — first tagger wins for the same card hash.
+        var existing = ContributionMap.Instance.GetCostReductionSourceTag(card.GetHashCode());
+        if (existing != null) return;
+
+        var tracker = CombatTracker.Instance;
+        string sourceId;
+        string sourceType;
+        if (tracker.ActiveCardId != null) { sourceId = tracker.ActiveCardId; sourceType = "card"; }
+        else if (tracker.ActivePotionId != null) { sourceId = tracker.ActivePotionId; sourceType = "potion"; }
+        else if (tracker.ActiveRelicId != null) { sourceId = tracker.ActiveRelicId; sourceType = "relic"; }
+        else return;
+
+        // Generate-and-free exception (same as LocalCostModifierSourceTagPatch).
+        var origin = ContributionMap.Instance.GetCardOrigin(card.GetHashCode());
+        if (origin != null && origin.Value.originId == sourceId)
+        {
+            ContributionMap.Instance.MarkCardAsGeneratedAndFree(card.GetHashCode());
+            return;
+        }
+
+        ContributionMap.Instance.TagCostReductionSource(
+            card.GetHashCode(), sourceId, sourceType);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
 // NEW-3: Max HP Gain as Healing
 // GainMaxHp increases are recorded as HpHealed.
 // Uses context flag to suppress the internal Heal call from double-counting.
@@ -1658,14 +1806,32 @@ public static class EnemyStrReductionPatch
             if (owner.IsPlayer) return;
             if (__instance.Amount >= 0) return; // Only negative (reduction)
 
-            // Determine the source: use active power source first, then active card/potion/relic
-            string? sourceId = CombatTracker.Instance.ActivePowerSourceId;
-            string sourceType = CombatTracker.Instance.ActivePowerSourceType ?? "card";
+            // Determine the source via the standard fallback chain so card / potion /
+            // relic / power-applied StrReduction (e.g. POTION_OF_BINDING, MALAISE,
+            // DARK_SHACKLES, DRAIN_POWER, ENFEEBLING_TOUCH, TEA_OF_DISCOURTESY) all attribute.
+            var tracker = CombatTracker.Instance;
+            string? sourceId = null;
+            string sourceType = "card";
 
-            if (sourceId == null)
+            if (tracker.ActiveCardId != null)
             {
-                sourceId = CombatTracker.Instance.ActiveCardId;
+                sourceId = tracker.ActiveCardId;
                 sourceType = "card";
+            }
+            else if (tracker.ActivePotionId != null)
+            {
+                sourceId = tracker.ActivePotionId;
+                sourceType = "potion";
+            }
+            else if (tracker.ActiveRelicId != null)
+            {
+                sourceId = tracker.ActiveRelicId;
+                sourceType = "relic";
+            }
+            else if (tracker.ActivePowerSourceId != null)
+            {
+                sourceId = tracker.ActivePowerSourceId;
+                sourceType = tracker.ActivePowerSourceType ?? "card";
             }
             if (sourceId == null) return;
 

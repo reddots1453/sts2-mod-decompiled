@@ -40,6 +40,16 @@ public sealed class RunContributionAggregator
     }
 
     /// <summary>
+    /// Restore run totals from a save+quit snapshot. Round 8 §3.6.1.
+    /// Replaces (not merges) the in-memory totals with the supplied dict.
+    /// </summary>
+    public void HydrateRunTotals(IReadOnlyDictionary<string, ContributionAccum> totals)
+    {
+        _runTotals.Clear();
+        foreach (var (k, v) in totals) _runTotals[k] = v;
+    }
+
+    /// <summary>
     /// Adds healing directly to run totals (for healing that occurs outside combat,
     /// e.g. BurningBlood.AfterCombatVictory, rest site, events).
     /// </summary>

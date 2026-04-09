@@ -69,12 +69,78 @@ public sealed class CombatTracker
 
     /// <summary>
     /// Fire CombatDataUpdated event for real-time UI refresh. Called from
-    /// RealTimeCombatPatch after card play finished / potion used.
+    /// CombatHistoryPatch.AfterCardPlayFinished. Round 8: also persist a
+    /// live snapshot to disk so save+quit doesn't lose 本场战斗 data.
     /// </summary>
     public void NotifyCombatDataUpdated()
     {
+        // Live persistence first so the disk file is always up-to-date for
+        // save+quit recovery (PRD §3.6.1).
+        try
+        {
+            Util.ContributionPersistence.SaveLiveState(BuildLiveSnapshot(combatInProgress: true));
+        }
+        catch (Exception ex)
+        {
+            Godot.GD.Print($"[StatsTheSpire] SaveLiveState error: {ex.Message}");
+        }
+
         try { CombatDataUpdated?.Invoke(); }
         catch (Exception ex) { Godot.GD.Print($"[StatsTheSpire] CombatDataUpdated error: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// Build a snapshot of the current tracker state for disk persistence.
+    /// </summary>
+    public LiveContributionSnapshot BuildLiveSnapshot(bool combatInProgress)
+    {
+        return new LiveContributionSnapshot
+        {
+            EncounterId = _encounterId ?? "",
+            EncounterType = _encounterType ?? "",
+            Floor = _floor,
+            TurnCount = _turnCount,
+            TotalDamageDealt = _totalDamageDealt,
+            DamageTakenByPlayer = _damageTakenByPlayer,
+            CombatInProgress = combatInProgress,
+            CurrentCombat = combatInProgress
+                ? new Dictionary<string, ContributionAccum>(_currentCombat)
+                : null,
+            RunTotals = new Dictionary<string, ContributionAccum>(
+                RunContributionAggregator.Instance.RunTotals),
+        };
+    }
+
+    /// <summary>
+    /// Restore tracker state from a live snapshot loaded at mod boot.
+    /// Called from CommunityStatsMod.Initialize when a `_live.json` file
+    /// matches the active run's seed.
+    /// </summary>
+    public void HydrateFromLiveSnapshot(LiveContributionSnapshot snap)
+    {
+        if (snap == null) return;
+        _encounterId = snap.EncounterId ?? "";
+        _encounterType = snap.EncounterType ?? "";
+        _floor = snap.Floor;
+        _turnCount = snap.TurnCount;
+        _totalDamageDealt = snap.TotalDamageDealt;
+        _damageTakenByPlayer = snap.DamageTakenByPlayer;
+
+        if (snap.CombatInProgress && snap.CurrentCombat != null)
+        {
+            _currentCombat.Clear();
+            foreach (var (k, v) in snap.CurrentCombat) _currentCombat[k] = v;
+        }
+        else
+        {
+            // Combat was not in progress at save time → restore to LastCombatData
+            // so the panel still shows the most recent fight.
+            _lastCombatData = snap.CurrentCombat ?? new Dictionary<string, ContributionAccum>();
+            _lastEncounterId = snap.EncounterId ?? "";
+        }
+
+        if (snap.RunTotals != null)
+            RunContributionAggregator.Instance.HydrateRunTotals(snap.RunTotals);
     }
 
     // ── Lifecycle ────────────────────────────────────────────
@@ -115,6 +181,14 @@ public sealed class CombatTracker
 
         _currentCombat.Clear();
         ContributionMap.Instance.Clear();
+
+        // Round 8 §3.6.1: persist the post-combat live snapshot so a
+        // save+quit between combats keeps the run-totals tab populated.
+        try
+        {
+            Util.ContributionPersistence.SaveLiveState(BuildLiveSnapshot(combatInProgress: false));
+        }
+        catch { }
     }
 
     // ── Damage dedup (for KillingBlowPatcher) ────────────────
@@ -313,6 +387,30 @@ public sealed class CombatTracker
                     modifierTotal += mod.Amount;
                 }
             }
+        }
+
+        // PRD-04 §4.1 — multi-multiplicative modifier scaling.
+        // When multiple independent multiplicative modifiers stack (e.g. Vulnerable ×1.5
+        // and DoubleDamage ×2 on Strike 6 → total 18, raw modifier votes 6 + 9 = 15 > 12),
+        // their per-modifier contribution sum can exceed (totalDamage - baseDamage).
+        // We don't have baseDamage here, so enforce the weaker invariant
+        //   sum(ModifierDamage) <= totalDamage
+        // by proportionally scaling down each modifier's vote when overshoot is detected.
+        // This preserves the constraint DirectDamage + ModifierDamage = TotalDamage and
+        // never reports a negative directDamage.
+        if (modifierTotal > totalDamage && modifierTotal > 0 && totalDamage >= 0)
+        {
+            float scale = (float)totalDamage / modifierTotal;
+            int scaledTotal = 0;
+            for (int i = 0; i < modifiers.Count; i++)
+            {
+                var m = modifiers[i];
+                if (m.Amount <= 0) continue;
+                int scaledAmount = (int)Math.Round(m.Amount * scale);
+                modifiers[i] = new ContributionMap.ModifierContribution(m.SourceId, m.SourceType, scaledAmount);
+                scaledTotal += scaledAmount;
+            }
+            modifierTotal = scaledTotal;
         }
 
         int directDamage = Math.Max(0, totalDamage - modifierTotal);
@@ -589,6 +687,18 @@ public sealed class CombatTracker
     /// Called from CardPlayStarted to attribute energy/star savings at play time.
     /// Compares card's canonical cost vs actual cost spent.
     /// </summary>
+    /// <summary>
+    /// Source IDs whose cost-savings attribution is allowed to be NEGATIVE (PRD-04 §4.2).
+    /// SneckoEye / FakeSneckoEye / SneckoOil randomize card costs — the change can
+    /// raise the cost, in which case the energy "savings" is a negative contribution.
+    /// </summary>
+    private static readonly HashSet<string> _negativeSavingsAllowedSources = new()
+    {
+        "SNECKO_EYE",
+        "FAKE_SNECKO_EYE",
+        "SNECKO_OIL",
+    };
+
     public void AttributeCostSavings(int cardHash, int canonicalEnergy, int energySpent,
         int canonicalStars, int starsSpent, bool costsX)
     {
@@ -597,18 +707,37 @@ public sealed class CombatTracker
         int energySaved = canonicalEnergy - energySpent;
         int starsSaved = canonicalStars - starsSpent;
 
-        if (energySaved <= 0 && starsSaved <= 0) return;
-
         // Exception rule: generated-and-freed cards only tracked via sub-bar
-        if (ContributionMap.Instance.IsCardGeneratedAndFree(cardHash)) return;
+        if (ContributionMap.Instance.IsCardGeneratedAndFree(cardHash))
+        {
+            ContributionMap.Instance.ClearCostReductionSourceTag(cardHash);
+            return;
+        }
 
         // Look up source tag
         var tag = ContributionMap.Instance.GetCostReductionSourceTag(cardHash);
         if (tag == null) return;
 
         var (sourceId, sourceType) = tag.Value;
-        if (energySaved > 0) GetOrCreate(sourceId, sourceType).EnergyGained += energySaved;
-        if (starsSaved > 0) GetOrCreate(sourceId, sourceType).StarsContribution += starsSaved;
+        bool allowNegative = _negativeSavingsAllowedSources.Contains(sourceId);
+
+        // Default: only credit positive savings.
+        // Snecko-family sources may also credit negative (cost increase) per PRD §4.2.
+        if (allowNegative)
+        {
+            if (energySaved != 0) GetOrCreate(sourceId, sourceType).EnergyGained += energySaved;
+            if (starsSaved != 0) GetOrCreate(sourceId, sourceType).StarsContribution += starsSaved;
+        }
+        else
+        {
+            if (energySaved <= 0 && starsSaved <= 0)
+            {
+                ContributionMap.Instance.ClearCostReductionSourceTag(cardHash);
+                return;
+            }
+            if (energySaved > 0) GetOrCreate(sourceId, sourceType).EnergyGained += energySaved;
+            if (starsSaved > 0) GetOrCreate(sourceId, sourceType).StarsContribution += starsSaved;
+        }
 
         ContributionMap.Instance.ClearCostReductionSourceTag(cardHash);
     }

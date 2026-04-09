@@ -20,6 +20,7 @@ public static class DefenseTests
         new DEF4a_BasicBlock(),
         new DEF4c_FIFOBlock(),
         new DEF5a_BufferMitigation(),
+        new DEF5b_BufferPrdExample(),
         new DEF5c_SelfDamageDefense(),
     };
 
@@ -301,6 +302,49 @@ public static class DefenseTests
             result.ActualValues["MitigatedByBuff"] = totalMitigated.ToString();
 
             await ctx.SetEnergy(999);
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// DEF-5b: PRD-04 §4.4 Buffer prevention worked example.
+    /// Drives CombatTracker.OnBufferPrevention(int) directly with the 3 + 5 = 8
+    /// per-hit sequence (5 dmg × 4 enemy attacks vs 2 Buffer + 7 block):
+    ///   hit1: 5 fully blocked → no buffer call
+    ///   hit2: 3 unblocked → Buffer prevents 3
+    ///   hit3: 5 unblocked → Buffer prevents 5
+    ///   hit4: no buffer left → no call
+    /// Expected: BUFFER_POWER source MitigatedByBuff = 8.
+    /// </summary>
+    private class DEF5b_BufferPrdExample : ITestScenario
+    {
+        public string Id => "DEF-5b";
+        public string Name => "Buffer PRD §4.4 example: 3 + 5 = 8";
+        public string Category => "Defense";
+
+        public bool CanRun(TestContext ctx) => ctx.IsCombatActive;
+
+        public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
+        {
+            var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+
+            ctx.TakeSnapshot();
+
+            // Drive the public API directly — bypasses the harder-to-control
+            // turn timing of EndTurn-based tests and validates the per-hit
+            // summation invariant.
+            CommunityStats.Collection.CombatTracker.Instance.OnBufferPrevention(3);
+            CommunityStats.Collection.CombatTracker.Instance.OnBufferPrevention(5);
+
+            await Task.Delay(50);
+
+            var delta = ctx.GetDelta();
+            int totalMitigated = 0;
+            foreach (var (key, d) in delta) totalMitigated += d.MitigatedByBuff;
+
+            ctx.AssertEquals(result, "Total.MitigatedByBuff (PRD §4.4)", 8, totalMitigated);
+            result.ActualValues["MitigatedByBuff"] = totalMitigated.ToString();
+
             return result;
         }
     }

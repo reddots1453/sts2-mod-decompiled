@@ -23,6 +23,7 @@ public static class RunLifecyclePatch
         {
             Safe.Info("[DIAG:RunLifecycle] SetUpNewSinglePlayer Postfix fired");
             RunDataCollector.OnRunStart();
+            TryHydrateLiveState();
 
             var players = state.Players;
             Safe.Info($"[DIAG:RunLifecycle] state.Players={players != null}, count={players?.Count}");
@@ -53,8 +54,17 @@ public static class RunLifecyclePatch
         Safe.Run(() =>
         {
             RunDataCollector.OnRunStart();
+            TryHydrateLiveState();
 
-            var player = state.Players?.FirstOrDefault();
+            // PRD §3.15 — multiplayer compat: prefer the local player; fall back to
+            // Players[0] only if LocalContext is unavailable. We must never crash
+            // when state or its Players list is null.
+            if (state == null) return;
+
+            MegaCrit.Sts2.Core.Entities.Players.Player? player = null;
+            try { player = MegaCrit.Sts2.Core.Context.LocalContext.GetMe(state); } catch { }
+            if (player == null) player = state.Players?.FirstOrDefault();
+
             var character = player?.Character?.Id.Entry;
             if (character != null)
             {
@@ -62,6 +72,28 @@ public static class RunLifecyclePatch
                     StatsProvider.Instance.PreloadForRunAsync(character, ModConfig.CurrentFilter));
             }
         });
+    }
+
+    /// <summary>
+    /// Round 8 §3.6.1: when a run starts (or resumes after save+quit),
+    /// check for a `_live.json` snapshot for that seed and rehydrate the
+    /// CombatTracker / RunContributionAggregator from it.
+    /// </summary>
+    private static void TryHydrateLiveState()
+    {
+        try
+        {
+            var seed = Util.ContributionPersistence.GetActiveSeed();
+            if (string.IsNullOrEmpty(seed)) return;
+            var snap = Util.ContributionPersistence.LoadLiveState(seed!);
+            if (snap == null) return;
+            CombatTracker.Instance.HydrateFromLiveSnapshot(snap);
+            Safe.Info($"[RunLifecycle] hydrated live state for seed={seed} (combatInProgress={snap.CombatInProgress}, runTotalEntries={snap.RunTotals?.Count ?? 0})");
+        }
+        catch (System.Exception ex)
+        {
+            Safe.Warn($"TryHydrateLiveState failed: {ex.Message}");
+        }
     }
 
     /// <summary>

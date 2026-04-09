@@ -35,6 +35,18 @@ public static class CommunityStatsMod
         // Ensure data directories exist
         ModConfig.EnsureDirectories();
 
+        // Prune contribution snapshots older than 90 days (PRD §3.12).
+        ContributionPersistence.PruneOldFiles();
+
+        // Pre-warm the in-memory career-stats cache from disk so the very first
+        // 百科大全 → 角色数据 page open shows data instantly. Background re-aggregation
+        // refreshes it after a new run via RunHistoryAnalyzer.InvalidateAll().
+        Safe.Run(() => Collection.RunHistoryAnalyzer.Instance.GetCached(null));
+
+        // Round 6: pre-bake the monster intent state machines so the hover panel
+        // never has to touch live combat state. Walks ModelDb.Monsters once.
+        Safe.Run(() => Util.MonsterIntentMetadata.Initialize());
+
         // Load saved filter settings
         Safe.Run(() =>
         {
@@ -107,6 +119,10 @@ public static class CommunityStatsMod
             var root = tree.Root;
             root.CallDeferred(Node.MethodName.AddChild, ContributionPanel.Instance);
             root.CallDeferred(Node.MethodName.AddChild, FilterPanel.Instance);
+
+            // Attach top-bar potion / card-drop indicators (round 5 fix:
+            // they used to be parented to NCombatUi which never showed them).
+            CommunityStats.Patches.CombatUiOverlayPatch.Attach();
         });
     }
 

@@ -29,7 +29,7 @@ public partial class CardDropOddsIndicator : Control
         {
             Name = "StatsTheSpireCardDropOdds",
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(80, 22),
+            CustomMinimumSize = new Vector2(72, 56),
         };
         node.BuildUi();
         return node;
@@ -37,22 +37,62 @@ public partial class CardDropOddsIndicator : Control
 
     private void BuildUi()
     {
-        var hbox = new HBoxContainer();
-        hbox.AddThemeConstantOverride("separation", 4);
-        AddChild(hbox);
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 0);
+        vbox.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+        AddChild(vbox);
 
-        var icon = new Label { Text = "🃏" };
-        icon.AddThemeFontSizeOverride("font_size", 14);
-        icon.AddThemeColorOverride("font_color", GoldColor);
-        hbox.AddChild(icon);
+        // Native reward-screen "add a card" icon — round 7 PRD §3.17.
+        Control iconNode;
+        var icon = LoadNativeTexture(
+            "ui/reward_screen/reward_icon_card.png",
+            "ui/reward_screen/reward_icon_card.tres");
+        if (icon != null)
+        {
+            iconNode = new TextureRect
+            {
+                Texture = icon,
+                CustomMinimumSize = new Vector2(40, 40),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+        }
+        else
+        {
+            var lbl = new Label { Text = "🃏" };
+            lbl.AddThemeFontSizeOverride("font_size", 28);
+            lbl.AddThemeColorOverride("font_color", GoldColor);
+            lbl.HorizontalAlignment = HorizontalAlignment.Center;
+            iconNode = lbl;
+        }
+        vbox.AddChild(iconNode);
 
         _rareLabel = new Label { Text = "—" };
         _rareLabel.AddThemeFontSizeOverride("font_size", 12);
         _rareLabel.AddThemeColorOverride("font_color", CreamColor);
-        hbox.AddChild(_rareLabel);
+        _rareLabel.HorizontalAlignment = HorizontalAlignment.Center;
+        _rareLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        vbox.AddChild(_rareLabel);
 
         MouseEntered += ShowHoverPanel;
         MouseExited += HideHoverPanel;
+    }
+
+    private static Texture2D? LoadNativeTexture(params string[] candidates)
+    {
+        foreach (var path in candidates)
+        {
+            try
+            {
+                var resolved = MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath(path);
+                if (Godot.ResourceLoader.Exists(resolved))
+                    return Godot.ResourceLoader.Load<Texture2D>(resolved, null, ResourceLoader.CacheMode.Reuse);
+            }
+            catch { }
+        }
+        return null;
     }
 
     /// <summary>

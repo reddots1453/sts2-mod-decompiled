@@ -54,6 +54,20 @@ public sealed class TestRunner
         // Phase 5: Consistency checks (run last, validate accumulated data)
         list.AddRange(ConsistencyTests.All);
 
+        // Phase 6: Catalog-driven tests (per CONTRIBUTION_CATALOG.md sections).
+        // Each Catalog_* file targets one catalog section with normal + boundary cases.
+        list.AddRange(Catalog_AttackCardTests.All);
+        list.AddRange(Catalog_PowerIndirectTests.All);
+        list.AddRange(Catalog_ModifierTests.All);
+        list.AddRange(Catalog_DefenseBlockTests.All);
+        list.AddRange(Catalog_DefenseDebuffTests.All);
+        list.AddRange(Catalog_DefenseStrReductionTests.All);
+        list.AddRange(Catalog_SelfDamageTests.All);
+        list.AddRange(Catalog_DrawTests.All);
+        list.AddRange(Catalog_EnergyTests.All);
+        list.AddRange(Catalog_HealingTests.All);
+        list.AddRange(Catalog_InteractionTests.All);
+
         return list;
     }
 

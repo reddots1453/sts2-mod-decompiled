@@ -10,32 +10,27 @@ using MegaCrit.Sts2.Core.Nodes.Screens.RelicCollection;
 namespace CommunityStats.Patches;
 
 /// <summary>
-/// Compendium relic collection: append community win-rate + delta to each
-/// relic entry's hover. PRD 3.3/3.4.
+/// LEGACY (manual feedback round 4): the per-entry hover label was
+/// replaced by `RelicLibraryPatch` which injects the stats into the
+/// large NInspectRelicScreen on click — same flow as the card library.
 ///
-/// Uses a child StatsLabel attached to the entry (same strategy as
-/// RelicHoverPatch) — the label is created on OnFocus and removed on
-/// OnUnfocus. We only show stats when the relic is actually visible
-/// (not locked / unseen).
+/// The hover behaviour is kept disabled by default but the patch class
+/// is preserved so any future "show on hover" toggle can flip it back on
+/// without re-introducing the file.
 /// </summary>
-[HarmonyPatch]
 public static class RelicCollectionPatch
 {
     private const string StatsLabelMeta = "sts_relic_collection_stats";
 
-    [HarmonyPatch(typeof(NRelicCollectionEntry), "OnFocus")]
-    [HarmonyPostfix]
+    // Hover injection deliberately disabled — see class summary.
     public static void AfterOnFocus(NRelicCollectionEntry __instance)
     {
-        if (!ModConfig.Toggles.RelicStats) return;
-        Safe.Run(() => ShowStats(__instance));
+        // no-op
     }
 
-    [HarmonyPatch(typeof(NRelicCollectionEntry), "OnUnfocus")]
-    [HarmonyPostfix]
     public static void AfterOnUnfocus(NRelicCollectionEntry __instance)
     {
-        Safe.Run(() => RemoveStats(__instance));
+        // no-op
     }
 
     private static void ShowStats(NRelicCollectionEntry entry)

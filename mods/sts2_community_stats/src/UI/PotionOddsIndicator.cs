@@ -1,3 +1,4 @@
+using System.Linq;
 using CommunityStats.Config;
 using Godot;
 
@@ -22,7 +23,7 @@ public partial class PotionOddsIndicator : Control
         {
             Name = "StatsTheSpirePotionOdds",
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(80, 22),
+            CustomMinimumSize = new Vector2(72, 56),
         };
         node.BuildUi();
         return node;
@@ -30,28 +31,78 @@ public partial class PotionOddsIndicator : Control
 
     private void BuildUi()
     {
-        var hbox = new HBoxContainer();
-        hbox.AddThemeConstantOverride("separation", 4);
-        AddChild(hbox);
+        var vbox = new VBoxContainer();
+        vbox.AddThemeConstantOverride("separation", 0);
+        vbox.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+        AddChild(vbox);
 
-        var icon = new Label { Text = "🧪" }; // placeholder glyph; a sprite could replace this later
-        icon.AddThemeFontSizeOverride("font_size", 14);
-        icon.AddThemeColorOverride("font_color", GoldColor);
-        hbox.AddChild(icon);
+        // Native Distilled Chaos potion icon — round 7 PRD §3.9.
+        // Loaded via PreloadManager when the resource exists; falls back to
+        // a glyph label if the atlas isn't packed for this build.
+        Control iconNode;
+        var icon = LoadNativeTexture(
+            "atlases/potion_atlas.sprites/distilled_chaos.tres",
+            "atlases/potion_atlas.sprites/distilled_chaos.png");
+        if (icon != null)
+        {
+            iconNode = new TextureRect
+            {
+                Texture = icon,
+                CustomMinimumSize = new Vector2(40, 40),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+                MouseFilter = MouseFilterEnum.Ignore,
+            };
+        }
+        else
+        {
+            var lbl = new Label { Text = "🧪" };
+            lbl.AddThemeFontSizeOverride("font_size", 28);
+            lbl.AddThemeColorOverride("font_color", GoldColor);
+            lbl.HorizontalAlignment = HorizontalAlignment.Center;
+            iconNode = lbl;
+        }
+        vbox.AddChild(iconNode);
 
         _percentLabel = new Label { Text = "—" };
         _percentLabel.AddThemeFontSizeOverride("font_size", 12);
         _percentLabel.AddThemeColorOverride("font_color", CreamColor);
-        hbox.AddChild(_percentLabel);
+        _percentLabel.HorizontalAlignment = HorizontalAlignment.Center;
+        _percentLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        vbox.AddChild(_percentLabel);
 
         MouseEntered += ShowHoverPanel;
         MouseExited += HideHoverPanel;
     }
 
+    private static Texture2D? LoadNativeTexture(params string[] candidates)
+    {
+        foreach (var path in candidates)
+        {
+            try
+            {
+                var resolved = MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath(path);
+                if (Godot.ResourceLoader.Exists(resolved))
+                    return Godot.ResourceLoader.Load<Texture2D>(resolved, null, ResourceLoader.CacheMode.Reuse);
+            }
+            catch { }
+        }
+        // Final fallback: try resources cached by PreloadManager.
+        try
+        {
+            var distilled = MegaCrit.Sts2.Core.Models.ModelDb.AllPotions
+                .FirstOrDefault(p => p.Id.Entry == "DISTILLED_CHAOS");
+            return distilled?.Image;
+        }
+        catch { return null; }
+    }
+
     public void UpdateOdds(float currentValue)
     {
         _currentOdds = Mathf.Clamp(currentValue, 0f, 1f);
-        _percentLabel.Text = (_currentOdds * 100f).ToString("F0") + "%";
+        // PRD AC-15: percentages displayed with 1 decimal place.
+        _percentLabel.Text = (_currentOdds * 100f).ToString("F1") + "%";
     }
 
     /// <summary>

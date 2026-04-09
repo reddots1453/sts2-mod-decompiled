@@ -89,7 +89,8 @@ public static class MapPointPatch
             && mapPoint.State != MapPointState.Traveled
             && ModConfig.Toggles.ShopPrices)
         {
-            panel = ShopPricePanel.Create(GetShopRemovalsUsed());
+            var player = RunManager.Instance?.DebugOnlyGetState()?.Players?.FirstOrDefault();
+            panel = ShopPricePanel.Create(player, GetShopRemovalsUsed());
         }
 
         if (panel == null) return;
@@ -105,7 +106,7 @@ public static class MapPointPatch
         var runState = RunManager.Instance?.DebugOnlyGetState();
         var odds = runState?.Odds?.UnknownMapPoint;
         if (odds == null) return null;
-        return UnknownRoomPanel.Create(odds);
+        return UnknownRoomPanel.Create(odds, runState);
     }
 
     private static int GetShopRemovalsUsed()

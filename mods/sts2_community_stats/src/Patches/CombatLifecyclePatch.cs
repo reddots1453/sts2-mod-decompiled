@@ -42,6 +42,11 @@ public static class CombatLifecyclePatch
         {
             CombatTracker.Instance.OnCombatEnd();
 
+            // Persist this combat snapshot for future Run History replay (PRD §3.12).
+            ContributionPersistence.SaveCombat(
+                RunDataCollector.CurrentFloor,
+                CombatTracker.Instance.LastCombatData);
+
             // Show contribution panel after combat (respect feature toggle)
             if (Config.ModConfig.Toggles.ContributionPanel)
             {

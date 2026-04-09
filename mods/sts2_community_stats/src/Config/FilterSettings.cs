@@ -29,6 +29,13 @@ public class FilterSettings
     public bool AutoMatchAscension { get; set; } = false;
 
     /// <summary>
+    /// PRD §3.13: when true, all stats labels read from the local
+    /// RunHistory aggregator instead of the community StatsCache.
+    /// </summary>
+    [JsonPropertyName("my_data_only")]
+    public bool MyDataOnly { get; set; } = false;
+
+    /// <summary>
     /// Builds query string parameters for API requests.
     /// </summary>
     public string ToQueryString()
@@ -61,11 +68,12 @@ public class FilterSettings
             && MaxAscension == other.MaxAscension
             && MinPlayerWinRate == other.MinPlayerWinRate
             && NumPlayers == other.NumPlayers
-            && GameVersion == other.GameVersion;
+            && GameVersion == other.GameVersion
+            && MyDataOnly == other.MyDataOnly;
     }
 
     public override int GetHashCode() =>
-        System.HashCode.Combine(Character, MinAscension, MaxAscension, MinPlayerWinRate, NumPlayers, GameVersion);
+        System.HashCode.Combine(Character, MinAscension, MaxAscension, MinPlayerWinRate, NumPlayers, GameVersion, MyDataOnly);
 
     public void Save()
     {

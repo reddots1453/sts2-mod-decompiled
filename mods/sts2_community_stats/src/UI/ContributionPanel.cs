@@ -10,11 +10,16 @@ namespace CommunityStats.UI;
 /// Combat contribution panel. Shows per-combat and per-run breakdown of damage,
 /// defense, draws, energy, stars, and healing per source (card/relic/potion/power).
 ///
-/// v2 features (PRD 3.6, 3.7, 4.5):
-/// - Default anchor = RIGHT side (avoids reward selection overlay)
+/// v3 features (manual feedback round 4):
+/// - Default anchor = LEFT side (right blocked the post-combat 前进 button)
+/// - Two tabs only: 本场战斗 / 本局汇总. The 本场战斗 tab swaps its data
+///   source contextually: live combat data while a fight is in progress, the
+///   most-recently-finished combat snapshot otherwise.
+/// - Tab labels are written via TabContainer.SetTabTitle to avoid the
+///   "@ScrollContainer@N" auto-name fallback Godot uses for child nodes.
 /// - Draggable via title bar; position persisted to config
 /// - DPS row (damage / turn count)
-/// - Help (?) button with tooltip
+/// - Help (?) button opens an InfoModPanel describing each metric
 /// - Real-time refresh via CombatTracker.CombatDataUpdated event (500ms debounce)
 /// </summary>
 public partial class ContributionPanel : PanelContainer
@@ -23,10 +28,9 @@ public partial class ContributionPanel : PanelContainer
     private TabContainer? _tabs;
     private Label? _dpsLabel;
     private HBoxContainer? _header;
+    private PanelContainer? _helpPanel;
 
-    // Real-time refresh debounce (PRD 3.6)
-    private static readonly Debounce _refreshDebounce = new(500);
-    private static bool _refreshPending;
+    // Real-time refresh — round 6 dropped the debounce, see OnCombatDataUpdated.
 
     public static ContributionPanel Instance => _instance ??= CreatePanel();
 
@@ -51,16 +55,17 @@ public partial class ContributionPanel : PanelContainer
         };
         panel.AddThemeStyleboxOverride("panel", style);
 
-        // Narrower than before (PRD 4.5) — 460 instead of 500
         panel.CustomMinimumSize = new Vector2(460, 400);
 
-        // Default: right side, avoiding left reward selection area (PRD 4.5)
-        panel.AnchorLeft = 1.0f;
-        panel.AnchorRight = 1.0f;
+        // Manual feedback round 4: anchor LEFT side. The right side covered the
+        // post-combat 前进 button; the LEFT side leaves the central reward card
+        // selection area untouched (rewards are positioned center+right).
+        panel.AnchorLeft = 0.0f;
+        panel.AnchorRight = 0.0f;
         panel.AnchorTop = 0.1f;
         panel.AnchorBottom = 0.9f;
-        panel.OffsetLeft = -470;
-        panel.OffsetRight = -10;
+        panel.OffsetLeft = 10;
+        panel.OffsetRight = 470;
 
         // Main layout
         var vbox = new VBoxContainer();
@@ -81,14 +86,15 @@ public partial class ContributionPanel : PanelContainer
         title.MouseFilter = MouseFilterEnum.Ignore; // let header receive clicks
         header.AddChild(title);
 
-        // Help (?) button (PRD 4.5)
+        // Help (?) button — click toggles a docked InfoModPanel with each metric.
         var helpBtn = new Button
         {
             Text = "?",
             CustomMinimumSize = new Vector2(32, 32),
-            TooltipText = L.Get("contrib.help_body")
+            TooltipText = L.Get("contrib.help_body"),
         };
         helpBtn.AddThemeFontSizeOverride("font_size", 14);
+        helpBtn.Pressed += () => panel.ToggleHelpPanel();
         header.AddChild(helpBtn);
 
         var closeBtn = new Button { Text = "✕", CustomMinimumSize = new Vector2(32, 32) };
@@ -123,45 +129,193 @@ public partial class ContributionPanel : PanelContainer
     }
 
     /// <summary>
-    /// Handler for CombatTracker.CombatDataUpdated. Uses a 500ms debounce and
-    /// dispatches the UI refresh to the main thread via CallDeferred.
+    /// Handler for CombatTracker.CombatDataUpdated. Round 6 simplification:
+    /// the previous version had a 500ms leading + trailing debounce that
+    /// caused the first card-play of a turn to be the only one that
+    /// rendered. Replaced with a deferred call (next frame) that always
+    /// schedules a refresh — Godot collapses multiple deferred calls per
+    /// frame to one, so spamming card plays still doesn't churn the UI.
     /// </summary>
     private void OnCombatDataUpdated()
     {
         if (!Visible) return;
-        if (!_refreshDebounce.CanFire())
-        {
-            // Debounce suppressed; schedule a trailing refresh on next fire
-            if (!_refreshPending)
-            {
-                _refreshPending = true;
-                CallDeferred(nameof(DeferredTrailingRefresh));
-            }
-            return;
-        }
+        Safe.Info("[ContribPanel] CombatDataUpdated → refresh");
         CallDeferred(nameof(DeferredRefresh));
     }
 
     private void DeferredRefresh()
     {
-        Safe.Run(() =>
-        {
-            RefreshLive();
-        });
-    }
-
-    private void DeferredTrailingRefresh()
-    {
-        // Small delay to coalesce bursts (runs on main thread)
-        _refreshPending = false;
         Safe.Run(() => RefreshLive());
     }
 
     private void RefreshLive()
     {
-        var data = CombatTracker.Instance.GetCurrentCombatData();
-        RefreshTabs(data);
+        // Always read whichever data set the 本场战斗 tab represents right now.
+        RefreshTabs(SelectCombatTabData());
         UpdateDps();
+    }
+
+    /// <summary>
+    /// Pick the dataset for the 本场战斗 tab. While a combat is in progress
+    /// the tab shows the running snapshot; otherwise it shows the last
+    /// finished combat. PRD §3.6 / manual feedback round 4.
+    /// </summary>
+    private static IReadOnlyDictionary<string, ContributionAccum>? SelectCombatTabData()
+    {
+        try
+        {
+            if (MegaCrit.Sts2.Core.Combat.CombatManager.Instance != null
+                && MegaCrit.Sts2.Core.Combat.CombatManager.Instance.IsInProgress)
+            {
+                return CombatTracker.Instance.GetCurrentCombatData();
+            }
+        }
+        catch { /* fall through */ }
+        return CombatTracker.Instance.LastCombatData;
+    }
+
+    /// <summary>
+    /// Open or close the help dialog. Round 6 fix: the previous version had no
+    /// way to close (the parent's MouseFilter swallowed clicks and there was
+    /// no X button on the help panel itself). Now uses a custom PanelContainer
+    /// with an explicit close button + clicking the ? button again toggles it.
+    /// </summary>
+    private void ToggleHelpPanel()
+    {
+        Safe.Run(() =>
+        {
+            if (_helpPanel != null && IsInstanceValid(_helpPanel))
+            {
+                _helpPanel.QueueFree();
+                _helpPanel = null;
+                return;
+            }
+
+            _helpPanel = BuildHelpPanel();
+            AddChild(_helpPanel);
+            _helpPanel.ZIndex = 1000;
+            _helpPanel.GlobalPosition = GlobalPosition + new Vector2(Size.X + 8f, 0f);
+        });
+    }
+
+    /// <summary>
+    /// Build the contribution panel help dialog. Lists every metric the
+    /// chart shows, the calculation formula, and the bar color legend.
+    /// PRD §4.5 round 6 — must be self-contained (close button included).
+    /// </summary>
+    private PanelContainer BuildHelpPanel()
+    {
+        var pc = new PanelContainer { Name = "StatsTheSpireHelpPanel" };
+        var style = new StyleBoxFlat
+        {
+            BgColor = new Color(0.05f, 0.06f, 0.10f, 0.96f),
+            BorderColor = new Color(0.4f, 0.5f, 0.7f, 0.6f),
+            BorderWidthBottom = 1, BorderWidthTop = 1,
+            BorderWidthLeft = 1, BorderWidthRight = 1,
+            CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
+            CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
+            ContentMarginLeft = 14, ContentMarginRight = 14,
+            ContentMarginTop = 10, ContentMarginBottom = 12,
+        };
+        pc.AddThemeStyleboxOverride("panel", style);
+        pc.CustomMinimumSize = new Vector2(440, 0);
+        pc.MouseFilter = MouseFilterEnum.Stop;
+
+        var v = new VBoxContainer();
+        v.AddThemeConstantOverride("separation", 4);
+        pc.AddChild(v);
+
+        // Header row with explicit close button
+        var header = new HBoxContainer();
+        var title = new Label { Text = L.Get("contrib.help_title") };
+        title.AddThemeColorOverride("font_color", Colors.White);
+        title.AddThemeFontSizeOverride("font_size", 14);
+        title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        header.AddChild(title);
+        var closeBtn = new Button { Text = "✕", CustomMinimumSize = new Vector2(28, 28) };
+        closeBtn.AddThemeFontSizeOverride("font_size", 12);
+        closeBtn.Pressed += () => ToggleHelpPanel();
+        header.AddChild(closeBtn);
+        v.AddChild(header);
+
+        v.AddChild(NewSeparator());
+
+        // ── Color legend ────────────────────────────────────
+        v.AddChild(NewLabel(L.Get("contrib.help_section_colors"), Gold, 12));
+        v.AddChild(NewColorRow(new Color(0.36f, 0.58f, 0.95f), L.Get("contrib.help_color_card")));
+        v.AddChild(NewColorRow(new Color(0.95f, 0.78f, 0.30f), L.Get("contrib.help_color_relic")));
+        v.AddChild(NewColorRow(new Color(0.25f, 0.85f, 0.65f), L.Get("contrib.help_color_potion")));
+        v.AddChild(NewColorRow(new Color(0.55f, 0.85f, 0.55f), L.Get("contrib.help_color_osty")));
+        v.AddChild(NewColorRow(new Color(0.74f, 0.55f, 0.95f), L.Get("contrib.help_color_modifier")));
+        v.AddChild(NewColorRow(new Color(0.55f, 0.78f, 1.00f), L.Get("contrib.help_color_attributed")));
+        v.AddChild(NewColorRow(new Color(0.40f, 0.82f, 0.55f), L.Get("contrib.help_color_mitigate")));
+        v.AddChild(NewColorRow(new Color(0.95f, 0.55f, 0.25f), L.Get("contrib.help_color_strdown")));
+        v.AddChild(NewColorRow(new Color(0.92f, 0.30f, 0.25f), L.Get("contrib.help_color_self")));
+
+        v.AddChild(NewSeparator());
+
+        // ── Metric definitions ───────────────────────────────
+        v.AddChild(NewLabel(L.Get("contrib.help_section_metrics"), Gold, 12));
+        v.AddChild(NewLabel(L.Get("contrib.help_direct"),     Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_modifier"),   Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_attributed"), Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_block"),      Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_mitigated"),  Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_str_reduce"), Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_self"),       Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_energy"),     Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_heal"),       Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_draw"),       Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_stars"),      Cream, 11));
+
+        v.AddChild(NewSeparator());
+
+        // ── Footer notes ────────────────────────────────────
+        v.AddChild(NewLabel(L.Get("contrib.help_dps"),     Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_pct"),     Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_source"),  Cream, 11));
+        v.AddChild(NewLabel(L.Get("contrib.help_hotkeys"), Cream, 11));
+
+        return pc;
+    }
+
+    private static readonly Color Gold  = new("#EFC851");
+    private static readonly Color Cream = new("#FFF6E2");
+
+    private static Label NewLabel(string text, Color color, int size)
+    {
+        var lbl = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        lbl.AddThemeColorOverride("font_color", color);
+        lbl.AddThemeFontSizeOverride("font_size", size);
+        lbl.CustomMinimumSize = new Vector2(420, 0);
+        return lbl;
+    }
+
+    private static HBoxContainer NewColorRow(Color swatch, string text)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 6);
+        var swatchPanel = new Panel { CustomMinimumSize = new Vector2(20, 14) };
+        var swatchStyle = new StyleBoxFlat
+        {
+            BgColor = swatch,
+            CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
+            CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3,
+        };
+        swatchPanel.AddThemeStyleboxOverride("panel", swatchStyle);
+        row.AddChild(swatchPanel);
+        var lbl = new Label { Text = text };
+        lbl.AddThemeColorOverride("font_color", Cream);
+        lbl.AddThemeFontSizeOverride("font_size", 11);
+        row.AddChild(lbl);
+        return row;
+    }
+
+    private static HSeparator NewSeparator()
+    {
+        var sep = new HSeparator();
+        sep.AddThemeConstantOverride("separation", 6);
+        return sep;
     }
 
     private void UpdateDps()
@@ -184,6 +338,24 @@ public partial class ContributionPanel : PanelContainer
         panel.ApplyAvoidanceOffset();
     }
 
+    /// <summary>
+    /// Replay mode for the Run History "查看贡献图表" button. Shows ONLY the
+    /// 本局汇总 tab populated with the persisted run summary; the live combat
+    /// tab is hidden because there is no current combat to display
+    /// (PRD §3.12 round 5).
+    /// </summary>
+    public static void ShowRunReplay(IReadOnlyDictionary<string, ContributionAccum>? runSummary)
+    {
+        if (!ModConfig.Toggles.ContributionPanel) return;
+        if (runSummary == null || runSummary.Count == 0) return;
+
+        var panel = Instance;
+        RefreshTabsRunOnly(runSummary);
+        panel.UpdateDps();
+        panel.Visible = true;
+        panel.ApplyAvoidanceOffset();
+    }
+
     public static void Toggle()
     {
         if (!ModConfig.Toggles.ContributionPanel) return;
@@ -193,7 +365,7 @@ public partial class ContributionPanel : PanelContainer
             panel.Visible = false;
         else
         {
-            RefreshTabs(CombatTracker.Instance.LastCombatData);
+            RefreshTabs(SelectCombatTabData());
             panel.UpdateDps();
             panel.Visible = true;
         }
@@ -246,43 +418,140 @@ public partial class ContributionPanel : PanelContainer
         var tabs = panel._tabs;
         if (tabs == null) return;
 
-        foreach (var child in tabs.GetChildren())
-            child.QueueFree();
+        // Round 8: keep the two ScrollContainer tab skeletons alive across
+        // refreshes — only swap the chart content inside them. The previous
+        // implementation tore down + re-created both tabs, which forced
+        // Godot to reset the current tab and skipped the live re-layout
+        // when the panel was already visible (real-time refresh bug).
+        EnsureTabSkeletons(tabs);
 
-        if (combatData != null && combatData.Count > 0)
-        {
-            var encId = CombatTracker.Instance.LastEncounterId;
-            // Fall back to current combat's encounter via tracker if "last" is empty
-            if (string.IsNullOrEmpty(encId))
-                encId = "";
+        var currentTabIndex = tabs.CurrentTab;
+        Safe.Info($"[ContribPanel] RefreshTabs: combatEntries={combatData?.Count ?? 0} currentTab={currentTabIndex}");
 
-            var encName = encId;
-            if (!string.IsNullOrEmpty(encId))
-            {
-                try
-                {
-                    var loc = new LocString("encounters", encId + ".title");
-                    var localized = loc.GetFormattedText();
-                    if (!string.IsNullOrEmpty(localized) && localized != encId + ".title")
-                        encName = localized;
-                }
-                catch { /* keep raw ID */ }
-            }
-            var title = string.IsNullOrEmpty(encId)
-                ? L.Get("contrib.last_combat")
-                : $"{L.Get("contrib.vs")} {encName}";
-            var scroll = WrapInScroll(ContributionChart.Create(combatData, title));
-            scroll.Name = L.Get("contrib.last_combat");
-            tabs.AddChild(scroll);
-        }
+        var combatScroll = (ScrollContainer)tabs.GetChild(0);
+        var runScroll    = (ScrollContainer)tabs.GetChild(1);
+
+        // Build the new chart content (or empty placeholder).
+        var newCombatContent = combatData != null && combatData.Count > 0
+            ? (Control)ContributionChart.Create(combatData, BuildCombatTabTitle(combatData))
+            : EmptyPlaceholder(L.Get("contrib.empty_combat"));
 
         var runData = RunContributionAggregator.Instance.RunTotals;
-        if (runData.Count > 0)
+        var newRunContent = runData.Count > 0
+            ? (Control)ContributionChart.Create(runData, L.Get("contrib.run_summary"), isRunLevel: true)
+            : EmptyPlaceholder(L.Get("contrib.empty_run"));
+
+        ReplaceScrollContent(combatScroll, newCombatContent);
+        ReplaceScrollContent(runScroll, newRunContent);
+
+        // Restore the tab the user was on so the refresh isn't disruptive.
+        try { tabs.CurrentTab = currentTabIndex; } catch { }
+    }
+
+    /// <summary>
+    /// Make sure the TabContainer has exactly two ScrollContainer children
+    /// with the right titles. Idempotent — only creates them on first call.
+    /// </summary>
+    private static void EnsureTabSkeletons(TabContainer tabs)
+    {
+        // First call: build both skeletons.
+        if (tabs.GetChildCount() < 2)
         {
-            var scroll = WrapInScroll(ContributionChart.Create(runData, L.Get("contrib.run_summary"), isRunLevel: true));
-            scroll.Name = L.Get("contrib.run_summary");
-            tabs.AddChild(scroll);
+            for (int i = tabs.GetChildCount() - 1; i >= 0; i--)
+            {
+                var child = tabs.GetChild(i);
+                tabs.RemoveChild(child);
+                child.QueueFree();
+            }
+            tabs.AddChild(NewTabScroll("CombatTab"));
+            tabs.AddChild(NewTabScroll("RunTab"));
         }
+        tabs.SetTabTitle(0, L.Get("contrib.this_combat"));
+        tabs.SetTabTitle(1, L.Get("contrib.run_summary"));
+    }
+
+    private static ScrollContainer NewTabScroll(string name)
+    {
+        return new ScrollContainer
+        {
+            Name = name,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+    }
+
+    private static void ReplaceScrollContent(ScrollContainer scroll, Control newContent)
+    {
+        // Remove + queue-free every existing child synchronously so the new
+        // content is the sole child immediately, not next-frame.
+        for (int i = scroll.GetChildCount() - 1; i >= 0; i--)
+        {
+            var child = scroll.GetChild(i);
+            scroll.RemoveChild(child);
+            child.QueueFree();
+        }
+        newContent.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        scroll.AddChild(newContent);
+    }
+
+    private static string BuildCombatTabTitle(IReadOnlyDictionary<string, ContributionAccum>? combatData)
+    {
+        if (combatData == null || combatData.Count == 0)
+            return L.Get("contrib.this_combat");
+
+        var encId = CombatTracker.Instance.LastEncounterId ?? "";
+        if (string.IsNullOrEmpty(encId))
+            return L.Get("contrib.this_combat");
+
+        try
+        {
+            var loc = new LocString("encounters", encId + ".title");
+            var localized = loc.GetFormattedText();
+            if (!string.IsNullOrEmpty(localized) && localized != encId + ".title")
+                return $"{L.Get("contrib.vs")} {localized}";
+        }
+        catch { /* keep raw ID */ }
+        return $"{L.Get("contrib.vs")} {encId}";
+    }
+
+    /// <summary>
+    /// Round 5: Run-history replay variant. Drops every existing tab and
+    /// re-creates only the 本局汇总 tab so the player isn't shown a stale
+    /// "本场战斗" entry from a different run.
+    /// </summary>
+    private static void RefreshTabsRunOnly(IReadOnlyDictionary<string, ContributionAccum> runData)
+    {
+        var panel = Instance;
+        var tabs = panel._tabs;
+        if (tabs == null) return;
+
+        for (int i = tabs.GetChildCount() - 1; i >= 0; i--)
+        {
+            var child = tabs.GetChild(i);
+            tabs.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        var scroll = WrapInScroll(ContributionChart.Create(
+            runData, L.Get("contrib.run_summary"), isRunLevel: true));
+        tabs.AddChild(scroll);
+        tabs.SetTabTitle(0, L.Get("contrib.run_summary"));
+    }
+
+    private static Control EmptyPlaceholder(string message)
+    {
+        var container = new VBoxContainer();
+        container.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        container.SizeFlagsVertical = SizeFlags.ExpandFill;
+        var lbl = new Label { Text = message };
+        lbl.AddThemeColorOverride("font_color", new Color(0.65f, 0.65f, 0.7f));
+        lbl.AddThemeFontSizeOverride("font_size", 12);
+        lbl.HorizontalAlignment = HorizontalAlignment.Center;
+        lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        lbl.SizeFlagsVertical = SizeFlags.ExpandFill;
+        container.AddChild(lbl);
+        return container;
     }
 
     private static ScrollContainer WrapInScroll(Control content)

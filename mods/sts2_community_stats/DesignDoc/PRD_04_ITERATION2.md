@@ -49,50 +49,73 @@
 ### 3.2 Compendium 卡牌图书馆统计
 
 1. 打开百科大全 → 卡牌图书馆
-2. 在卡牌图书馆，每张已解锁卡牌点击打开大图后，**右侧方**显示统计标签（不覆盖卡牌）
-3. 显示指标：**选取率** / **胜率** / **购买率** / **升级率**
-4. 数据来源：StatsCache → 服务器批量统计（同卡牌奖励界面的数据源）
-5. 滚动/切换筛选时标签跟随刷新
-6. 未解锁卡牌不显示统计
+2. 在卡牌图书馆，每张已解锁卡牌点击打开大图后，**右下角**显示统计面板（不遮挡卡牌、不与关键词 hover-tip 冲突）
+3. 显示指标：**选取率** / **胜率** / **购买率** / **升级率** / **删除率**
+4. **两列双数据源并列显示**（v3.1 round 5 升级）：
+   - **左列：我的数据** — 来自本地 RunHistory 文件聚合（同 §3.13 "我的数据"筛选源）
+   - **右列：社区数据** — 来自 `StatsProvider.GetCardStats(id)`（受 F9 筛选条件影响）
+5. 列顶端必须有数据源标签（"我的"/"社区"）以及当前 F9 过滤总样本数
+6. 滚动/切换筛选时面板跟随刷新
+7. 未解锁卡牌不显示统计
 
 **UI 设计**：
-- 注入位置：卡牌大图打开时的回调（非 `InitGrid`），创建独立 `NModCardLibraryStats` 节点（与游戏内建 `NCardLibraryStats` 共存不冲突）
-- 统计面板在卡牌大图**右侧**，VBoxContainer 4 行
-- 字号 11px，标签 cream #FFF6E2，值 gold #EFC851
+- 注入位置：`NInspectCardScreen.UpdateCardDisplay` postfix
+- 锚点：屏幕**右下角**（Anchor 1.0/1.0 + offset Left=-260, Top=-160），避开关键词 popup 区
+- 内容：GridContainer Columns=3，行=指标（样本数/选取率/胜率/升级率/删除率/购买率），列1=指标名（cream #FFF6E2），列2=我的数据（aqua #28E2BF），列3=社区数据（gold #EFC851）
+- 每条指标**只显示一次**（round 5 修复 4 次重复 bug — 之前 ForCardStats / ForUpgradeRate / ForRemovalRate / ForShopBuyRate 4 个工厂方法都包含胜率行）
+- 字号 11-12px
 - 所有百分比显示到小数点后 1 位
 
 ```
-┌──────────────┐ ┌────────────────┐
-│              │ │ 选取率: 45.2%  │
-│  [卡牌大图]  │ │ 胜率:   52.1%  │
-│              │ │ 购买率: 12.3%  │
-│              │ │ 升级率: 68.5%  │
-└──────────────┘ └────────────────┘
+┌──────────────┐
+│              │
+│  [卡牌大图]  │
+│              │     ┌──────────────────────────┐
+│              │     │ 数据源       我的    社区 │
+│              │     │ 样本数        12     8431 │
+│              │     │ 选取率      33.3%   45.2% │
+└──────────────┘     │ 胜率        58.0%   52.1% │
+                     │ 升级率      66.7%   68.5% │
+                     │ 删除率       8.3%    9.5% │
+                     │ 购买率       0.0%   12.3% │
+                     └──────────────────────────┘
 ```
+
+> v3.1 (round 5) 变更总结：
+> - **bug**：同一胜率被显示了 4 次 → 改为单一表格 6 行
+> - **PRD 升级**：从单源单列 → 双源双列（我的 + 社区），强制双数据对比
 
 ### 3.3 Compendium 遗物收藏统计
 
 1. 打开百科大全 → 遗物收藏
-2. 鼠标悬停已解锁遗物时，显示 **胜率** 、 **胜率浮动** 和 **购买率**
-3. 胜率浮动 = 该遗物持有局胜率 - 当前筛选数据源的平均局胜率
-4. 正值绿色（如 "+3.2%"），负值红色（如 "-1.5%"）
-5. 未解锁/未发现遗物不显示统计
+2. **点击**已解锁遗物（不是 hover）打开 NInspectRelicScreen 大图后，**右下角**显示统计面板
+3. 显示指标：**胜率** 和 **胜率浮动**（去掉选取率 / 购买率，遗物没有"被选中"的概念）
+4. **两列双数据源并列显示**（v3.1 round 6）：
+   - **左列：我的数据** — 来自本地 RunHistory 文件聚合（每局是否拥有该遗物 + 是否胜利）
+   - **右列：社区数据** — 来自 `StatsProvider.GetRelicStats(id)`（受 F9 筛选条件影响）
+5. 胜率浮动 = 该列数据源的胜率 - 该列数据源的平均遗物胜率
+6. 正值绿色（如 "+3.2%"），负值红色（如 "-1.5%"）
+7. 未解锁 / 未发现遗物不显示统计
 
 **UI 设计**：
-- 注入位置：`NRelicCollectionEntry.OnFocus()` postfix → 在现有 HoverTip 下方追加统计行
-- 使用游戏 tooltip 系统（NHoverTipSet，360px 宽）
-- 分隔线 + 胜率 + 胜率浮动 + 购买率
-- 浮动值正 = green #7FFF00，负 = red #FF5555
+- 注入位置：`NInspectRelicScreen.UpdateRelicDisplay` postfix（非 hover）
+- 锚点：屏幕**右下角**，与卡牌图书馆面板对齐
+- 内容：GridContainer Columns=3，行=指标（样本数 / 胜率 / 浮动），列1=指标名（cream），列2=我的数据（aqua），列3=社区数据（gold）
 
 ```
-┌─── 遗物 Tooltip (360px) ───┐
-│ [遗物名称]                  │
-│ [遗物描述]                  │
-│ ─────────────────────────── │
-│ 胜率: 52.3% (+2.3%)        │
-│ 购买率: 15.1%              │
-└─────────────────────────────┘
+┌──────────────┐
+│              │
+│  [遗物大图]  │     ┌──────────────────────────┐
+│              │     │ 数据源       我的    社区 │
+│              │     │ 样本数        12     8431 │
+│              │     │ 胜率        58.0%   52.1% │
+└──────────────┘     │ 浮动        +5.2%   -0.4% │
+                     └──────────────────────────┘
 ```
+
+> v3.1 (round 6) 变更总结：
+> - bug 修复：原实现保留了"选取率"行，遗物没有"被玩家从奖励界面选取"的语义（遗物只能通过事件 / Boss / 商店等渠道获得），删除该列。
+> - PRD 升级：从单源 → 双源双列（我的 + 社区），与卡牌图书馆 §3.2 一致。
 
 ### 3.4 遗物胜率浮动（全局）
 
@@ -114,8 +137,35 @@
 1. 战斗中按 F8 可随时打开/关闭贡献面板
 2. 面板在打开状态下，**每次打出卡牌或使用药水后自动刷新**
 3. 刷新内容：当前战斗的实时贡献数据（非快照）
-4. 防抖：两次刷新间隔不小于 500ms
+4. 防抖：drop（v3.1 round 6 起改为 CallDeferred 让 Godot 自然合并同帧多次刷新）
 5. 战斗结束后行为不变（自动弹出最终结果）
+
+> v3.1 (round 8 反馈)：round 6 简化后用户仍报告 "open panel → play card → 不更新，关闭再开才更新"。
+> 怀疑根因：`RefreshTabs` 的 dispose-and-recreate 路径在 panel 已显示时被 Godot 跳过 layout
+> （新建的 child 没立刻进入 visible flow），所以 chart 没有重绘。
+>
+> **新规则**：实时刷新走专门的 `RebuildTabContent(tabIndex, newData)` 路径，
+> 它把现有 ScrollContainer 的 child（旧 chart）QueueFree 后**同帧** AddChild 新 chart，
+> 并 force-call `panel.QueueRedraw()` + `tabs.SetCurrentTab(tabs.CurrentTab)` 让 Godot
+> 重新评估当前 tab 的 sizing。同时增加 `[ContribPanel]` 系列诊断日志：
+>   - `[ContribPanel] CombatDataUpdated → refresh`（事件触发）
+>   - `[ContribPanel] DeferredRefresh → SelectCombatTabData returns N entries`（数据进入）
+>   - `[ContribPanel] RebuildTabContent: tab=0 entries=N`（rebuild 实际执行）
+
+### 3.6.1 战斗贡献中途存档持久化（round 8 新增）
+
+游戏的"中途保存"功能允许玩家在 run 进行中保存退出。先前 mod 把 `CombatTracker._currentCombat`
+和 `RunContributionAggregator.RunTotals` 保存在内存里 → 退出后重新进入 run 会清零。
+
+**新规则**：
+- **何时写入**：每次战斗结束（`OnCombatEnd`）和 `OnCardPlayFinished` 触发的实时刷新都同步写盘。
+  写入路径 `{cache}/contributions/{seed}_live.json`，包含：
+  - 当前战斗 dict（如果在战斗中）
+  - 本局已累计的 RunTotals dict
+  - 当前 encounterId / floor / turnCount / totalDamageDealt / damageTakenByPlayer
+- **何时读取**：mod init 时尝试读取最新的 `*_live.json`（按 seed 匹配 RunManager.ActiveSeed），
+  把数据 hydrate 回 CombatTracker / RunContributionAggregator。
+- **何时清理**：run 结束（`OnMetricsUpload`）时把 live 文件删掉，留下 summary 文件。
 
 ### 3.7 每回合平均伤害
 
@@ -157,18 +207,23 @@
 
 ### 3.9 药水掉落概率
 
-1. 显示位置：**战斗界面屏幕顶部边角**（类似 STS1 mod 截图），药水图标 + 当前概率百分比
+1. 显示位置：**与游戏顶栏的地图按钮 / 卡组按钮在同一水平线**，作为顶栏的延伸图标
 2. 显示内容：
    - 当前概率（如 "40%"）
-   - 精英战斗额外加成（如 "精英: 52.5%"）
-   - 悬停展开：未来 1/2/3 场战斗至少掉落一次药水的累计概率
+   - 悬停展开：未来 1/2/3/4/5 场战斗至少掉落一次药水的累计概率
 3. 数据来源：游戏内 `PotionRewardOdds.CurrentValue`
 4. 概率受怜悯机制影响：掉落后 -10%，未掉落 +10%
 
-**UI 设计**（参考 STS1 InfoMod "Potion Chance" 截图）：
-- 常态：右上角固定 anchor，药水图标 + gold 色百分比（紧凑）
+**UI 设计**（v3.1 round 7 重写）：
+- **图标**：使用游戏原生 **混沌药水 (`DistilledChaos`)** 图标
+  路径 `atlases/potion_atlas.sprites/distilled_chaos.tres`
+- **位置**：parent 必须是 `NTopBar`（不是 scene tree root），紧贴 `Map` 按钮的左侧或右侧（根据布局测试）
+- **大小**：使用 `NTopBarMapButton` 的尺寸（约 56×56 px），与原生顶栏图标视觉一致
 - 悬停展开：InfoMod 风格深色面板，列表显示未来 N 场累计概率
-- 面板样式同 §3.8
+
+> v3.1 (round 7) 变更：
+> - **bug**：round 5 把 indicator parent 到 scene tree root + 使用 emoji 占位符 + 较小尺寸 → 视觉与原生顶栏不匹配
+> - **修复**：reparent 到 NTopBar 自身，作为它的子节点；使用游戏原生 Texture2D 图标
 
 ```
 常态：[药水图标] 40.0%
@@ -197,12 +252,53 @@
    - **循环箭头** ↩ 表示回到某个状态
 3. 面板样式：深色半透明背景，与游戏 tooltip 风格一致
 
-**UI 设计**（参考 STS1 意图状态机 Mod Jaw Worm 截图）：
-- 注入位置：`NIntent.OnHovered()` postfix → 在敌人上方弹出状态机面板
-- 意图图标使用游戏原生 NIntent 纹理，图标旁自动显示伤害/格挡数字，**不需要文字描述动作**
-- 布局：左侧当前意图（32×32 大图标+数字）→ 金色箭头 → 右侧分支框
-- 分支框内每行：概率% + 约束 ≤N + 意图图标(24×24) + 数字
-- 底部回环箭头 ↩ 表示循环
+**数据来源（v3.1 round 8 重写）**：
+
+> Round 5 直接读 `creature.Monster.MoveStateMachine` → null timing race
+> Round 6 mod init 时遍历 `ModelDb.Monsters` 调 `ToMutable().SetUpForCombat()`
+>          → 实测大量怪物 bake 失败（"no metadata for ..."）。
+>          根因：`GenerateMoveStateMachine()` 内部经常引用 `AscensionHelper`、`Creature` 等
+>          运行时 state，在 mod init 时（RunManager 未启动）抛异常。
+>
+> Round 8 改为**懒加载 + 双源 fallback**：
+> 1. **首选 live mutable monster**：hover 时如果 `creature.Monster.MoveStateMachine != null`，
+>    直接用它（这是 in-combat 的真实数据，永远是最准确的）。
+> 2. **次选 cache**：如果 live SM 是 null（罕见的 timing race），从 `MonsterIntentMetadata` 缓存读。
+> 3. **缓存懒加载**：缓存只在第一次被请求时才烘焙某个怪物。烘焙逻辑改为先尝试 `creature.Monster`
+>    的 SM，然后才尝试从 canonical clone — 都失败时缓存 negative entry 避免反复重试。
+
+**触发方式（round 8 修改）**：
+
+- **旧**：hover 在敌人头上的 **意图图标 (NIntent)** 时弹出
+- **新**：hover 在 **敌人本体 (NCreature)** 时弹出，意图图标不再触发
+- 实现：patch `NCreature.OnFocus` postfix（NCreature 内部把 Hitbox MouseEntered 信号绑到 OnFocus）
+- 鼠标离开 (`OnUnfocus`) 自动隐藏
+
+**UI 设计**（v3.1 round 8 重写，参考 `UI_design_reference/04_sts1_intent_state_machine.png`）：
+
+```
+┌─── Jaw Worm (HP 40/40) ─────────────────────┐
+│                                               │
+│  ┌─────────┐                ┌──────────────┐ │
+│  │ ▶ MOVE  │  ─── arrow ──→ │ 25% ≤1       │ │
+│  │ [⚔ 11]  │                │ [⚔ 11] MOVE  │ │
+│  └─────────┘                ├──────────────┤ │
+│   current                   │ 45% ≤1       │ │
+│                             │ [💪] BUFF    │ │
+│                             ├──────────────┤ │
+│                             │ 30% ≤2       │ │
+│                             │ [🛡 7] BLOCK │ │
+│                             └──────────────┘ │
+│                                               │
+└───────────────────────────────────────────────┘
+```
+
+- **当前状态高亮**：左侧大框带 aqua 左边框 + ▶ 前缀
+- **箭头连接**：金色 "──→" 字符 (round 8 简化，避免 Godot Line2D 复杂度)
+- **分支框**：每行 = 概率% + 约束 + 意图标签
+- **意图标签格式**：`[图标占位] 类型 数值`（如 `[⚔ 11] ATTACK`、`[🛡 7] BLOCK`、`[💪] BUFF`）
+- **多状态机/多阶段**：如果某个怪物有多个独立子图（如阶段切换），用 `═══ Phase N ═══` 分隔符分组渲染
+- **样式**：bg rgba(0.08, 0.10, 0.16, 0.92) + border 1px rgba(0.4, 0.5, 0.7, 0.6) + radius 8px
 
 ```
 ┌─── Jaw Worm ──────────────────────┐
@@ -226,7 +322,19 @@
 
 ### 3.11 个人生涯统计
 
-集成到游戏现有的 **百科大全 → 角色数据 → 统计页面**，位于**"总体数据"面板下方**（非独立面板）。
+集成到游戏现有的 **百科大全 → 角色数据 → 统计页面**，**插入在游戏原生"总体数据"面板与"角色数据"面板之间**（非独立面板）。
+
+> v3.1 (round 5 反馈)：先前位置写作"总体数据下方"，被实现解读为"角色数据下方"。
+> 现明确为：sibling 节点，`MoveChild` 到 `_characterStatContainer` 的索引前一格，
+> 这样在视觉上夹在 9 格统计 grid 与 5 个角色卡之间。
+>
+> v3.1 (round 7 反馈)：round 5/6 的实现把 section 加到 `_characterStatContainer.GetParent()`，
+> 但那个 parent 不一定是 layout container — 角色卡和我的 section 都在绝对位置 (0,0)，重叠显示。
+>
+> **新规则**：必须用 `LayoutHelper.FindLayoutAncestor(_characterStatContainer)` 走到第一个
+> `VBoxContainer` / `HBoxContainer` / `GridContainer` / `ScrollContainer` 祖先，把 section
+> 加到那个 layout container 里 — Godot 才会按它的布局规则自动排版而不重叠。
+> 如果完全找不到 layout 祖先，再 fallback 到 `_characterStatContainer.AddChild(section)` 的 first child。
 
 **统计指标**（按角色分组，含总体）：
 
@@ -234,10 +342,13 @@
 |------|------|
 | **胜率趋势** | 最近 10 / 50 / 全部 局的滚动胜率 |
 | **死因排行** | 最常死于的遭遇 Top 5（次数 + 百分比），按 Act 分组 |
-| **路径统计**（每 Act 平均） | 获取卡牌数量、购买卡牌数量、删除卡牌数量、升级卡牌数量 |
-| **路径统计**（每 Act 平均） | ? 房间数、小怪战斗数、精英战斗数、商店数 |
-| **先古遗物选择率** | 下拉选择先古之民 → 显示每个选项的选择率/次数 + 每个遗物的选率/次/胜率/浮动 |
-| **Boss 战损** | 下拉选择 Boss → 显示平均战损 HP + 死亡率 |
+| **卡组构筑**（每 Act 平均） | 获取卡牌数量、购买卡牌数量、删除卡牌数量、升级卡牌数量 — 表格行 × Act 列，每行用类别专属颜色 |
+| **路径统计**（每 Act 平均） | 小怪战斗数、精英战斗数、? 房间数、商店数 — 表格行 × Act 列，每行用类别专属颜色 |
+| **先古遗物选择率** | 下拉选择先古之民 → 显示该先古之民的所有选项池，每池列出每个遗物的选率/次/胜率/浮动 |
+| **Boss 战损** | 下拉选择 Boss → 显示平均战损 HP + 死亡率 + 遭遇次数 |
+
+> v3.1 (round 5)：原"路径统计"被拆分为**卡组构筑**与**路径统计**两个独立表格。两者均按 Act 横向展开，
+> 行用语义色（卡组构筑：金/aqua/红/绿；路径：红/橙/紫/金），便于快速辨识。
 
 **数据说明**：所有显示数据为**用户个人生涯数据**。
 
@@ -248,71 +359,113 @@
 - 风格与角色数据面板完全一致：深色面板背景、图标+标签对排列、绿色/红色/金色语义色
 - 节标题 14px gold #EFC851、数据行 12px cream #FFF6E2、辅助值 11px gray
 - 路径统计使用全称描述（获取卡牌/购买卡牌/...，不用简写）
-- 先古遗物：NDropdownPositioner 下拉选单（含游戏原生先古之民图标+名称），选中后显示：
+- **先古遗物**：OptionButton 下拉选单。下拉项格式：
+  `第 N 幕  [先古图标] 先古之民名称  (M 遭遇次数)`，
+  其中 N 是该先古之民出现的 Act（OVERGROWTH=1, HIVE=2, GLORY=3, UNDERDOCKS=4, DARV=共享）。
+  选中后显示：
 
 ```
-先古遗物选择率:
-[▼ 选择先古之民]
+先古遗物选取:
+[▼ 第 1 幕 [图] 涅奥 (46 遭遇次数)]
 ┌─────────────────────────────────────────────┐
-│ [先古图标] 先古之民名称                      │
-│ ────────────────────────────────            │
-│ 选项一                选择率 / 选择次数      │
-│   [遗物图标] 遗物名   选率 / 次 / 胜率 / 浮动│
-│   [遗物图标] 遗物名   选率 / 次 / 胜率 / 浮动│
-│ 选项二                选择率 / 选择次数      │
-│   [遗物图标] 遗物名   选率 / 次 / 胜率 / 浮动│
-│   ...                                       │
+│ 选项一池                                      │
+│   [图] 奥术卷轴   选率 32% / 12 次 / 胜率 60% │
+│   [图] 鸣海螺     选率 21% / 8 次  / 胜率 55% │
+│   ...                                         │
+│ 选项二池                                      │
+│   [图] 燃烧之血   选率 28% / 11 次 / 胜率 50% │
+│   ...                                         │
+│ 选项三池                                      │
+│   ...                                         │
 └─────────────────────────────────────────────┘
 ```
 
-- Boss 战损：NDropdownPositioner 下拉选单（含游戏原生 Boss 图标+名称），选中后显示：
+> v3.1 (round 5)：先前实现把所有遗物展平为单一 "all" 选项池，违反需求。
+> 真实结构：每个先古之民事件**严格 3 个选项**，分别从 3 个独立 pool 抽取
+> （Pael / Tezcatara / Vakuu / Orobas 都有 OptionPool1/2/3 私有成员；
+> Tanx / Nonupeipe / Neow / Darv 没有清晰 3 池结构，按"通用池"显示）。
+> Mod 应通过反射读取每个 elder 的私有 pool 字段并建立静态映射 `AncientPoolMap`。
+> 先古之民图标使用 `AncientEventModel.RunHistoryIcon` (Texture2D)；
+> 遗物图标使用 `RelicModel.PackedIconPath` 加载。
+
+- **Boss 战损**：OptionButton 下拉选单。下拉项格式：
+  `第 N 幕  [Boss图标] Boss名称  (M 遭遇次数)`。
+  选中后显示：
 
 ```
 Boss 战损:
-[▼ 选择 Boss]
-┌─────────────────────────────────┐
-│ [Boss图标] Boss名称              │
-│ 平均战损: -28 HP   死亡率: 5.2% │
-└─────────────────────────────────┘
+[▼ 第 1 幕 [图] 女王 (12 遭遇次数)]
+┌─────────────────────────────────────────┐
+│ [图] 女王                                │
+│ 平均战损: 28 HP                          │
+│ 死亡率:  5.2%                            │
+│ 遭遇次数: 12                             │
+└─────────────────────────────────────────┘
 ```
+
+> v3.1 (round 5)：Boss 名称必须本地化（`LocString("encounters", id+".title").GetFormattedText()`），
+> 必须用 Act 前缀，遭遇次数显示为 `(N 遭遇次数)` 而不是单独数字。
 
 - 社区对比 tooltip：标准 360px NHoverTipSet
 
 ### 3.12 Run History 增强
 
-集成到游戏现有的 **百科大全 → 历史记录** 的路线选择记录下方。
+集成到游戏现有的 **百科大全 → 历史记录** 的路线选择记录右侧浮动栏。
 
 **注入内容**：
 
 1. **本局统计**（与 §3.11 相同指标，但仅限本局数据）：
-   - 按 Act 分层的获取卡牌 / 购买卡牌 / 删除卡牌 / 升级卡牌数量
-   - 按 Act 分层的 ? 房间数 / 小怪战斗数 / 精英战斗数 / 商店数
-   - 先古遗物选择
-   - 每层 Boss 战斗损失
-2. **"查看贡献图表" 按钮**：点击后弹出本局汇总的贡献面板
-   - 需要在局结束时将贡献汇总数据持久化到磁盘（JSON 文件，与 .run 文件同目录）
+   - **卡组构筑** 表格：行=类别（获取/购买/删除/升级），列=Act，单元格=数量。每行用类别专属颜色。
+   - **路径统计** 表格：行=类别（小怪战斗/精英战斗/?房间/商店），列=Act，单元格=数量。每行用类别专属颜色。
+   - **先古遗物选取** 列表（不是选率）：按时间顺序列出本局每次先古之民选取，格式：
+     `第 N 幕   先古之民名称   选取的遗物名`，例如 `第 1 幕   涅奥   奥术卷轴`。
+     图标可选（先古图标 + 遗物图标）。
+   - **每层 Boss 战斗损失**：每个 Boss 一行，格式 `Boss 名称  HP 战损`，按 Act 顺序。
+2. **"查看贡献图表" 按钮**：点击后弹出本局汇总的贡献面板，**只显示"本局汇总" tab**，不显示"本场战斗" tab。
+   - 局结束时将贡献汇总数据持久化到 `{cache}/contributions/{seed}_summary.json`；如果该文件不存在则从 per-combat snapshot 文件 fallback 合并。
 
-**UI 设计**（参考 STS2 Run History 截图风格）：
-- 注入位置：`NRunHistory` 路线选择记录（路线图标行）下方
-- 风格与 Run History 页面一致：标签 cream、标题 gold、同级排列
-- 路径统计使用全称描述（获取卡牌/购买卡牌/...，不用简写）
+**UI 设计**（v3.1 round 7 重写）：
+- **注入位置**：用 `LayoutHelper.FindLayoutAncestor(_deckHistory ?? _relicHistory)` 走到
+  第一个 `VBoxContainer` / `HBoxContainer` 祖先，把 `本局统计` section 加到那个 layout container 里。
+  Run history 的 deck/relic 都是 VBoxContainer，它们的祖先大概率是 HBox/VBox 列布局。
+  通过加入到同一 layout container，section 自然按 Godot 布局规则排版，不会和原生 UI 重叠。
+- **fallback**：如果找不到 layout 祖先，使用绝对定位的 ScrollContainer 锚到 `_screenContents`
+  右侧（offset Left=-340, Right=-20, Top=160, Bottom=-50），但这只是兜底，正常情况下不应触发。
+- 风格与 Run History 页面一致：标签 cream、标题 gold、同级排列。
+
+> v3.1 (round 7) 反馈：round 5/6 的右侧浮动栏方案（绝对锚点）即使缩窄到 420px 仍与原生 UI 重叠。
+> 改为查询 native scene 的 layout 祖先并 inject 进去，让 Godot 自己排版。
 
 ```
-┌─── Run History 详情 ──────────────────────┐
-│ [游戏原有: 路线选择记录]                   │
-│ [游戏原有: 遗物/卡牌列表]                  │
-│                                           │
-│ ═══ 本局统计 ═══                          │
-│ Act 1:                                    │
-│   获取卡牌: 4  购买卡牌: 1  删除卡牌: 1   │
-│   升级卡牌: 2  ?房间数: 3  小怪战斗: 5    │
-│   精英战斗: 1  商店数: 1                  │
-│ Act 2: ...                                │
-│ 先古遗物: 燃烧之血                        │
-│ Boss战损: Act1 -32HP, Act2 -41HP         │
-│                                           │
-│ [📊 查看贡献图表]  ← NButton 样式          │
-└───────────────────────────────────────────┘
+┌─── Run History 详情 ──────────────────────────────────────┐
+│ [游戏原有: 路线选择记录]               │ ═ 本局统计 ═      │
+│ [游戏原有: 遗物/卡牌列表]              │ Stats the Spire   │
+│                                       │ IRONCLAD A20 56F  │
+│                                       │                   │
+│                                       │ 卡组构筑          │
+│                                       │             1 2 3 │
+│                                       │ 获取卡牌    4 5 6 │
+│                                       │ 购买卡牌    1 0 0 │
+│                                       │ 删除卡牌    1 2 1 │
+│                                       │ 升级卡牌    2 2 4 │
+│                                       │                   │
+│                                       │ 路径统计          │
+│                                       │             1 2 3 │
+│                                       │ 小怪战斗    5 6 7 │
+│                                       │ 精英战斗    1 2 2 │
+│                                       │ ? 房间      3 4 3 │
+│                                       │ 商店       1 1 0 │
+│                                       │                   │
+│                                       │ 先古遗物选取      │
+│                                       │ 第1幕 涅奥 燃烧之血│
+│                                       │ 第2幕 帕埃尔 ...  │
+│                                       │                   │
+│                                       │ Boss 战损         │
+│                                       │ 女王     32 HP    │
+│                                       │ 黑星     41 HP    │
+│                                       │                   │
+│                                       │ [📊 查看贡献图表] │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### 3.13 筛选面板"我的数据"
@@ -354,14 +507,22 @@ Boss 战损:
    - 各稀有度卡牌价格范围（普通/非普通/稀有）
    - 各稀有度遗物价格范围（普通/非普通/稀有/商店限定）
    - 各稀有度药水价格范围
-   - 打折说明（50% off）、无色牌加价说明（+15%）
+   - 无色牌价格 +15% 注脚（**只在底部出现一次**）
 3. 数据来源：游戏内 `MerchantCardEntry.GetCost()`、`RelicModel.MerchantCost`、`MerchantPotionEntry.GetCost()`、`MerchantCardRemovalEntry.CalcCost()`
 4. 价格范围计算：基础价格 × ±随机波动（卡牌/药水 ±5%，遗物 ±15%）
+5. **折扣联动**（v3.1 round 5）：当玩家拥有 `MembershipCard` (×0.5) 或 `TheCourier` (×0.8) 时，
+   表格里显示**折扣后**的价格区间，并在面板顶部"当前折扣"行列出已激活的遗物。
+6. **没有任何折扣遗物时不显示任何折扣说明文字**（v3.1 round 6 修复）。
+   先前 subtitle 写死 "会员卡 50%、送货员 20%、无色牌价格 +15%" 即使玩家两个都没有，
+   会让人误以为商店总是打折。改为：subtitle 仅写"商店价格表"；折扣行只在真正持有时出现；
+   "无色牌价格 +15%" 只在面板**底部**出现一次（不再同时出现在 subtitle 和 footer）。
 
 **UI 设计**（参考 STS1 InfoMod "Shop Prices" 截图）：
 - InfoMod 风格深色面板
-- 标题 white 14px + 删牌费用 red + 副标题 gray 11px
+- 标题 white 14px + 副标题 "商店价格表"（gray 11px，无折扣描述）
+- 顶部"当前折扣"行：仅当玩家有 MembershipCard / TheCourier 时显示
 - 表格布局：类别名（gold/aqua）× 稀有度列 → 价格范围 cream 12px
+- 底部："无色牌价格 +15%" 单行 footer note
 
 ```
 ┌───────────────────────────────────┐
@@ -377,15 +538,19 @@ Boss 战损:
 
 ### 3.17 卡牌掉落概率
 
-1. 战斗界面右上角区域（药水概率图标旁），显示独立**卡牌图标** + 稀有卡当前概率
-2. 悬停展开面板显示详细掉落概率：
+1. 显示位置：**与游戏顶栏的地图按钮 / 卡组按钮在同一水平线**，紧贴药水概率图标
+2. 显示内容：稀有卡当前概率
+3. 悬停展开面板显示详细掉落概率：
    - 区分普通战斗 vs 精英战斗
    - 各稀有度（稀有/非普通/普通）的掉落概率
    - 概率受怜悯机制影响：每次非稀有掉落后稀有概率 +1%（苦行 +0.5%），稀有掉落后重置 -5%
-3. 数据来源：游戏内 `CardRarityOdds`、`Player.PlayerOdds.CardRarity.CurrentValue`
+4. 数据来源：游戏内 `CardRarityOdds`、`Player.PlayerOdds.CardRarity.CurrentValue`
 
-**UI 设计**（参考 STS1 InfoMod "Card Drops" 截图）：
-- 常态：卡牌图标 + 稀有卡概率百分比（紧凑，同药水概率风格）
+**UI 设计**（v3.1 round 7 重写）：
+- **图标**：使用游戏原生 **卡牌奖励图标** `ui/reward_screen/reward_icon_card.png`
+  （战斗结束时"将一张牌添加到你的牌组"的奖励行图标）
+- **位置**：parent 必须是 `NTopBar`（不是 scene tree root），紧贴药水概率图标
+- **大小**：与 NTopBarMapButton 一致（约 56×56 px）
 - 悬停展开：InfoMod 风格面板，表格布局（稀有度 × 战斗类型）
 - 稀有度标签颜色与游戏卡牌稀有度色对应
 
@@ -452,19 +617,23 @@ PRD-00 §4.5.1 防御计算第 5 步 Buffer 的公式补充示例：
 
 ### 4.5 贡献面板 UI 重设计
 
-**问题**：当前面板在屏幕左侧，遮挡卡牌奖励选择界面（参考截图）。
+**问题**：当前面板在屏幕右侧，遮挡战斗结束后的"前进"按钮（round 4 反馈）。
 
 **解决方案**：
 
 | 属性 | 值 |
 |------|-----|
-| 默认位置 | **屏幕右侧**（anchor_right = 1.0），避开左侧奖励选卡区域 |
-| 宽度 | 适应内容的合理宽度，不遮挡卡牌奖励界面 UI |
+| 默认位置 | **屏幕左侧**（anchor_left = 0.0），避开右侧 GO 按钮 + 中央卡牌奖励 |
+| 宽度 | 460px，不遮挡左侧弃牌堆 / 抽牌堆图标 |
 | 可拖拽 | 是（InputEventMouseMotion），位置记忆到 config.json |
 | 避让逻辑 | 战斗结束自动弹出时，检测奖励面板是否打开，若打开则自动偏移避让 |
-| 帮助按钮（?） | 标题栏右侧，弹出 HoverTip 说明：颜色含义、计算逻辑摘要、快捷键（F8/F9） |
+| 帮助按钮（?） | 标题栏右侧，**点击**（不是 hover）弹出 InfoModPanel 说明窗口；窗口右上角有"X"关闭按钮，再次点击 ? 也可关闭 |
 | 子来源展开 | 默认自动展开，点击展开箭头（▶/▼）可收起 |
 | 每回合平均伤害 | 标题行下方新增一行显示 |
+| Tab 标签 | 用 `tabs.SetTabTitle(idx, ...)` 显式设置（**不是** Node.Name），永远显示"本场战斗" / "本局汇总"两个 tab |
+| 数据源选择 | 战斗中→`GetCurrentCombatData()`；战斗外→`LastCombatData`。每次 `CombatTracker.CombatDataUpdated` 事件触发时刷新 |
+| 防御百分比 | 分母只用**正贡献之和**（自伤显示为负条但不进入 % 分母）。先前实现把 `TotalDefense - SelfDamage` 同时算入分母与分子，导致 Defend 出现 125% 这种错误 |
+| 帮助内容 | 必须包含：(1) 每种条状颜色对应的 source type / 子项含义；(2) 每种贡献指标（DirectDamage / ModifierDamage / AttributedDamage / EffectiveBlock / MitigatedBy* / SelfDamage / EnergyGained / HpHealed / CardsDrawn / StarsContribution）的计算公式摘要；(3) 数据来源（CombatTracker live + RunContributionAggregator 累计）；(4) 快捷键 F8/F9 |
 
 ```
 ┌─── Stats the Spire ──────────────┐
@@ -494,7 +663,7 @@ PRD-00 §4.5.1 防御计算第 5 步 Buffer 的公式补充示例：
 
 ## 5. 验收标准
 
-### AC-01: Mod 品牌
+### AC-01: Mod 名称
 - [ ] manifest.json 名称为 "Stats the Spire"
 - [ ] 所有 UI 中的 mod 名称正确显示
 

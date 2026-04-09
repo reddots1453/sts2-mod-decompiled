@@ -101,6 +101,26 @@ public static class RunDataCollector
     /// </summary>
     public static void OnMetricsUpload(SerializableRun run, bool isVictory, ulong localPlayerId)
     {
+        // Persist run-summary contributions for future Run History replay (PRD §3.12).
+        // Done unconditionally — independent of upload toggle.
+        Safe.Run(() =>
+        {
+            var seed = run?.SerializableRng?.Seed;
+            if (!string.IsNullOrEmpty(seed))
+            {
+                ContributionPersistence.SaveRunSummary(
+                    seed!,
+                    RunContributionAggregator.Instance.RunTotals);
+                // Round 8 §3.6.1: live snapshot is no longer needed after the
+                // run finishes — the per-combat and summary files cover replay.
+                ContributionPersistence.DeleteLiveState(seed!);
+            }
+
+            // New run finished: invalidate the cached career snapshot so the
+            // next Stats screen open re-aggregates the latest data.
+            RunHistoryAnalyzer.Instance.InvalidateAll();
+        });
+
         if (!Config.ModConfig.EnableUpload)
         {
             Safe.Info("Data upload disabled by user setting, skipping.");
@@ -116,6 +136,11 @@ public static class RunDataCollector
 
     private static RunUploadPayload BuildPayload(SerializableRun run, bool isVictory, ulong localPlayerId)
     {
+        // PRD-04 §4.6 — privacy: localPlayerId is intentionally NOT written into
+        // the upload payload. RunUploadPayload has no player_id / steam_id / user_id
+        // field. The parameter is received only because the upstream hook passes it.
+        // DO NOT add an identifier field to RunUploadPayload.
+
         var player = run.Players?.FirstOrDefault();
         var characterId = player?.CharacterId?.Entry ?? "unknown";
 
