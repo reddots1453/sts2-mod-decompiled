@@ -59,38 +59,50 @@ public static class RunHistoryPatch
         if (ancestor != null) RemoveExistingSection(ancestor);
 
         var section = RunHistoryStatsSection.Create(history);
-        section.SetMeta(SectionMeta, true);
-        section.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        section.SizeFlagsHorizontal = Control.SizeFlags.Fill;
+        section.SizeFlagsVertical = Control.SizeFlags.Fill;
+
+        // Round 9 fix: bound the section in a fixed-size ScrollContainer so
+        // it never pushes the native run-detail widgets out of place. The
+        // native NRunHistory layout has limited horizontal room — capping
+        // both width and height keeps our injected stats inside that
+        // budget. Vertical scrollbar lets users see all content without
+        // shrinking text/info per user feedback.
+        var scrollWrap = new ScrollContainer
+        {
+            Name = "ModRunHistoryStatsScroll",
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            CustomMinimumSize = new Vector2(360, 420),
+            MouseFilter = Control.MouseFilterEnum.Pass,
+        };
+        scrollWrap.SetMeta(SectionMeta, true);
+        scrollWrap.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        scrollWrap.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
+        scrollWrap.AddChild(section);
 
         // Round 7: try the layout-ancestor approach. If we land in a real
         // VBox/HBox, the section sits naturally next to deck/relic history.
         var added = CommunityStats.Util.LayoutHelper.AppendToLayoutAncestor(
-            deckHistory ?? relicHistory ?? screenContents, section, moveBeforeAnchor: false);
+            deckHistory ?? relicHistory ?? screenContents, scrollWrap, moveBeforeAnchor: false);
         if (added != null)
         {
             Safe.Info($"[RunHistoryPatch] injected into {added.GetType().Name} \"{added.Name}\"");
             return;
         }
 
-        // Fallback: legacy right-side floating ScrollContainer wrapper.
-        var wrapper = new ScrollContainer
-        {
-            Name = "ModRunHistoryStatsWrapper",
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            MouseFilter = Control.MouseFilterEnum.Pass,
-        };
-        wrapper.SetMeta(SectionMeta, true);
-        wrapper.AnchorLeft   = 1.0f;
-        wrapper.AnchorRight  = 1.0f;
-        wrapper.AnchorTop    = 0.0f;
-        wrapper.AnchorBottom = 1.0f;
-        wrapper.OffsetLeft   = -360f;
-        wrapper.OffsetRight  = -20f;
-        wrapper.OffsetTop    = 160f;
-        wrapper.OffsetBottom = -50f;
-        wrapper.GrowHorizontal = Control.GrowDirection.Begin;
-        wrapper.AddChild(section);
-        screenContents.AddChild(wrapper);
+        // Fallback: park `scrollWrap` itself as a floating right-column
+        // overlay. (Section is already a child of scrollWrap.)
+        scrollWrap.AnchorLeft   = 1.0f;
+        scrollWrap.AnchorRight  = 1.0f;
+        scrollWrap.AnchorTop    = 0.0f;
+        scrollWrap.AnchorBottom = 1.0f;
+        scrollWrap.OffsetLeft   = -380f;
+        scrollWrap.OffsetRight  = -20f;
+        scrollWrap.OffsetTop    = 160f;
+        scrollWrap.OffsetBottom = -50f;
+        scrollWrap.GrowHorizontal = Control.GrowDirection.Begin;
+        screenContents.AddChild(scrollWrap);
         Safe.Info("[RunHistoryPatch] fallback: floating right-column ScrollContainer");
     }
 

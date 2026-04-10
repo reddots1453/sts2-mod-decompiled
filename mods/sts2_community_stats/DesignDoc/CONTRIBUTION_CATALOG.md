@@ -762,3 +762,99 @@ OstyCmd.Summon, OrbCmd.{Passive, EvokeNext, EvokeLast}, PotionModel.OnUseWrapper
 5. **§4.3 回归**：手持 3 费牌打出 ENLIGHTENMENT，验 EnergyGained=2 归 ENLIGHTENMENT。
 6. **Osty 回归**：Necrobinder 召 Osty，Osty 承伤 5 + 攻击 7，验双向归因。
 7. **每张 Gap 卡单测**：按 §16.2 清单逐一打出，对比实际 contribution vs KB 预期数值。
+
+---
+
+## 18. 仍未覆盖实体清单（Obtain → Trigger → Remove 也无法测试）
+
+> 测试框架在 Round 9 引入"Obtain → Trigger → Remove"模式（`TestContext.ObtainRelic<T>()` + `TriggerRelicHook(...)` + `RemoveRelic(...)`），覆盖了 §16.2 中**绝大多数遗物源** Gap（Akabeko/Vajra/DataDisk/Pear/Strawberry/Mango/BloodVial/Brimstone 等已写入 `Catalog_RelicTests.cs`）。
+> 本节列出**即便引入该模式仍无法在自动化测试中验证**的实体，需要靠人工游戏内复盘或额外 patch 才能验证。
+
+### 18.1 必须先补 patch 才能归因（不在 §17.1 patched 集合内）
+
+未在 `RelicHookContextPatcher.PatchAll()` 中注册 → SetActiveRelic 不会触发 → 即便手工调用 hook，contribution 仍走 fallback。需要先在 patches 里加 `TryPatch(harmony, typeof(X), "...")` 才能进入测试流程：
+
+| 遗物 | 触发 hook | 期望归因路径 |
+|------|----------|-------------|
+| Anchor | `BeforeCombatStart` | EffectiveBlock |
+| BronzeScales | `AfterRoomEntered` | ThornsPower 反伤 → ModifierDamage / AttributedDamage |
+| BagOfPreparation | `ModifyHandDraw` | CardsDrawn |
+| PowerCell | `BeforeSideTurnStart` | CardsDrawn (前两张可打出 0 费牌) |
+| StrikeDummy | `ModifyDamageAdditive` (Strike 牌) | ModifierDamage (+3 per Strike) |
+| PenNib | `ModifyDamageMultiplicative` (第 10 攻) | ModifierDamage (×2) |
+| FencingManual | `AfterCardPlayed` | CardsDrawn |
+| PrecariousShears | `BeforeHandDraw` | CardsDrawn |
+| TinyMailbox | `BeforeHandDraw` | CardsDrawn |
+| Pocketwatch | `AfterPlayerTurnStart` | CardsDrawn |
+| UnceasingTop | `AfterPlayerTurnStart` (空手) | CardsDrawn |
+| Bellows | `AfterPlayerTurnStart` | CardsDrawn |
+| PhilosophersStone | `AfterEnergyReset` | EnergyGained |
+| Ectoplasm | `AfterEnergyReset` | EnergyGained |
+| Sozu | (energy 修饰) | EnergyGained 浮动 |
+| VelvetChoker | `ModifyMaxStarsThisCombat` | EnergyGained 上限 |
+| LavaLamp | `AfterPlayerTurnStart` | EnergyGained |
+| TeaOfDiscourtesy | `AfterCardPlayed` | MitigatedByStrReduction |
+| WhisperingEarring | `AfterCardPlayed` | MitigatedByStrReduction |
+| HeirloomHammer | (战斗起始) | MitigatedByStrReduction |
+| Pomander/BoneTea/EmberTea/VeryHotCocoa | `AfterPlayerTurnStart` 等 | HpHealed |
+| GhostSeed/LastingCandy | `BeforeCombatStart` | HpHealed / EffectiveBlock |
+| Paels 系列 8 件（PaelsTears 已 patch，其余 8 件未 patch） | 各自 hook | 多种 |
+
+**TODO**：将上表条目追加到 `RelicHookContextPatcher.PatchAll()`，再写入 `Catalog_RelicTests.cs` 第二批。
+
+### 18.2 测试环境无法构造的状态
+
+即使遗物已 patch，下列实体的触发条件依赖**当前测试环境无法稳定构造**的状态：
+
+#### 18.2.1 卡牌源 Gap（§4 NEW 区独有）
+| 实体 | 不可测原因 |
+|------|-----------|
+| **Snecko (CONFUSED)** §4.2 | EnergyGained 反向归因依赖跨回合差值与 SneckoEye 持有；测试用 `SetEnergy(999)` 直接覆盖了能量字段，无法构造"原本N费 → 实际X费"的差异 |
+| **Enlightenment** §4.3 | 依赖手牌中存在 ≥2 费的特定卡，且要求该回合内消费这些能量才能验证 EnergyGained=Σ(old-new)。测试 SetEnergy 提前破坏了基线 |
+| **Rampage / Claw 跨实例累计** | 同一战斗内多次 `CreateCardInHand` 创建的是不同实例，per-instance 自增计数器无法跨实例复现 |
+| **CompileDriver 球种联动** | 需要 OrbCmd.Channel 与 CompileDriver 在同战斗内交替，球种数量影响 ModifierDamage |
+| **SeekingEdge / SeekingEye 溢出** | 单目标场景下 §16.2 的"溢出归因"路径无法触发（需要敌人死亡） |
+| **SevenStars / ShiningStrike** | 星耀消耗依赖 PlayerStars 当前值；测试无法稳定预设星耀池 |
+| **Feed (击杀+MaxHp)** | 测试敌人 HP=9999 不可被 10 点 Feed 击杀；CAT-ATK-Feed 已显式断言 HpHealed=0 走 boundary 路径 |
+
+#### 18.2.2 子贡献条 / 卡池随机生成器
+均依赖**生成池快照 / 随机选牌结果**，contribution 落在生成出的临时卡而非源卡：
+
+- **Havoc / Skim** — 随机播放 draw 顶卡 → 子贡献条挂在临时卡
+- **Metamorphosis / PrimalForce** — 升级随机牌 / 转化 → 卡池状态依赖
+- **GiantRock** — 战斗开始随机给予 1 张稀有卡
+- **BladeOfInk / UpMySleeve / Duplicator / Mimic** — 复制/克隆当前卡 → 子贡献条
+- **TimeEater / EmptyCage** 等基于全局 PlayCount 的派生效果
+- **ChoicesParadox / DollysMirror** — 跨战斗 / 跨房间作用域
+
+#### 18.2.3 跨战斗 / 跨楼层 / 跨房间状态
+- **Ancients 事件 +MaxHp** — 在事件房执行，不在战斗中（CombatRoom 不存在 → 测试环境不在事件房）
+- **FairyInABottle 致死保护** — 触发条件是 Player 致死伤害；战斗中给 Player +9999 HP 后无法触发
+- **EternalFeather** — 每 5 张牌库回血一次，依赖战斗外的 AfterRoomEntered (CampfireRoom 等)
+- **MealTicket** — 每次 ShopRoom 进入回血，测试在 CombatRoom 中无法触发
+- **DragonFruit** — `AfterGoldGained`，依赖商店或事件给金币的路径
+- **CapsuleCollar / WheelOfFate** — 跨多次战斗累加计数器
+- **FuneraryMask** — 必须有死亡的随从单位（Necrobinder Osty 死亡），测试环境单战斗内无法稳定造死
+- **GirYa TimesLifted** — 必须 ≥1 次 RestSite "Lift" 选项交互；测试无法进入 RestSite
+
+#### 18.2.4 怪物 / Boss / Player 致死路径
+- **DoomPower 致死归因 (§16.2 #4)** — 需要敌人触发 DoomKill；测试敌人 HP 太高
+- **Buffer + Intangible 复合 §4.4 极端值** — 需要构造 Player 单回合承伤 ≥ Buffer 上限的攻击序列；测试用的标准敌人不打这种值
+- **Beating Remnant 复活** — 必须 Player 死亡
+- **CursedPearl / EmptyCage 战斗起始扣 HP** — 已经在 setup 阶段被 +9999 HP 抹平
+
+### 18.3 仅靠人工游戏内复盘验证
+
+下列实体复杂度过高，建议放弃自动化，靠 PRD-04 Stage 5 人工跑图验证：
+
+1. **§4.2 SNECKO_EYE 反向 EnergyGained** — 需在真实跑图中观察"原本3费打出实际1费 → SNECKO_EYE.EnergyGained += 2"
+2. **§4.3 ENLIGHTENMENT** — 同上，验证手牌缩费正确归因
+3. **§4.4 Buffer 大伤害挡完** — 实战中 Boss 大攻击触发
+4. **§4.5 Necrobinder Osty 双向归因** — 实战召唤 + 双向承伤
+5. **HAVOC / 随机播放卡** — 子贡献条父子关系仅能在面板观察
+6. **跨多场战斗的 BurningBlood / Meal Ticket / DragonFruit** — Run 总览验证
+7. **Ancients 事件 +MaxHp 跨楼层恢复** — Run History 累计验证
+
+---
+
+**§18 总结**：经过 Round 9 引入 ObtainRelic 测试模式后，自动化测试可覆盖的遗物源 Gap 显著扩大；剩余约 30 项实体因 patch 缺失（§18.1，可补）或环境状态依赖（§18.2/§18.3，原理上不可自动化）保持人工验证。下一步建议优先补全 §18.1 中的 Anchor / BronzeScales / StrikeDummy / PenNib / Pocketwatch / PhilosophersStone 等 patch，并写入 Catalog_RelicTests 第二批。

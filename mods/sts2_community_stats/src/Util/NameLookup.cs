@@ -25,6 +25,50 @@ public static class NameLookup
     public static string Potion(string id)    => Lookup("potions", id, ".title");
 
     /// <summary>
+    /// Localized name for an Ancient elder (NEOW/PAEL/...). The game's loc
+    /// tables don't carry these IDs as encounter titles, so we fall back to
+    /// hardcoded Chinese names. PRD-04 §3.11 round 9 — user reported that
+    /// 先古之民 dropdown was showing raw English IDs.
+    /// </summary>
+    public static string Ancient(string elderId)
+    {
+        if (string.IsNullOrEmpty(elderId)) return "";
+        // Try the regular event/encounter tables first in case loc data exists.
+        var ev = TryLookup("events", elderId, ".title");
+        if (ev != null) return ev;
+        var enc = TryLookup("encounters", elderId, ".title");
+        if (enc != null) return enc;
+
+        if (L.Current == L.Lang.CN)
+        {
+            return elderId switch
+            {
+                "NEOW"      => "涅奥",
+                "PAEL"      => "帕埃尔",
+                "TEZCATARA" => "泰兹卡塔拉",
+                "OROBAS"    => "奥洛巴斯",
+                "VAKUU"     => "瓦库",
+                "TANX"      => "坦克斯",
+                "NONUPEIPE" => "诺努皮佩",
+                "DARV"      => "达弗",
+                _ => elderId,
+            };
+        }
+        return elderId switch
+        {
+            "NEOW"      => "Neow",
+            "PAEL"      => "Pael",
+            "TEZCATARA" => "Tezcatara",
+            "OROBAS"    => "Orobas",
+            "VAKUU"     => "Vakuu",
+            "TANX"      => "Tanx",
+            "NONUPEIPE" => "Nonupeipe",
+            "DARV"      => "Darv",
+            _ => elderId,
+        };
+    }
+
+    /// <summary>
     /// Resolves a death cause id (which may be either an encounter or event id, or
     /// the sentinel "ABANDONED"). Tries encounters table first, then events.
     /// </summary>

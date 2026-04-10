@@ -5,9 +5,11 @@ using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Entities.Relics;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
+using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.ValueProps;
 
 namespace ContribTests;
@@ -174,6 +176,44 @@ public sealed class TestContext
         await CreatureCmd.GainBlock(creature, amount, ValueProp.Move, cardPlay, fast: true);
         await Task.Delay(50);
     }
+
+    // ── Relic Helpers ───────────────────────────────────────
+    // For relic-source contribution testing. Pattern:
+    //   var relic = await ctx.ObtainRelic<Akabeko>();
+    //   await ctx.TriggerRelicHook(() => relic.AfterSideTurnStart(...));
+    //   ctx.TakeSnapshot();
+    //   ... play card ...
+    //   await ctx.RemoveRelic(relic);
+
+    /// <summary>Obtain a relic for the player. Triggers AfterObtained automatically.</summary>
+    public async Task<T> ObtainRelic<T>() where T : RelicModel
+    {
+        var relic = (T)await RelicCmd.Obtain(ModelDb.Relic<T>().ToMutable(), Player);
+        await Task.Delay(80);
+        return relic;
+    }
+
+    /// <summary>Remove a relic from the player.</summary>
+    public async Task RemoveRelic(RelicModel relic)
+    {
+        if (relic == null) return;
+        await RelicCmd.Remove(relic);
+        await Task.Delay(50);
+    }
+
+    /// <summary>
+    /// Manually invoke a relic hook (e.g. BeforeCombatStart, AfterRoomEntered, AfterSideTurnStart)
+    /// since RelicCmd.Obtain only fires AfterObtained. Wrap the call in a lambda.
+    /// </summary>
+    public async Task TriggerRelicHook(Func<Task> hookInvocation)
+    {
+        await hookInvocation();
+        await Task.Delay(80);
+    }
+
+    /// <summary>Get the current combat room (for AfterRoomEntered triggers).</summary>
+    public AbstractRoom? GetCurrentRoom()
+        => Player.RunState.CurrentRoom;
 
     /// <summary>Set player energy to a specific value.</summary>
     public async Task SetEnergy(int amount)

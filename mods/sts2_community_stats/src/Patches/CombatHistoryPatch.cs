@@ -334,6 +334,21 @@ public static class RelicHookContextPatcher
         TryPatch(harmony, typeof(Vajra), "AfterRoomEntered", prefix, postfix);
         TryPatch(harmony, typeof(Girya), "AfterRoomEntered", prefix, postfix);
         TryPatch(harmony, typeof(DataDisk), "AfterRoomEntered", prefix, postfix);
+
+        // ── Round 9 batch: §18.1 missing relic-source attribution ──
+        // Block: Anchor gives 10 block at combat start.
+        TryPatch(harmony, typeof(Anchor), "BeforeCombatStart", prefix, postfix);
+        // Indirect damage (Thorns) — same shape as Akabeko/Vajra: apply power inside hook,
+        // power source becomes the relic, subsequent reflected damage attributes back.
+        TryPatch(harmony, typeof(BronzeScales), "AfterRoomEntered", prefix, postfix);
+        // Strength buff for full combat — same shape as Vajra.
+        TryPatch(harmony, typeof(EmberTea), "AfterRoomEntered", prefix, postfix);
+        // Energy: gain 4 energy at combat start — same shape as Lantern.
+        TryPatch(harmony, typeof(VeryHotCocoa), "AfterSideTurnStart", prefix, postfix);
+        // Draw: zero-cost draw at start (similar to BagOfMarbles flow).
+        TryPatch(harmony, typeof(PowerCell), "BeforeSideTurnStart", prefix, postfix);
+        // Draw: free redraw whenever hand is emptied.
+        TryPatch(harmony, typeof(UnceasingTop), "AfterHandEmptied", prefix, postfix);
     }
 
     private static void TryPatch(Harmony harmony, Type type, string methodName,

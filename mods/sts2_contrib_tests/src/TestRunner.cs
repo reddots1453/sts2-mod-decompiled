@@ -67,6 +67,7 @@ public sealed class TestRunner
         list.AddRange(Catalog_EnergyTests.All);
         list.AddRange(Catalog_HealingTests.All);
         list.AddRange(Catalog_InteractionTests.All);
+        list.AddRange(Catalog_RelicTests.All);
 
         return list;
     }

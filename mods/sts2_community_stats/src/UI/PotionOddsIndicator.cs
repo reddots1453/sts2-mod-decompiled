@@ -23,7 +23,7 @@ public partial class PotionOddsIndicator : Control
         {
             Name = "StatsTheSpirePotionOdds",
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(72, 56),
+            CustomMinimumSize = new Vector2(96, 44),
         };
         node.BuildUi();
         return node;
@@ -31,18 +31,18 @@ public partial class PotionOddsIndicator : Control
 
     private void BuildUi()
     {
-        var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 0);
-        vbox.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
-        AddChild(vbox);
+        // Round 9: HBox layout — icon on the left, percentage label to the
+        // right (user feedback: previously percent was below the icon).
+        var hbox = new HBoxContainer();
+        hbox.AddThemeConstantOverride("separation", 6);
+        hbox.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        AddChild(hbox);
 
-        // Native Distilled Chaos potion icon — round 7 PRD §3.9.
-        // Loaded via PreloadManager when the resource exists; falls back to
-        // a glyph label if the atlas isn't packed for this build.
+        // Round 9: Use AttackPotion icon (was Distilled Chaos).
         Control iconNode;
         var icon = LoadNativeTexture(
-            "atlases/potion_atlas.sprites/distilled_chaos.tres",
-            "atlases/potion_atlas.sprites/distilled_chaos.png");
+            "atlases/potion_atlas.sprites/attack_potion.tres",
+            "atlases/potion_atlas.sprites/attack_potion.png");
         if (icon != null)
         {
             iconNode = new TextureRect
@@ -63,14 +63,15 @@ public partial class PotionOddsIndicator : Control
             lbl.HorizontalAlignment = HorizontalAlignment.Center;
             iconNode = lbl;
         }
-        vbox.AddChild(iconNode);
+        hbox.AddChild(iconNode);
 
         _percentLabel = new Label { Text = "—" };
         _percentLabel.AddThemeFontSizeOverride("font_size", 12);
         _percentLabel.AddThemeColorOverride("font_color", CreamColor);
-        _percentLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        _percentLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        vbox.AddChild(_percentLabel);
+        _percentLabel.HorizontalAlignment = HorizontalAlignment.Left;
+        _percentLabel.VerticalAlignment = VerticalAlignment.Center;
+        _percentLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        hbox.AddChild(_percentLabel);
 
         MouseEntered += ShowHoverPanel;
         MouseExited += HideHoverPanel;
@@ -91,9 +92,10 @@ public partial class PotionOddsIndicator : Control
         // Final fallback: try resources cached by PreloadManager.
         try
         {
-            var distilled = MegaCrit.Sts2.Core.Models.ModelDb.AllPotions
-                .FirstOrDefault(p => p.Id.Entry == "DISTILLED_CHAOS");
-            return distilled?.Image;
+            // Round 9: AttackPotion (was DISTILLED_CHAOS).
+            var attack = MegaCrit.Sts2.Core.Models.ModelDb.AllPotions
+                .FirstOrDefault(p => p.Id.Entry == "ATTACK_POTION");
+            return attack?.Image;
         }
         catch { return null; }
     }

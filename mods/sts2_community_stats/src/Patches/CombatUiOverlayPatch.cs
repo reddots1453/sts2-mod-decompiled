@@ -80,7 +80,6 @@ public static class CombatUiOverlayPatch
         {
             _potion.GetParent()?.RemoveChild(_potion);
             hostHbox.AddChild(_potion);
-            try { hostHbox.MoveChild(_potion, mapBtn.GetIndex() + 1); } catch { }
         }
 
         if (_cardDrop == null)
@@ -93,8 +92,21 @@ public static class CombatUiOverlayPatch
         {
             _cardDrop.GetParent()?.RemoveChild(_cardDrop);
             hostHbox.AddChild(_cardDrop);
-            try { hostHbox.MoveChild(_cardDrop, mapBtn.GetIndex() + 2); } catch { }
         }
+
+        // Round 9 fix: position both indicators BEFORE the Map button so they
+        // sit to its LEFT in the top bar (user feedback — previously appeared
+        // on the right of Map and clashed with the Deck button area).
+        try
+        {
+            var mapIdx = mapBtn.GetIndex();
+            if (mapIdx > 0)
+            {
+                hostHbox.MoveChild(_cardDrop, mapIdx);   // immediately left of Map
+                hostHbox.MoveChild(_potion, mapIdx);     // pushed further left of Card
+            }
+        }
+        catch { }
     }
 
     [HarmonyPatch(typeof(CombatManager), nameof(CombatManager.SetUpCombat))]
@@ -109,6 +121,24 @@ public static class CombatUiOverlayPatch
     public static void AfterCombatEnded(CombatRoom __instance)
     {
         Safe.Run(HideAll);
+    }
+
+    /// <summary>
+    /// Round 9 fix: when a saved run is resumed mid-combat, `SetUpCombat`
+    /// is NOT called again, so the indicators would stay hidden after
+    /// save → quit → reload. Hooking `CombatRoom.Resume` covers that path.
+    /// </summary>
+    [HarmonyPatch(typeof(CombatRoom), nameof(CombatRoom.Resume))]
+    [HarmonyPostfix]
+    public static void AfterCombatRoomResume(CombatRoom __instance)
+    {
+        Safe.Run(() =>
+        {
+            var state = CombatManager.Instance?.DebugOnlyGetState();
+            if (state == null) return;
+            if (!CombatManager.Instance!.IsInProgress) return;
+            ShowFor(state);
+        });
     }
 
     private static void OnCombatDataUpdated()

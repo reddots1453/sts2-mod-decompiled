@@ -13,7 +13,9 @@ public partial class CardDropOddsIndicator : Control
     private static readonly Color AquaColor = new(0.16f, 0.92f, 0.75f);
     private static readonly Color CreamColor = new("#FFF6E2");
 
-    private Label _rareLabel = null!;
+    // Round 9: percentage label removed per user feedback (was always
+    // showing "0%" / not meaningful at a glance). The hover panel now
+    // carries all the rate detail.
     private InfoModPanel? _hoverPanel;
     private float _currentOffset;
 
@@ -29,7 +31,7 @@ public partial class CardDropOddsIndicator : Control
         {
             Name = "StatsTheSpireCardDropOdds",
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(72, 56),
+            CustomMinimumSize = new Vector2(48, 48),
         };
         node.BuildUi();
         return node;
@@ -43,6 +45,7 @@ public partial class CardDropOddsIndicator : Control
         AddChild(vbox);
 
         // Native reward-screen "add a card" icon — round 7 PRD §3.17.
+        // Round 9: enlarged 10% (40 → 44) per user feedback ("原图标较小").
         Control iconNode;
         var icon = LoadNativeTexture(
             "ui/reward_screen/reward_icon_card.png",
@@ -52,7 +55,7 @@ public partial class CardDropOddsIndicator : Control
             iconNode = new TextureRect
             {
                 Texture = icon,
-                CustomMinimumSize = new Vector2(40, 40),
+                CustomMinimumSize = new Vector2(44, 44),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
@@ -69,12 +72,7 @@ public partial class CardDropOddsIndicator : Control
         }
         vbox.AddChild(iconNode);
 
-        _rareLabel = new Label { Text = "—" };
-        _rareLabel.AddThemeFontSizeOverride("font_size", 12);
-        _rareLabel.AddThemeColorOverride("font_color", CreamColor);
-        _rareLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        _rareLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        vbox.AddChild(_rareLabel);
+        // Round 9: removed _rareLabel (showed redundant "0%" below icon).
 
         MouseEntered += ShowHoverPanel;
         MouseExited += HideHoverPanel;
@@ -100,9 +98,9 @@ public partial class CardDropOddsIndicator : Control
     /// </summary>
     public void UpdateOffset(float offset)
     {
+        // Round 9: percentage label removed; offset is still cached so the
+        // hover panel can compute up-to-date Regular/Elite rates.
         _currentOffset = offset;
-        var effectiveRare = Mathf.Clamp(RegularRareBase + offset, 0f, 1f);
-        _rareLabel.Text = (effectiveRare * 100f).ToString("F1") + "%";
     }
 
     private void ShowHoverPanel()

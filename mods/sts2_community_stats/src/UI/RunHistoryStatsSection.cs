@@ -163,12 +163,27 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
 
     private GridContainer BuildActHeaderGrid(List<int> acts)
     {
+        // Round 9 alignment fix: header cells must mirror the data cells'
+        // alignment (right-aligned, ExpandFill) so each column lines up
+        // visually. The leading "row label" column uses ExpandFill so the
+        // metric labels claim the leftover horizontal space.
         var grid = new GridContainer { Columns = acts.Count + 1 };
         grid.AddThemeConstantOverride("h_separation", 12);
         grid.AddThemeConstantOverride("v_separation", 2);
         grid.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        grid.AddChild(MakeLabel("", Gray, LabelSize));
-        foreach (var a in acts) grid.AddChild(MakeLabel(NameLookup.ActLabel(a), Gold, LabelSize));
+
+        var corner = MakeLabel("", Gray, LabelSize);
+        corner.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        grid.AddChild(corner);
+
+        foreach (var a in acts)
+        {
+            var lbl = MakeLabel(NameLookup.ActLabel(a), Gold, LabelSize);
+            lbl.HorizontalAlignment = HorizontalAlignment.Right;
+            lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            lbl.CustomMinimumSize = new Vector2(48, 0);
+            grid.AddChild(lbl);
+        }
         return grid;
     }
 
@@ -184,6 +199,7 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
             var cell = MakeLabel($"{(int)v}", Cream, LabelSize);
             cell.HorizontalAlignment = HorizontalAlignment.Right;
             cell.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            cell.CustomMinimumSize = new Vector2(48, 0);
             grid.AddChild(cell);
         }
     }

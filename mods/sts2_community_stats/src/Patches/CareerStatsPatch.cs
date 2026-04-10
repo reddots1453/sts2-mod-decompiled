@@ -27,11 +27,14 @@ public static class CareerStatsPatch
 
     private static void Inject(NGeneralStatsGrid grid)
     {
-        // PRD §3.11 round 7: walk the parent chain from `_characterStatContainer`
-        // looking for the first auto-layout ancestor (VBox / GridContainer /
-        // ScrollContainer). Add the career section as a child of THAT
-        // container so Godot lays it out alongside the native overall + character
-        // sections, instead of dropping it at (0,0) and overlapping the cards.
+        // Round 9 fix: previously the section ended up BELOW the character
+        // grid because we relied on `LayoutHelper.AppendToLayoutAncestor`,
+        // which lands in the first VBox/Scroll ancestor and just appends
+        // there. Per user feedback, the section must sit BETWEEN the
+        // overall stats grid and the character grid. We now look up
+        // `_characterStatContainer`'s direct parent and insert the section
+        // as a sibling immediately before it, so the visual order is
+        // overall → CareerStats → 角色数据.
         Control? characterContainer = null;
         try
         {
@@ -46,36 +49,41 @@ public static class CareerStatsPatch
         }
         if (characterContainer == null) return;
 
+        var siblingParent = characterContainer.GetParent() as Control;
+        if (siblingParent == null)
+        {
+            Safe.Warn("CareerStatsPatch: characterContainer has no Control parent.");
+            return;
+        }
+
         // Diagnostic: log the ancestor chain so we know where the section is going.
         Safe.Info("[CareerStatsPatch] character container ancestry:\n" +
                   CommunityStats.Util.LayoutHelper.DescribeAncestry(characterContainer));
 
-        // Idempotent: drop any previously injected section from BOTH the
-        // character container and any layout ancestor we might have used
-        // before, so re-opening the screen replaces it cleanly.
+        // Idempotent cleanup — drop any previously injected section from
+        // every container that historic versions of this patch may have used.
         RemoveExistingSection(characterContainer);
+        RemoveExistingSection(siblingParent);
         var ancestor = CommunityStats.Util.LayoutHelper.FindLayoutAncestor(characterContainer);
-        if (ancestor != null) RemoveExistingSection(ancestor);
+        if (ancestor != null && ancestor != siblingParent) RemoveExistingSection(ancestor);
         if (grid != null) RemoveExistingSection(grid);
 
         var section = CareerStatsSection.Create(characterFilter: null);
         section.SetMeta(SectionMeta, true);
+        section.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
-        // Try the layout ancestor first (insert RIGHT BEFORE the character
-        // container's path so the visual order is overall → career → characters).
-        var added = CommunityStats.Util.LayoutHelper.AppendToLayoutAncestor(
-            characterContainer, section, moveBeforeAnchor: true);
-        if (added != null)
+        // Insert as a direct sibling immediately before _characterStatContainer.
+        siblingParent.AddChild(section);
+        try
         {
-            Safe.Info($"[CareerStatsPatch] injected into {added.GetType().Name} \"{added.Name}\"");
-            return;
+            int targetIdx = characterContainer.GetIndex();
+            siblingParent.MoveChild(section, targetIdx);
+            Safe.Info($"[CareerStatsPatch] inserted before character container at index {targetIdx} in {siblingParent.GetType().Name} \"{siblingParent.Name}\"");
         }
-
-        // Fallback A: add as the first child of the character container itself.
-        // If the container is a VBox, the section appears above the cards.
-        characterContainer.AddChild(section);
-        try { characterContainer.MoveChild(section, 0); } catch { }
-        Safe.Info("[CareerStatsPatch] fallback: added as first child of character container");
+        catch (System.Exception ex)
+        {
+            Safe.Warn($"CareerStatsPatch: MoveChild failed ({ex.Message}); section appended at end.");
+        }
     }
 
     private static void RemoveExistingSection(Node container)

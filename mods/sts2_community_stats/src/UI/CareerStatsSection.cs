@@ -114,6 +114,28 @@ public sealed partial class CareerStatsSection : VBoxContainer
         AddChild(BuildBossStats());
     }
 
+    // PRD §3.18.3 — independent character dropdown for CareerStats. Order
+    // mirrors the F9 dropdown but without "auto" (this view is character-
+    // agnostic by design and defaults to All Characters).
+    private static readonly string?[] _careerCharacters = new string?[]
+    {
+        null,           // All
+        "IRONCLAD",
+        "SILENT",
+        "DEFECT",
+        "NECROBINDER",
+        "REGENT",
+    };
+    private static readonly string[] _careerCharacterLocKeys = new[]
+    {
+        "settings.char_all",
+        "char.IRONCLAD",
+        "char.SILENT",
+        "char.DEFECT",
+        "char.NECROBINDER",
+        "char.REGENT",
+    };
+
     private Control BuildHeader()
     {
         var panel = WrapInPanel();
@@ -123,6 +145,20 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
         var title = MakeLabel(L.Get("career.title"), Gold, TitleSize);
         v.AddChild(title);
+
+        // PRD §3.18.3 — character filter dropdown (independent of F9 panel)
+        var charRow = new HBoxContainer();
+        charRow.AddThemeConstantOverride("separation", 6);
+        charRow.AddChild(MakeLabel(L.Get("settings.character"), Gray, LabelSize));
+        var charDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        charDropdown.AddThemeFontSizeOverride("font_size", LabelSize);
+        for (int i = 0; i < _careerCharacterLocKeys.Length; i++)
+            charDropdown.AddItem(L.Get(_careerCharacterLocKeys[i]), i);
+        var currentIdx = Array.IndexOf(_careerCharacters, _characterFilter);
+        charDropdown.Selected = currentIdx >= 0 ? currentIdx : 0;
+        charDropdown.ItemSelected += i => OnCharacterDropdownChanged((int)i);
+        charRow.AddChild(charDropdown);
+        v.AddChild(charRow);
 
         if (_data != null && !_data.IsEmpty)
         {
@@ -134,6 +170,22 @@ public sealed partial class CareerStatsSection : VBoxContainer
         }
 
         return panel;
+    }
+
+    private void OnCharacterDropdownChanged(int idx)
+    {
+        if (idx < 0 || idx >= _careerCharacters.Length) return;
+        var newFilter = _careerCharacters[idx];
+        if (newFilter == _characterFilter) return;
+        _characterFilter = newFilter;
+        // Show loading state immediately, kick off async reload, Rebuild on callback.
+        _data = RunHistoryAnalyzer.Instance.GetCached(newFilter);
+        Rebuild();
+        if (_data == null || _data.IsEmpty)
+        {
+            Util.Safe.RunAsync(async () =>
+                await RunHistoryAnalyzer.Instance.LoadAllAsync(newFilter));
+        }
     }
 
     private Control BuildWinRateTrend()
@@ -191,22 +243,38 @@ public sealed partial class CareerStatsSection : VBoxContainer
             return panel;
         }
 
-        foreach (var act in _data.DeathCausesByAct.Keys.OrderBy(k => k))
+        // Round 9 fix: per user feedback, do NOT split by Act and show top 10
+        // (was: split by Act, top 5 each). Aggregate counts across all Acts
+        // by encounter id, then take the 10 largest.
+        var aggregated = new Dictionary<string, int>();
+        int totalDeaths = 0;
+        foreach (var entries in _data.DeathCausesByAct.Values)
         {
-            v.AddChild(MakeLabel(Util.NameLookup.ActLabel(act), Cream, LabelSize));
-            foreach (var entry in _data.DeathCausesByAct[act])
+            foreach (var entry in entries)
             {
-                var row = new HBoxContainer();
-                row.AddThemeConstantOverride("separation", 8);
-                var name = MakeLabel("  · " + Util.NameLookup.DeathCause(entry.EncounterId), Cream, LabelSize);
-                name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-                var count = MakeLabel(
-                    $"{entry.Count} ({entry.Share * 100:F1}%)",
-                    Gray, LabelSize);
-                row.AddChild(name);
-                row.AddChild(count);
-                v.AddChild(row);
+                if (!aggregated.ContainsKey(entry.EncounterId))
+                    aggregated[entry.EncounterId] = 0;
+                aggregated[entry.EncounterId] += entry.Count;
+                totalDeaths += entry.Count;
             }
+        }
+
+        var top10 = aggregated
+            .OrderByDescending(kv => kv.Value)
+            .Take(10)
+            .ToList();
+
+        foreach (var (id, count) in top10)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+            var name = MakeLabel("· " + Util.NameLookup.DeathCause(id), Cream, LabelSize);
+            name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            float share = totalDeaths > 0 ? (float)count / totalDeaths : 0f;
+            var countLbl = MakeLabel($"{count} ({share * 100:F1}%)", Gray, LabelSize);
+            row.AddChild(name);
+            row.AddChild(countLbl);
+            v.AddChild(row);
         }
 
         return panel;
@@ -283,13 +351,26 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private GridContainer NewActGrid(List<int> acts)
     {
+        // Round 9 alignment fix (mirrors RunHistoryStatsSection): header
+        // cells must use the same right-aligned, ExpandFill, fixed-min-width
+        // sizing as the data cells so each act column lines up.
         var grid = new GridContainer { Columns = acts.Count + 1 };
         grid.AddThemeConstantOverride("h_separation", 12);
         grid.AddThemeConstantOverride("v_separation", 2);
         grid.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        grid.AddChild(MakeLabel("", Gray, LabelSize));
+
+        var corner = MakeLabel("", Gray, LabelSize);
+        corner.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        grid.AddChild(corner);
+
         foreach (var act in acts)
-            grid.AddChild(MakeLabel(Util.NameLookup.ActLabel(act), Gold, LabelSize));
+        {
+            var lbl = MakeLabel(Util.NameLookup.ActLabel(act), Gold, LabelSize);
+            lbl.HorizontalAlignment = HorizontalAlignment.Right;
+            lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            lbl.CustomMinimumSize = new Vector2(56, 0);
+            grid.AddChild(lbl);
+        }
         return grid;
     }
 
@@ -308,6 +389,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             var cell = MakeLabel($"{v:F1}", Cream, ValueSize);
             cell.HorizontalAlignment = HorizontalAlignment.Right;
             cell.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            cell.CustomMinimumSize = new Vector2(56, 0);
             grid.AddChild(cell);
         }
     }
@@ -352,7 +434,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             int encounters = (_data?.AncientByElder.TryGetValue(elder.ElderId, out var ee) ?? false)
                 ? ee!.Encounters : 0;
             var actLabel = elder.ActIndex == 0 ? L.Get("ancient.shared_act") : Util.NameLookup.ActLabel(elder.ActIndex);
-            var name = Util.NameLookup.Encounter(elder.ElderId);
+            var name = Util.NameLookup.Ancient(elder.ElderId);
             var label = $"{actLabel}  {name}  ({encounters} {L.Get("career.encounters")})";
             dropdown.AddItem(label, i);
             // Try to attach the elder icon to the dropdown item.
@@ -417,14 +499,17 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
         var actLabel = info.ActIndex == 0 ? L.Get("ancient.shared_act") : Util.NameLookup.ActLabel(info.ActIndex);
         header.AddChild(MakeLabel(actLabel, Gold, LabelSize + 1));
-        var nameLbl = MakeLabel(Util.NameLookup.Encounter(info.ElderId), Cream, LabelSize + 2);
+        var nameLbl = MakeLabel(Util.NameLookup.Ancient(info.ElderId), Cream, LabelSize + 2);
         nameLbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(nameLbl);
         int totalEnc = (_data?.AncientByElder.TryGetValue(info.ElderId, out var ee2) ?? false) ? ee2!.Encounters : 0;
         header.AddChild(MakeLabel($"{totalEnc} {L.Get("career.encounters")}", Gray, LabelSize));
         parent.AddChild(header);
 
-        // Render each pool as its own subsection.
+        // Render each pool as its own subsection. Round 9: each pool now
+        // uses a GridContainer so the relic row columns (icon | name |
+        // pick rate | picks | win rate | delta) line up under the column
+        // header row, and have visual breathing room between metrics.
         foreach (var pool in info.Pools)
         {
             var poolHeader = MakeLabel("• " + L.Get(pool.DisplayKey), Gold, LabelSize);
@@ -436,64 +521,109 @@ public sealed partial class CareerStatsSection : VBoxContainer
                 .Select(rid => relicStats.TryGetValue(rid, out var rs) ? rs.WinRate : 0f)
                 .Where(w => w > 0).DefaultIfEmpty(0f).Average();
 
+            var grid = NewElderGrid();
+            parent.AddChild(grid);
+            AddElderHeaderRow(grid);
+
             foreach (var relicId in pool.RelicIds)
             {
                 var stats = relicStats.TryGetValue(relicId, out var rs) ? rs : null;
-                BuildRelicRow(parent, relicId, stats, totalPicksInPool, avgWin);
+                AddRelicGridRow(grid, relicId, stats, totalPicksInPool, avgWin, pool);
             }
         }
     }
 
-    private void BuildRelicRow(VBoxContainer parent, string relicId, ElderRelicStats? stats,
-        int poolTotalPicks, float poolAvgWin)
+    private GridContainer NewElderGrid()
     {
-        var row = new HBoxContainer();
-        row.AddThemeConstantOverride("separation", 6);
+        // 6 columns: icon | name | pick rate | picks | win rate | delta
+        var grid = new GridContainer { Columns = 6 };
+        grid.AddThemeConstantOverride("h_separation", 14);
+        grid.AddThemeConstantOverride("v_separation", 2);
+        grid.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        return grid;
+    }
 
+    private void AddElderHeaderRow(GridContainer grid)
+    {
+        // icon column spacer
+        grid.AddChild(new Control { CustomMinimumSize = new Vector2(20, 0) });
+        // name column header (empty — name doesn't need a label)
+        var nameSpacer = MakeLabel("", Gray, LabelSize);
+        nameSpacer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        grid.AddChild(nameSpacer);
+
+        AppendNumericHeader(grid, L.Get("career.col_pick_rate"));
+        AppendNumericHeader(grid, L.Get("career.col_pick_count"));
+        AppendNumericHeader(grid, L.Get("career.col_win_rate"));
+        AppendNumericHeader(grid, L.Get("career.col_delta"));
+    }
+
+    private void AppendNumericHeader(GridContainer grid, string text)
+    {
+        var lbl = MakeLabel(text, Gray, LabelSize);
+        lbl.HorizontalAlignment = HorizontalAlignment.Right;
+        lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        lbl.CustomMinimumSize = new Vector2(60, 0);
+        grid.AddChild(lbl);
+    }
+
+    private void AddRelicGridRow(GridContainer grid, string relicId, ElderRelicStats? stats,
+        int poolTotalPicks, float poolAvgWin, Util.AncientPoolMap.Pool pool)
+    {
         var icon = Util.AncientPoolMap.GetRelicIcon(relicId);
         if (icon != null)
         {
-            var rect = new TextureRect
+            grid.AddChild(new TextureRect
             {
                 Texture = icon,
                 CustomMinimumSize = new Vector2(20, 20),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspect,
-            };
-            row.AddChild(rect);
+            });
         }
         else
         {
-            row.AddChild(new Control { CustomMinimumSize = new Vector2(20, 20) });
+            grid.AddChild(new Control { CustomMinimumSize = new Vector2(20, 20) });
         }
 
-        var name = MakeLabel(Util.NameLookup.Relic(relicId), Cream, LabelSize);
+        var displayName = Util.NameLookup.Relic(relicId);
+        if (pool.ActGate != null && pool.ActGate.TryGetValue(relicId, out var gateAct))
+            displayName += " " + string.Format(L.Get("ancient.act_only_n"), gateAct);
+        var name = MakeLabel(displayName, Cream, LabelSize);
         name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        row.AddChild(name);
+        grid.AddChild(name);
 
         if (stats != null && stats.Picks > 0)
         {
             float pickRate = poolTotalPicks > 0 ? (float)stats.Picks / poolTotalPicks : 0f;
-            row.AddChild(MakeLabel($"{pickRate * 100:F1}%", Gold, LabelSize));
-            row.AddChild(MakeLabel($"{stats.Picks}", Gray, LabelSize));
+            AppendNumericCell(grid, $"{pickRate * 100:F1}%", Gold);
+            AppendNumericCell(grid, $"{stats.Picks}", Gray);
 
             var winColor = stats.WinRate >= 0.6f ? Green
                         : stats.WinRate >= 0.4f ? Cream : Red;
-            row.AddChild(MakeLabel($"{stats.WinRate * 100:F1}%", winColor, LabelSize));
+            AppendNumericCell(grid, $"{stats.WinRate * 100:F1}%", winColor);
 
             float delta = (stats.WinRate - poolAvgWin) * 100f;
             var sign = delta >= 0 ? "+" : "";
             var dColor = MathF.Abs(delta) < 1f ? Gray : (delta >= 0 ? Green : Red);
-            row.AddChild(MakeLabel($"{sign}{delta:F1}%", dColor, LabelSize));
+            AppendNumericCell(grid, $"{sign}{delta:F1}%", dColor);
         }
         else
         {
-            row.AddChild(MakeLabel("—", Gray, LabelSize));
-            row.AddChild(MakeLabel("0", Gray, LabelSize));
-            row.AddChild(MakeLabel("—", Gray, LabelSize));
+            AppendNumericCell(grid, "—", Gray);
+            AppendNumericCell(grid, "0", Gray);
+            AppendNumericCell(grid, "—", Gray);
+            AppendNumericCell(grid, "—", Gray);
         }
+    }
 
-        parent.AddChild(row);
+    private void AppendNumericCell(GridContainer grid, string text, Color color)
+    {
+        var lbl = MakeLabel(text, color, LabelSize);
+        lbl.HorizontalAlignment = HorizontalAlignment.Right;
+        lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        lbl.CustomMinimumSize = new Vector2(60, 0);
+        grid.AddChild(lbl);
     }
 
     /// <summary>
@@ -606,19 +736,31 @@ public sealed partial class CareerStatsSection : VBoxContainer
     /// <summary>
     /// Map a Boss encounter id to its act index using the game's ActModel
     /// hierarchy. Falls back to 0 (unknown) if the model can't be found.
+    ///
+    /// Round 9 fix: previously this returned the FIRST matching act, but
+    /// some Act 1 bosses (e.g. 灵魂异鱼 / Soul Fish) also appear in Act 4
+    /// encounter pools. The user reported 灵魂异鱼 mislabeled as Act 4. We
+    /// now scan ALL acts and return the LOWEST matching index, since the
+    /// canonical "first appearance" act is what the user expects.
     /// </summary>
     private static int BossActIndex(string encounterId)
     {
         try
         {
             var acts = MegaCrit.Sts2.Core.Models.ModelDb.Acts.ToList();
+            int best = int.MaxValue;
             for (int i = 0; i < acts.Count; i++)
             {
                 foreach (var enc in acts[i].AllEncounters)
                 {
-                    if (enc.Id.Entry == encounterId) return i + 1;
+                    if (enc.Id.Entry == encounterId)
+                    {
+                        if (i + 1 < best) best = i + 1;
+                        break;
+                    }
                 }
             }
+            if (best != int.MaxValue) return best;
         }
         catch { }
         return 0;

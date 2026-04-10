@@ -28,6 +28,11 @@ public static class AncientPoolMap
     {
         public string DisplayKey { get; init; } = ""; // L key for "选项一池"/"Pool 1"
         public List<string> RelicIds { get; init; } = new();
+        /// <summary>Optional per-relic act gate. Keys are relic IDs that only
+        /// appear in a specific act (e.g. Darv's Ectoplasm/Sozu only in Act 2,
+        /// PhilosophersStone/VelvetChoker only in Act 3). UI appends a
+        /// "(only in Act N)" suffix when rendering these relics.</summary>
+        public Dictionary<string, int>? ActGate { get; init; }
     }
 
     public sealed class ElderInfo
@@ -115,23 +120,42 @@ public static class AncientPoolMap
         var d = new Dictionary<string, ElderInfo>();
 
         // ── Act 1 — NEOW ───────────────────────────────────────
-        // Neow uses PositiveOptions (9) + per-character options + curse pairs.
-        // No clean 3-pool structure → expose a single combined pool.
+        // Round 9 split (Neow.cs lines 49-82, 192-245). Each Neow visit shows
+        // 3 options = 2 randomly drawn from PositiveOptions + 1 randomly drawn
+        // from CurseOptions. The two underlying pools are independent, so we
+        // expose them as separate sub-pools so per-relic pick rates are
+        // computed against the right denominator.
         d["NEOW"] = new ElderInfo
         {
             ElderId = "NEOW",
             ActIndex = 1,
             Pools = new()
             {
+                // Positive: 9 base options + Cleric/Toughness/Safety/Patience/
+                // Scavenger conditional adds. Cleric is multiplayer-only,
+                // Toughness/Safety are coin-flipped, Patience/Scavenger only
+                // appear when the curse isn't LargeCapsule.
                 new Pool
                 {
-                    DisplayKey = "ancient.pool_all",
+                    DisplayKey = "ancient.positive_pool",
                     RelicIds = new()
                     {
                         "ARCANE_SCROLL", "BOOMING_CONCH", "POMANDER", "GOLDEN_PEARL",
                         "LEAD_PAPERWEIGHT", "NEW_LEAF", "NEOWS_TORMENT", "PRECISE_SCISSORS",
-                        "LOST_COFFER", "MASSIVE_SCROLL", "NUTRITIOUS_OYSTER",
-                        "STONE_HUMIDIFIER", "LAVA_ROCK",
+                        "LOST_COFFER",
+                        "MASSIVE_SCROLL", "NUTRITIOUS_OYSTER", "STONE_HUMIDIFIER",
+                        "LAVA_ROCK", "SMALL_CAPSULE",
+                    },
+                },
+                // Curse: 4 base options + ScrollBoxes (Bundle, conditional) +
+                // SilverCrucible (Empower, single-player only).
+                new Pool
+                {
+                    DisplayKey = "ancient.curse_pool",
+                    RelicIds = new()
+                    {
+                        "CURSED_PEARL", "LARGE_CAPSULE", "LEAFY_POULTICE", "PRECARIOUS_SHEARS",
+                        "SCROLL_BOXES", "SILVER_CRUCIBLE",
                     },
                 },
             },
@@ -232,7 +256,11 @@ public static class AncientPoolMap
         };
 
         // ── Shared — DARV ─────────────────────────────────────
-        // Darv uses 9 _validRelicSets + DustyTome. Compress to single pool.
+        // Darv uses 9 _validRelicSets + DustyTome (Darv.cs lines 191-201).
+        // Sets 7 (Ectoplasm/Sozu) and 8 (PhilosophersStone/VelvetChoker) are
+        // gated by CurrentActIndex (== 1 → Act 2; == 2 → Act 3). All other
+        // sets are unrestricted across both acts. ActGate marks the gated
+        // relics so the UI can flag them as act-only.
         d["DARV"] = new ElderInfo
         {
             ElderId = "DARV",
@@ -247,6 +275,13 @@ public static class AncientPoolMap
                         "ASTROLABE", "BLACK_STAR", "CALLING_BELL", "EMPTY_CAGE", "PANDORAS_BOX",
                         "RUNIC_PYRAMID", "SNECKO_EYE", "ECTOPLASM", "SOZU",
                         "PHILOSOPHERS_STONE", "VELVET_CHOKER", "DUSTY_TOME",
+                    },
+                    ActGate = new Dictionary<string, int>
+                    {
+                        ["ECTOPLASM"]          = 2,
+                        ["SOZU"]               = 2,
+                        ["PHILOSOPHERS_STONE"] = 3,
+                        ["VELVET_CHOKER"]      = 3,
                     },
                 },
             },

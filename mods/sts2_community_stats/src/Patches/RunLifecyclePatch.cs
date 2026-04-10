@@ -31,14 +31,20 @@ public static class RunLifecyclePatch
             var player = players?.FirstOrDefault();
             Safe.Info($"[DIAG:RunLifecycle] player={player != null}");
 
-            var character = player?.Character?.Id.Entry;
-            Safe.Info($"[DIAG:RunLifecycle] character={character ?? "NULL"}");
+            var runCharacter = player?.Character?.Id.Entry;
+            Safe.Info($"[DIAG:RunLifecycle] character={runCharacter ?? "NULL"}");
 
-            if (character != null)
+            if (runCharacter != null)
             {
-                Safe.Info($"[DIAG:RunLifecycle] Launching PreloadForRunAsync for {character}");
+                // PRD §3.18 — preload uses the *filter-resolved* character so a
+                // user who has manually pinned (e.g.) "SILENT" still sees Silent
+                // data when starting an Ironclad run. Falls back to the run's
+                // own character only when the filter resolves to null.
+                var filter = ModConfig.CurrentFilter;
+                var preloadChar = filter.ResolveCharacter() ?? runCharacter;
+                Safe.Info($"[DIAG:RunLifecycle] Launching PreloadForRunAsync for {preloadChar} (mode={filter.CharacterFilterMode})");
                 Safe.RunAsync(() =>
-                    StatsProvider.Instance.PreloadForRunAsync(character, ModConfig.CurrentFilter));
+                    StatsProvider.Instance.PreloadForRunAsync(preloadChar, filter));
             }
             else
             {
@@ -65,11 +71,13 @@ public static class RunLifecyclePatch
             try { player = MegaCrit.Sts2.Core.Context.LocalContext.GetMe(state); } catch { }
             if (player == null) player = state.Players?.FirstOrDefault();
 
-            var character = player?.Character?.Id.Entry;
-            if (character != null)
+            var runCharacter = player?.Character?.Id.Entry;
+            if (runCharacter != null)
             {
+                var filter = ModConfig.CurrentFilter;
+                var preloadChar = filter.ResolveCharacter() ?? runCharacter;
                 Safe.RunAsync(() =>
-                    StatsProvider.Instance.PreloadForRunAsync(character, ModConfig.CurrentFilter));
+                    StatsProvider.Instance.PreloadForRunAsync(preloadChar, filter));
             }
         });
     }

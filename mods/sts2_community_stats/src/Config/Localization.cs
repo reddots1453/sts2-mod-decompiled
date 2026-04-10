@@ -50,6 +50,15 @@ public static class L
         ["settings.apply"] = "Apply",
         ["settings.upload"] = "Upload run data",
         ["settings.language"] = "Language:",
+        // PRD §3.18 — character filter (F9 + CareerStats)
+        ["settings.character"] = "Character:",
+        ["settings.char_auto"] = "Auto-match current",
+        ["settings.char_all"] = "All Characters",
+        ["char.IRONCLAD"] = "Ironclad",
+        ["char.SILENT"] = "Silent",
+        ["char.DEFECT"] = "Defect",
+        ["char.NECROBINDER"] = "Necrobinder",
+        ["char.REGENT"] = "Regent",
 
         // StatsLabel
         ["stats.pick"] = "Pick {0}% | Win {1}%",
@@ -184,8 +193,13 @@ public static class L
         ["intent.conditional"] = "conditional",
 
         // Career stats (§3.11)
-        ["career.title"] = "Stats the Spire",
+        ["career.title"] = "Career Statistics",
         ["career.win_trend"] = "Win Rate Trend",
+        // Round 9: column headers above ancient pool relic rows.
+        ["career.col_pick_rate"] = "Pick Rate",
+        ["career.col_pick_count"] = "Picks",
+        ["career.col_win_rate"] = "Win Rate",
+        ["career.col_delta"] = "Δ",
         ["career.last_n"] = "Last {0}",
         ["career.all"] = "All",
         ["career.death_causes"] = "Top Death Causes",
@@ -220,6 +234,9 @@ public static class L
         ["ancient.pool_2"] = "Option 2 Pool",
         ["ancient.pool_3"] = "Option 3 Pool",
         ["ancient.pool_all"] = "Pool",
+        ["ancient.positive_pool"] = "Positive Pool",
+        ["ancient.curse_pool"] = "Curse Pool",
+        ["ancient.act_only_n"] = "(Act {0} only)",
         ["ancient.shared_act"] = "Shared",
         ["card_lib.mine"] = "Mine",
         ["card_lib.community"] = "Community",
@@ -287,6 +304,15 @@ public static class L
         ["settings.apply"] = "应用",
         ["settings.upload"] = "上传游玩数据",
         ["settings.language"] = "语言:",
+        // PRD §3.18 — 角色筛选（F9 + 个人生涯统计）
+        ["settings.character"] = "角色:",
+        ["settings.char_auto"] = "自动匹配当前角色",
+        ["settings.char_all"] = "所有角色",
+        ["char.IRONCLAD"] = "铁甲战士",
+        ["char.SILENT"] = "沉默猎手",
+        ["char.DEFECT"] = "缺陷体",
+        ["char.NECROBINDER"] = "亡灵契约师",
+        ["char.REGENT"] = "储君",
 
         // StatsLabel
         ["stats.pick"] = "选取 {0}% | 胜率 {1}%",
@@ -421,8 +447,13 @@ public static class L
         ["intent.conditional"] = "条件",
 
         // Career stats (§3.11)
-        ["career.title"] = "Stats the Spire",
+        ["career.title"] = "个人生涯统计",
         ["career.win_trend"] = "胜率趋势",
+        // Round 9: column headers above ancient pool relic rows.
+        ["career.col_pick_rate"] = "选取率",
+        ["career.col_pick_count"] = "选取次数",
+        ["career.col_win_rate"] = "胜率",
+        ["career.col_delta"] = "胜率浮动",
         ["career.last_n"] = "最近 {0} 局",
         ["career.all"] = "全部",
         ["career.death_causes"] = "死因排行",
@@ -457,6 +488,9 @@ public static class L
         ["ancient.pool_2"] = "选项二池",
         ["ancient.pool_3"] = "选项三池",
         ["ancient.pool_all"] = "通用池",
+        ["ancient.positive_pool"] = "正面遗物池",
+        ["ancient.curse_pool"] = "诅咒遗物池",
+        ["ancient.act_only_n"] = "（只在第{0}幕出现）",
         ["ancient.shared_act"] = "共享",
         ["card_lib.mine"] = "我的",
         ["card_lib.community"] = "社区",

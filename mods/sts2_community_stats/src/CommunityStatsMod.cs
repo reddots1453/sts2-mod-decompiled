@@ -97,7 +97,11 @@ public static class CommunityStatsMod
     {
         Safe.RunAsync(async () =>
         {
-            await StatsProvider.Instance.OnFilterChangedAsync(null, ModConfig.CurrentFilter);
+            // PRD §3.18 — re-resolve the character from the new filter mode so
+            // changing the F9 character dropdown takes effect immediately.
+            var filter = ModConfig.CurrentFilter;
+            var resolvedChar = filter.ResolveCharacter();
+            await StatsProvider.Instance.OnFilterChangedAsync(resolvedChar, filter);
             FilterPanel.Instance.UpdateSampleSizeLabel();
         });
     }

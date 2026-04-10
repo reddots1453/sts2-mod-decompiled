@@ -19,7 +19,14 @@ public partial class FilterPanel : PanelContainer
     private CheckBox? _uploadCheckbox;
     private CheckBox? _myDataCheckbox;
     private OptionButton? _langDropdown;
+    private OptionButton? _characterDropdown;
     private readonly Dictionary<string, CheckBox> _toggleCheckboxes = new();
+
+    // PRD §3.18 — order matches the dropdown items: auto, all, then 5 characters.
+    private static readonly string[] _characterModes = new[]
+    {
+        "auto", "all", "IRONCLAD", "SILENT", "DEFECT", "NECROBINDER", "REGENT",
+    };
 
     public static event Action? FilterApplied;
 
@@ -76,6 +83,29 @@ public partial class FilterPanel : PanelContainer
         panel._myDataCheckbox = new CheckBox { Text = L.Get("settings.my_data") };
         panel._myDataCheckbox.ButtonPressed = ModConfig.CurrentFilter.MyDataOnly;
         vbox.AddChild(panel._myDataCheckbox);
+
+        // ── Character Filter (PRD §3.18) ────────────────────
+        var charRow = new HBoxContainer();
+        charRow.AddChild(new Label
+        {
+            Text = L.Get("settings.character"),
+            CustomMinimumSize = new Vector2(130, 0),
+        });
+        panel._characterDropdown = new OptionButton();
+        panel._characterDropdown.AddItem(L.Get("settings.char_auto"), 0);
+        panel._characterDropdown.AddItem(L.Get("settings.char_all"), 1);
+        panel._characterDropdown.AddItem(L.Get("char.IRONCLAD"), 2);
+        panel._characterDropdown.AddItem(L.Get("char.SILENT"), 3);
+        panel._characterDropdown.AddItem(L.Get("char.DEFECT"), 4);
+        panel._characterDropdown.AddItem(L.Get("char.NECROBINDER"), 5);
+        panel._characterDropdown.AddItem(L.Get("char.REGENT"), 6);
+        panel._characterDropdown.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        // Restore saved selection from config (default "auto" → index 0)
+        var savedMode = ModConfig.CurrentFilter.CharacterFilterMode ?? "auto";
+        var savedIdx = Array.IndexOf(_characterModes, savedMode);
+        panel._characterDropdown.Selected = savedIdx >= 0 ? savedIdx : 0;
+        charRow.AddChild(panel._characterDropdown);
+        vbox.AddChild(charRow);
 
         // ── Filter Settings ─────────────────────────────────
 
@@ -225,6 +255,14 @@ public partial class FilterPanel : PanelContainer
             var verIdx = _versionDropdown?.Selected ?? 0;
             filter.GameVersion = verIdx == 1 ? "all" : null;
             filter.MyDataOnly = _myDataCheckbox?.ButtonPressed ?? false;
+
+            // PRD §3.18 — persist the user's character preference (mode), not
+            // the resolved character ID. The actual character used for queries
+            // is computed at request time via FilterSettings.ResolveCharacter().
+            var charIdx = _characterDropdown?.Selected ?? 0;
+            if (charIdx < 0 || charIdx >= _characterModes.Length) charIdx = 0;
+            filter.CharacterFilterMode = _characterModes[charIdx];
+
             filter.Save();
 
             // Persist feature toggle values
