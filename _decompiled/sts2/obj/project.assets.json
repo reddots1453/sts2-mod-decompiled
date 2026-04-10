@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\_decompiled\\sts2\\sts2.csproj",
+      "projectUniqueName": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled\\_decompiled\\sts2\\sts2.csproj",
       "projectName": "sts2",
-      "projectPath": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\_decompiled\\sts2\\sts2.csproj",
+      "projectPath": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled\\_decompiled\\sts2\\sts2.csproj",
       "packagesPath": "C:\\Users\\reddots\\.nuget\\packages\\",
-      "outputPath": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\_decompiled\\sts2\\obj\\",
+      "outputPath": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled\\_decompiled\\sts2\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\reddots\\AppData\\Roaming\\NuGet\\NuGet.Config"

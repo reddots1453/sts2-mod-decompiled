@@ -1,18 +1,19 @@
 # 第二轮迭代 — 进度与上下文
 
-> 最后更新：2026-04-10（Round 8 人工验收完成，等待新一轮反馈）
+> 最后更新：2026-04-10（Round 9 §3.18 角色筛选 + 仓库重定位完成，等待 round 9 in-game 测试反馈）
 > 此文件供跨设备会话使用，确保新会话能完整理解当前状态
 
 ---
 
 ## 当前位置
 
-**工作流阶段**：Stage 5 人工验收测试循环中（已完成 8 轮反馈）
+**工作流阶段**：Stage 5 人工验收测试循环中（已完成 8 轮反馈 + Round 9 §3.18 角色筛选代码已 build 通过）
 
 **下次开机第一件事**：
-1. 阅读本文件 §"跨设备交接快照"
-2. 阅读 `PRD_04_ITERATION2.md` 末尾的 v3.1 round X 注释，了解每轮变更
-3. 等待用户提供下一轮人工测试反馈
+1. 阅读本文件 §"跨设备交接快照（2026-04-10 update 2）"
+2. 阅读 `PRD_04_ITERATION2.md` §3.18（v3.1 round 9 新增角色筛选需求 + AC1-AC8）
+3. 把最新 DLL 拷到游戏 mods 目录、重启游戏、按 AC1-AC8 实测 F9 面板和 CareerStats 页面的角色筛选行为
+4. 等待用户提供 Round 9 测试反馈
 
 **核心文档**：
 - `PRD_04_ITERATION2.md` — **第二轮迭代完整需求**（v3.1，含所有 round 4-8 reflowed 注释）
@@ -120,6 +121,69 @@
    走父链找第一个 VBox/HBox/GridContainer/ScrollContainer，把 section 加到 layout container 内（让 Godot 自动排版）
 3. RunHistory 还遮挡 → 同上，改用 LayoutHelper
 4. Boss 图标缺失 → `AncientPoolMap.GetEncounterIcon` 加载 `ui/run_history/{id}.png`
+
+### Round 9 会话（2026-04-10）
+
+本轮前半段（context 压缩前）处理了 Round 8 测试后的几项新反馈 + PRD §3.18 新增需求；后半段确认了一个长期误判的"build 环境问题"其实是 csproj HintPath 路径错位，最终对齐了本机仓库布局。
+
+#### 代码/文档变更
+
+**A. §3.18 角色筛选**（用户明确要求 "先改 PRD 再改代码"，PRD 只写需求 + AC、技术细节放 plan）：
+
+PRD 更新：
+- `PRD_04_ITERATION2.md` §3.18 新增——F9 面板角色下拉 + CareerStats 独立角色下拉 + 8 条验收标准（AC1-AC8）。compendium 视图（卡牌/遗物/其它）固定为"所有角色"。
+
+代码实现：
+- `src/Config/FilterSettings.cs` — 新增 `CharacterFilterMode` 字段（默认 `"auto"`）+ `ResolveCharacter()` 方法：`auto` 模式查 `RunManager.Instance?.DebugOnlyGetState()?.Players?.FirstOrDefault()?.Character?.Id.Entry`，无活动 run 时返回 `null`（自然满足 compendium 固定"所有角色"）。`ToQueryString` 和 `Equals/GetHashCode` 都改用 `ResolveCharacter()`，语义等价的 filter 走同一份缓存。
+- `src/UI/FilterPanel.cs` — F9 面板在 "我的数据" 和 "自动匹配进阶" 之间插入角色下拉（7 选项：自动匹配 / 全部 / 5 个角色），`OnApplyPressed` 写回 `CharacterFilterMode`。
+- `src/UI/CareerStatsSection.cs` — 独立角色下拉（6 选项：全部 + 5 角色），`OnCharacterDropdownChanged` 直接调用 `RunHistoryAnalyzer.GetCached(newFilter)` + `LoadAllAsync` 异步加载，与 F9 面板解耦。用户手动选择**持久化**、不因新开 run 重置。
+- `src/Patches/RunLifecyclePatch.cs` — `OnRunStartSP/MP` 改为 `preloadChar = filter.ResolveCharacter() ?? runCharacter`，让 F9 手动覆盖优先级高于 run 角色。
+- `src/CommunityStatsMod.cs` — `OnFilterApplied` 改为 resolve 后再 `StatsProvider.OnFilterChangedAsync`，dropdown 变更立即生效。
+- `src/Config/Localization.cs` — 新增 9 个角色筛选键（EN + CN，各 9 条，含 `settings.character` / `settings.char_auto` / `settings.char_all` / `char.IRONCLAD|SILENT|DEFECT|NECROBINDER|REGENT`）。
+
+**B. Ancient 遗物池拆分 + Darv 幕限定标注**：
+
+- `src/Util/AncientPoolMap.cs`：
+  - NEOW 原单池拆成 `positive_pool`（14 条 = 9 基础 + MASSIVE_SCROLL / NUTRITIOUS_OYSTER / STONE_HUMIDIFIER / LAVA_ROCK / SMALL_CAPSULE）和 `curse_pool`（6 条 = 4 基础 + SCROLL_BOXES + SILVER_CRUCIBLE）两池。
+  - Pool 新增 `ActGate Dictionary<string,int>?` 字段，DARV 第 7 套标 `ECTOPLASM:2 / SOZU:2`，第 8 套标 `PHILOSOPHERS_STONE:3 / VELVET_CHOKER:3`。
+- `src/UI/CareerStatsSection.cs` — `BuildElderDetail` 从线性列表改成 6 列 `GridContainer`（新 `NewElderGrid / AddElderHeaderRow / AppendNumericHeader / AppendNumericCell / AddRelicGridRow` 方法），渲染列标题行；`AddRelicGridRow` 内按 `pool.ActGate.TryGetValue(relicId, out gateAct)` 给遗物名拼接 `" (只在第 X 幕出现)"` 后缀。
+- `src/Util/NameLookup.cs` — 新增 `Ancient(string elderId)` 方法：先查 events/encounters loc 表，未命中时中文硬编码回退 `NEOW→涅奥 / PAEL→帕埃尔 / TEZCATARA→泰兹卡塔拉 / OROBAS→奥洛巴斯 / VAKUU→瓦库 / TANX→坦克斯 / NONUPEIPE→诺努皮佩 / DARV→达弗`，英文回退 title case。
+- `src/Config/Localization.cs` — 同时补了 `ancient.positive_pool / ancient.curse_pool / ancient.act_only_n` 3 个键。
+
+#### 仓库根重定位（核心环境修复）
+
+> **这修复了一个一直被误判为"build 环境问题"的真实根因，下次在另一台设备启动前务必了解**
+
+**问题**：历史上多次 `dotnet build` 产出 1300+ 个 CS0246 "未能找到类型或命名空间名 MegaCrit/Godot/HarmonyLib"，每次被当成"本机缺游戏 DLL 的环境噪音"过滤掉。实际根因是：
+
+- 本机仓库被 clone 到 `Slay the Spire 2/` 根下，**缺 `Sts2-mod-decompiled/` 中间层**。
+- 所有 mod 的 `.csproj` HintPath `..\..\..\data_sts2_windows_x86_64\sts2.dll` 是按"有中间层"的规范布局写的（从 `Sts2-mod-decompiled/mods/<mod>/` 上溯三层正好是 `Slay the Spire 2/`，命中 game DLL 目录）。
+- 本机路径上溯三层到 `common/`，game DLL 解析失败，MSBuild 报 `warning MSB3245: 未能解析此引用`，后面的 CS0246 是这个 warning 的连锁症状。
+- 我之前按错误码过滤 CS0246 误报 build 成功，才发现规则"只信 `Build succeeded.` + DLL mtime" 被再次踩坑。
+
+**处理**：
+1. commit `397c4f0` 做 WIP snapshot（33 个未提交改动全部落盘，包括本轮 §3.18 改动 + Ancient 拆池 + Round 8 残留 + 5 张新截图删除 + 新测试文件）
+2. `mkdir Sts2-mod-decompiled/` 并 `mv .git .gitignore CLAUDE.md KnowledgeBase _decompiled mods prompt "Slay the Spire 2.sln"` 进去
+3. 过程中 `_decompiled/` 和 `mods/` 被 `VBCSCompiler.exe` + `Microsoft.CodeAnalysis.LanguageServer.exe` 锁住。先 `dotnet build-server shutdown` 释放了 VBCSCompiler/MSBuild server；剩下的 C# DevKit 语言服务锁由用户**手动**完成 mv
+4. `dotnet build` from `Sts2-mod-decompiled/mods/sts2_community_stats`：**Build succeeded. 0 errors / 6 pre-existing nullable warnings**，DLL 输出 `sts2_community_stats.dll` 390144 bytes，mtime Apr 10 15:08 = §3.18 代码首次真验证
+5. 顺手把未追踪的 `Slay the Spire 2.sln` 也 mv 到新根，`.sln` 里的相对路径 `mods\sts2_community_stats\...csproj` 依然有效
+
+**影响**：
+- 规范根变为 `d:\Games\steam\steamapps\common\Slay the Spire 2\Sts2-mod-decompiled\`，与 CLAUDE.md 描述一致、与另一台设备的仓库根一致、与 csproj HintPath 一致。
+- `~/.claude/projects/` 下新建 `D--Games-steam-steamapps-common-Slay-the-Spire-2-Sts2-mod-decompiled/` project key，内含 junction `memory/` 指向旧 key 的 `memory/`，两个 project key 共享 memory（双向同步）。本机用户本次选择仍从旧路径继续会话，但将来可自由切换。
+- 两条 memory 已更新：`feedback_build_verification.md`（新增规则："永远看 `Build succeeded.` + DLL mtime，遇 MSB3245 立即停下查 HintPath，禁止按 CS0246 过滤"）、`project_repo_layout.md`（从"偏离一层、暂不修"改为"2026-04-10 已对齐、build 正常"）。
+
+#### 待测试（Round 9 人工验收）
+
+§3.18 AC1-AC8 全部 in-game 实测：
+1. F9 面板的 `Character:` 下拉默认为"自动匹配当前角色"
+2. Run 中选 auto → 社区数据来源 = 当前 run 角色
+3. 无 run 时选 auto → 社区数据 = 所有角色
+4. F9 手动钉某个角色 → 持久化，新开 run 不重置
+5. Compendium（卡牌/遗物）视图固定显示"所有角色"
+6. CareerStats 页面独立下拉 = "所有角色"（默认，与 F9 状态无关）
+7. CareerStats 下拉切换 → 统计数据按角色过滤重新加载
+8. Ancient 页面 Neow 显示两段（positive/curse），Darv Ectoplasm/Sozu 带"(只在第 2 幕出现)"后缀、PhilosophersStone/VelvetChoker 带"(只在第 3 幕出现)"后缀；8 个长老名中文显示
 
 ### Round 8 人工反馈（2026-04-10）
 1. 中途存档丢失贡献数据 → **新建** `Collection/LiveContributionSnapshot.cs`，扩展 `ContributionPersistence` 加 `SaveLiveState/LoadLiveState/DeleteLiveState`，扩展 `CombatTracker` 加 `BuildLiveSnapshot/HydrateFromLiveSnapshot`，`RunContributionAggregator` 加 `HydrateRunTotals`
@@ -241,6 +305,12 @@ mods/sts2_contrib_tests/src/TestRunner.cs              v5: 注册 11 个 Catalog
 
 ## 已知遗留 / 待用户验收的项
 
+### Round 9 修改后等待用户验证（2026-04-10 新增）：
+1. **§3.18 角色筛选** — F9 下拉默认 auto / run 中 auto 跟随角色 / 无 run 时 auto = 所有 / 手动钉角色持久化 / compendium 固定全部角色 / CareerStats 独立下拉 / AC1-AC8 见 Round 9 会话小节
+2. **Neow 遗物池拆分** — positive_pool (14) + curse_pool (6) 是否正确分两段显示
+3. **Darv 幕限定标注** — ECTOPLASM/SOZU "(只在第 2 幕出现)"、PHILOSOPHERS_STONE/VELVET_CHOKER "(只在第 3 幕出现)" 后缀
+4. **长老名中文** — NameLookup.Ancient 8 个 elder ID 的中文/英文回退
+
 ### Round 8 修改后等待用户验证：
 1. **中途存档恢复** — `_live.json` 写入 + hydrate 流程
 2. **实时刷新** — in-place skeleton swap 是否真的更新
@@ -261,26 +331,40 @@ mods/sts2_contrib_tests/src/TestRunner.cs              v5: 注册 11 个 Catalog
 
 ---
 
-## 跨设备交接快照（2026-04-10）
+## 跨设备交接快照（2026-04-10 update 2）
+
+### 仓库根路径（**重要：两台设备必须对齐**）
+- 规范路径：`<游戏根>/Slay the Spire 2/Sts2-mod-decompiled/`
+- 本机 2026-04-10 已从 `Slay the Spire 2/` 重定位到 `Slay the Spire 2/Sts2-mod-decompiled/`
+- 另一台设备如果原本就在规范路径，**无需变更**；如果也在 `Slay the Spire 2/` 下，需按本文件 §"Round 9 会话 → 仓库根重定位" 的步骤迁移
+- csproj `HintPath="..\..\..\data_sts2_windows_x86_64\sts2.dll"` 从 `Sts2-mod-decompiled/mods/<mod>/` 上溯三层命中 game DLL 目录——只有规范路径下才能 build 通过
 
 ### 当前 git 状态
-- **未提交**：所有 round 4-8 改动（27 新文件 + 30+ 修改文件 + DLL）
-- **未推送**：本地 master 与远端齐平（最后一次 commit "工作流04" = fdfbead）
-- **未追踪**：5 张 round 7-8 反馈截图 + CONTRIBUTION_CATALOG.md + 27 新源文件 + 11 新测试文件
-- 跨设备前必须 `git add . && git commit -m "..." && git push`
+- **HEAD**：`397c4f0` `wip: snapshot before repo root relocation to Sts2-mod-decompiled/`
+- **与 origin/master 关系**：本地 ahead 1 commit（commit 397c4f0 尚未 push）
+- **working tree**：clean，仅 `_decompiled/sts2/obj/*` 的 MSBuild cache 抖动（长期噪音）
+- **跨设备前必须 `git push`**：commit 397c4f0 包含 Round 9 §3.18 全部 + Ancient 拆池 + Round 8 残留未提交项
 
 ### 当前 DLL 状态
-- `mods/sts2_community_stats/sts2_community_stats.dll`：**Apr 10 00:49, 381952 bytes**（round 8 build）
+- `mods/sts2_community_stats/sts2_community_stats.dll`：**Apr 10 15:08, 390144 bytes**（Round 9 build）
+- 这是仓库重定位后的**首次真实 build 验证**：0 errors / 6 pre-existing nullable warnings
 - 用户需手动拷到游戏 dir：`d:\game_backup\steam\steamapps\common\Slay the Spire 2\mods\sts2_community_stats\`
 
+### memory / project key 状态
+- 旧 project key：`~/.claude/projects/D--Games-steam-steamapps-common-Slay-the-Spire-2/`（对应本机历史 cwd `Slay the Spire 2/`）
+- 新 project key：`~/.claude/projects/D--Games-steam-steamapps-common-Slay-the-Spire-2-Sts2-mod-decompiled/`（对应规范 cwd `Slay the Spire 2/Sts2-mod-decompiled/`）
+- 新 key 下 `memory/` 是 Windows junction，指向旧 key 的 `memory/`——两个 key 共享同一份 memory（双向同步）
+- 用户本次选择仍从旧路径继续会话；切换到规范路径后 memory 无缝衔接，但会话历史（.jsonl）不会自动迁移
+
 ### 下次开机第一件事
-1. 读本文件
-2. `git pull` 拉同步
-3. 等待用户提供 round 9 反馈（如果有）或开始处理遗留项
+1. 读本文件 §"Round 9 会话" + "跨设备交接快照"
+2. 如另一台设备：确认仓库根在 `Sts2-mod-decompiled/`，`git pull` 拉到 397c4f0
+3. 把最新 DLL 拷到游戏 mods 目录、重启游戏、按 §3.18 AC1-AC8 实测
+4. 等待用户提供 Round 9 人工测试反馈
 
 ### 关键技术备注（避免重复踩坑）
 
-1. **构建错误必须看 `Build succeeded.` 行 + DLL mtime**。CS0246/CS0103 在 mod 源文件中是真错（缺 using）；只有在 `_decompiled/sts2/**/*.cs` 中才是环境噪音。
+1. **构建错误必须看 `Build succeeded.` 行 + DLL mtime**。CS0246/CS0103 几乎永远是**真错**——要么是 mod 源文件缺 using（Round 4 踩坑），要么是 csproj `HintPath` 错位导致 `warning MSB3245: 未能解析此引用` 然后连锁爆出 1300+ CS0246（Round 9 踩坑）。**禁止**按错误码过滤；只有 build 输出末尾出现 `Build succeeded.` / `已成功生成。` 且 DLL mtime 新于 build 启动时间，才算成功。遇到 MSB3245 warning 立刻停下查 HintPath 和 cwd 是否在规范根 `Sts2-mod-decompiled/` 下。
 2. **私有方法 Harmony patch**：用字符串形式 `[HarmonyPatch(typeof(X), "MethodName")]`。
 3. **私有字段读取**：用 `Traverse.Create(obj).Field("_x").GetValue<T>()`，try/catch + Safe.Warn。
 4. **F1 精度**：所有百分比 1 位小数（PRD AC-15）。

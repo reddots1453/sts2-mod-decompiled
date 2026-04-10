@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "lyW3kYHtIDU=",
+  "dgSpecHash": "WZ8jFtFEP4M=",
   "success": true,
-  "projectFilePath": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\_decompiled\\sts2\\sts2.csproj",
+  "projectFilePath": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled\\_decompiled\\sts2\\sts2.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\reddots\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.14\\microsoft.netcore.app.ref.9.0.14.nupkg.sha512",
     "C:\\Users\\reddots\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.14\\microsoft.windowsdesktop.app.ref.9.0.14.nupkg.sha512",
