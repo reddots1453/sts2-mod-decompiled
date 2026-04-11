@@ -28,20 +28,11 @@ public class FeatureToggles
     [JsonPropertyName("unknown_room_odds")]
     public bool UnknownRoomOdds { get; set; } = true;
 
-    [JsonPropertyName("potion_drop_odds")]
-    public bool PotionDropOdds { get; set; } = true;
-
-    [JsonPropertyName("card_drop_odds")]
-    public bool CardDropOdds { get; set; } = true;
-
     [JsonPropertyName("shop_prices")]
     public bool ShopPrices { get; set; } = true;
 
     [JsonPropertyName("intent_state_machine")]
     public bool IntentStateMachine { get; set; } = true;
-
-    [JsonPropertyName("career_stats")]
-    public bool CareerStats { get; set; } = true;
 
     /// <summary>
     /// Labels for each toggle, used by FilterPanel UI.
@@ -55,11 +46,8 @@ public class FeatureToggles
         ("EventPickRate",      "toggle.event_pick_rate"),
         ("MonsterDanger",      "toggle.monster_danger"),
         ("UnknownRoomOdds",    "toggle.unknown_room_odds"),
-        ("PotionDropOdds",     "toggle.potion_drop_odds"),
-        ("CardDropOdds",       "toggle.card_drop_odds"),
         ("ShopPrices",         "toggle.shop_prices"),
         ("IntentStateMachine", "toggle.intent_state_machine"),
-        ("CareerStats",        "toggle.career_stats"),
     };
 
     /// <summary>
@@ -73,11 +61,8 @@ public class FeatureToggles
         "EventPickRate"      => EventPickRate,
         "MonsterDanger"      => MonsterDanger,
         "UnknownRoomOdds"    => UnknownRoomOdds,
-        "PotionDropOdds"     => PotionDropOdds,
-        "CardDropOdds"       => CardDropOdds,
         "ShopPrices"         => ShopPrices,
         "IntentStateMachine" => IntentStateMachine,
-        "CareerStats"        => CareerStats,
         _ => true
     };
 
@@ -94,11 +79,8 @@ public class FeatureToggles
             case "EventPickRate":      EventPickRate = value; break;
             case "MonsterDanger":      MonsterDanger = value; break;
             case "UnknownRoomOdds":    UnknownRoomOdds = value; break;
-            case "PotionDropOdds":     PotionDropOdds = value; break;
-            case "CardDropOdds":       CardDropOdds = value; break;
             case "ShopPrices":         ShopPrices = value; break;
             case "IntentStateMachine": IntentStateMachine = value; break;
-            case "CareerStats":        CareerStats = value; break;
         }
     }
 }

@@ -114,13 +114,27 @@ public partial class FilterPanel : PanelContainer
         panel._autoMatchAscCheckbox.ButtonPressed = ModConfig.CurrentFilter.AutoMatchAscension;
         vbox.AddChild(panel._autoMatchAscCheckbox);
 
-        // Min/Max Ascension
-        var minAscRow = CreateSpinRow(L.Get("settings.min_asc"), 0, 20,
-            ModConfig.CurrentFilter.MinAscension ?? 0, out panel._minAscSpinBox);
+        // Min/Max Ascension. Round 9 round 49: capped at 10 (the game ladder
+        // top); values >10 caused data-load exceptions in the backend.
+        var minAscRow = CreateSpinRow(L.Get("settings.min_asc"), 0, 10,
+            Math.Clamp(ModConfig.CurrentFilter.MinAscension ?? 0, 0, 10), out panel._minAscSpinBox);
         vbox.AddChild(minAscRow);
-        var maxAscRow = CreateSpinRow(L.Get("settings.max_asc"), 0, 20,
-            ModConfig.CurrentFilter.MaxAscension ?? 20, out panel._maxAscSpinBox);
+        var maxAscRow = CreateSpinRow(L.Get("settings.max_asc"), 0, 10,
+            Math.Clamp(ModConfig.CurrentFilter.MaxAscension ?? 10, 0, 10), out panel._maxAscSpinBox);
         vbox.AddChild(maxAscRow);
+
+        // Round 9 round 49: enforce min ≤ max by clamping the other side
+        // whenever either box changes.
+        panel._minAscSpinBox.ValueChanged += v =>
+        {
+            if (panel._maxAscSpinBox != null && v > panel._maxAscSpinBox.Value)
+                panel._maxAscSpinBox.Value = v;
+        };
+        panel._maxAscSpinBox.ValueChanged += v =>
+        {
+            if (panel._minAscSpinBox != null && v < panel._minAscSpinBox.Value)
+                panel._minAscSpinBox.Value = v;
+        };
 
         // Min Player Win Rate
         var wrRow = CreateSpinRow(L.Get("settings.min_wr"), 0, 100,

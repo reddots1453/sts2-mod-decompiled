@@ -28,14 +28,22 @@ public sealed class RunHistoryAnalyzer
     public static RunHistoryAnalyzer Instance { get; } = new();
 
     // ── Cache ───────────────────────────────────────────────
-    // characterFilter ("" = all) → cached snapshot
-    private readonly Dictionary<string, CareerStatsData> _cache = new();
+    // (characterFilter ?? "", minAscension) → cached snapshot
+    private readonly Dictionary<(string, int), CareerStatsData> _cache = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    private static (string, int) Key(string? characterFilter, int minAscension)
+        => (characterFilter ?? "", minAscension);
 
     /// <summary>Fired on the worker thread when a new snapshot is ready.</summary>
     public event Action<CareerStatsData>? CareerStatsLoaded;
 
     // Per-card local aggregations live alongside the career snapshot.
+    // Round 9 round 49: set by BuildSnapshot when SaveManager isn't ready
+    // yet (or any other early-startup failure). LoadAllAsync reads this and
+    // refuses to cache the resulting empty snapshot.
+    private bool _lastBuildFailed;
+
     private LocalCardStatsBundle _cardBundle = LocalCardStatsBundle.Empty;
     public LocalCardStatsBundle LocalCards => _cardBundle;
 
@@ -52,49 +60,83 @@ public sealed class RunHistoryAnalyzer
     /// Use to populate UI synchronously without re-loading. Disk hits are
     /// promoted into the in-memory cache so subsequent calls are free.
     /// </summary>
-    public CareerStatsData? GetCached(string? characterFilter)
+    public CareerStatsData? GetCached(string? characterFilter, int minAscension = 0)
     {
-        var key = characterFilter ?? "";
+        var key = Key(characterFilter, minAscension);
         lock (_cache)
         {
             if (_cache.TryGetValue(key, out var v)) return v;
         }
 
-        // Disk fallback — instant load of last persisted snapshot.
-        var fromDisk = CareerStatsCache.Load(characterFilter);
-        if (fromDisk != null)
+        // Disk fallback only for the unfiltered (asc=0) snapshot — we don't
+        // persist per-ascension snapshots.
+        //
+        // Round 9 round 49: do NOT seed the in-memory `_cache` from disk here.
+        // The disk cache only stores CareerStatsData, not the per-card /
+        // per-relic bundles. If we wrote it back into `_cache`, the next
+        // LoadAllAsync would short-circuit on the cache hit and never run
+        // BuildSnapshot — leaving LocalCards / LocalRelics empty until the
+        // player finished a run (which forces invalidation). The card library
+        // and relic collection would render zeros across the entire session.
+        if (minAscension == 0)
         {
-            lock (_cache) { _cache[key] = fromDisk; }
+            return CareerStatsCache.Load(characterFilter);
         }
-        return fromDisk;
+        return null;
     }
 
     /// <summary>
     /// Asynchronously load all RunHistory files (filtered by character if non-null)
     /// and aggregate into CareerStatsData. Result is cached and event-fired.
+    /// Pass force=true to bypass the cache (used after a run finishes so the
+    /// fresh on-disk file gets re-aggregated).
     /// </summary>
-    public async Task<CareerStatsData> LoadAllAsync(string? characterFilter, CancellationToken ct = default)
+    public async Task<CareerStatsData> LoadAllAsync(string? characterFilter, CancellationToken ct = default, bool force = false, int minAscension = 0)
     {
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var key = characterFilter ?? "";
-            // Re-check cache after lock acquisition
-            lock (_cache)
+            var key = Key(characterFilter, minAscension);
+            // Re-check cache after lock acquisition (skip if forcing).
+            if (!force)
             {
-                if (_cache.TryGetValue(key, out var cached)) return cached;
+                lock (_cache)
+                {
+                    if (_cache.TryGetValue(key, out var cached)) return cached;
+                }
+            }
+            else
+            {
+                lock (_cache) _cache.Remove(key);
             }
 
-            var snapshot = await Task.Run(() => BuildSnapshot(characterFilter, ct), ct)
+            Safe.Info($"[RunHistoryAnalyzer] LoadAllAsync starting (filter={characterFilter ?? "all"}, minAsc={minAscension}, force={force})");
+            var snapshot = await Task.Run(() => BuildSnapshot(characterFilter, minAscension, ct), ct)
                                      .ConfigureAwait(false);
+            Safe.Info($"[RunHistoryAnalyzer] LoadAllAsync built snapshot: TotalRuns={snapshot.TotalRuns}, cards={_cardBundle.Cards.Count}, relics={_relicBundle.Relics.Count}");
+
+            // Round 9 round 49: do NOT cache or persist snapshots that came
+            // from a failed BuildSnapshot (signaled by `_lastBuildFailed`).
+            // Otherwise we poison the in-memory cache with TotalRuns=0 from a
+            // pre-profile-init startup load, and every subsequent LoadAllAsync
+            // hits that empty entry until a run end forces invalidation —
+            // which is exactly the bug the user reported.
+            if (_lastBuildFailed)
+            {
+                _lastBuildFailed = false;
+                Safe.Warn("[RunHistoryAnalyzer] BuildSnapshot reported failure — not caching empty snapshot");
+                return snapshot;
+            }
 
             lock (_cache) { _cache[key] = snapshot; }
 
-            // Persist the freshly computed snapshot so the next mod load can
-            // populate the Stats screen instantly without waiting for the
-            // RunHistory aggregation to finish.
-            try { CareerStatsCache.Save(snapshot); }
-            catch (Exception ex) { Safe.Warn($"CareerStatsCache.Save threw: {ex.Message}"); }
+            // Persist only the asc=0 snapshot (per-ascension snapshots aren't
+            // worth caching to disk — they're cheap to recompute).
+            if (minAscension == 0)
+            {
+                try { CareerStatsCache.Save(snapshot); }
+                catch (Exception ex) { Safe.Warn($"CareerStatsCache.Save threw: {ex.Message}"); }
+            }
 
             try { CareerStatsLoaded?.Invoke(snapshot); }
             catch (Exception ex) { Safe.Warn($"CareerStatsLoaded handler threw: {ex.Message}"); }
@@ -106,18 +148,25 @@ public sealed class RunHistoryAnalyzer
 
     /// <summary>
     /// Invalidate all cached snapshots. Call when a run finishes so the next read reloads.
-    /// Removes both in-memory and on-disk caches.
+    /// Removes both in-memory and on-disk caches AND the per-card / per-relic
+    /// bundles — without resetting the bundles, the lazy reload in
+    /// CardLibraryPatch / RelicLibraryPatch (which checks `TotalRuns == 0`)
+    /// would never re-trigger after a run end.
     /// </summary>
     public void InvalidateAll()
     {
         lock (_cache) _cache.Clear();
         CareerStatsCache.DeleteAll();
+        _cardBundle = LocalCardStatsBundle.Empty;
+        _relicBundle = LocalRelicStatsBundle.Empty;
+        Safe.Info("[RunHistoryAnalyzer] InvalidateAll: cache + bundles cleared");
     }
 
     // ── Worker ──────────────────────────────────────────────
 
-    private CareerStatsData BuildSnapshot(string? characterFilter, CancellationToken ct)
+    private CareerStatsData BuildSnapshot(string? characterFilter, int minAscension, CancellationToken ct)
     {
+        _lastBuildFailed = false;
         List<string> names;
         try
         {
@@ -126,10 +175,12 @@ public sealed class RunHistoryAnalyzer
         catch (Exception ex)
         {
             Safe.Warn($"RunHistoryAnalyzer: GetAllRunHistoryNames failed: {ex.Message}");
-            return CareerStatsData.Empty(characterFilter);
+            _lastBuildFailed = true;
+            return CareerStatsData.Empty(characterFilter, minAscension);
         }
 
-        if (names.Count == 0) return CareerStatsData.Empty(characterFilter);
+        Safe.Info($"[RunHistoryAnalyzer] BuildSnapshot: GetAllRunHistoryNames returned {names.Count} files");
+        if (names.Count == 0) return CareerStatsData.Empty(characterFilter, minAscension);
 
         // Load all matching histories. Each load is wrapped to survive single-file failure.
         var loaded = new List<RunHistory>(capacity: names.Count);
@@ -154,10 +205,20 @@ public sealed class RunHistoryAnalyzer
                 bool matches = history.Players.Any(p => p.Character.Entry == characterFilter);
                 if (!matches) continue;
             }
+            // Round 9 round 46: ascension floor filter (>= minAscension).
+            if (minAscension > 0 && history.Ascension < minAscension) continue;
             loaded.Add(history);
         }
 
-        if (loaded.Count == 0) return CareerStatsData.Empty(characterFilter);
+        Safe.Info($"[RunHistoryAnalyzer] BuildSnapshot: loaded {loaded.Count} histories (filter={characterFilter ?? "all"}, minAsc={minAscension})");
+        if (loaded.Count == 0)
+        {
+            // Round 9 round 36: bundles must reset to Empty when no histories
+            // match, otherwise stale data leaks across filter changes.
+            _cardBundle = LocalCardStatsBundle.Empty;
+            _relicBundle = LocalRelicStatsBundle.Empty;
+            return CareerStatsData.Empty(characterFilter, minAscension);
+        }
 
         // Sort newest first by StartTime for rolling-window calculation.
         loaded.Sort((a, b) => b.StartTime.CompareTo(a.StartTime));
@@ -172,8 +233,10 @@ public sealed class RunHistoryAnalyzer
         return new CareerStatsData
         {
             CharacterFilter = characterFilter,
+            MinAscension = minAscension,
             TotalRuns = loaded.Count,
             Wins = loaded.Count(r => r.Win),
+            MaxWinStreak = ComputeMaxWinStreak(loaded),
             WinRateByWindow = ComputeWinRateWindows(loaded),
             DeathCausesByAct = ComputeDeathCauses(loaded),
             PathStatsByAct = ComputePathStats(loaded),
@@ -215,10 +278,34 @@ public sealed class RunHistoryAnalyzer
     }
 
 
+    /// <summary>
+    /// Round 9 round 49: longest consecutive-win streak among the filtered
+    /// runs. Walks chronologically (oldest → newest), counting consecutive
+    /// Win=true and resetting on a loss.
+    /// </summary>
+    private static int ComputeMaxWinStreak(List<RunHistory> sortedNewestFirst)
+    {
+        int best = 0, cur = 0;
+        // Walk in chronological order: reverse iterate the newest-first list.
+        for (int i = sortedNewestFirst.Count - 1; i >= 0; i--)
+        {
+            if (sortedNewestFirst[i].Win)
+            {
+                cur++;
+                if (cur > best) best = cur;
+            }
+            else
+            {
+                cur = 0;
+            }
+        }
+        return best;
+    }
+
     private static IReadOnlyDictionary<int, float> ComputeWinRateWindows(List<RunHistory> sortedNewestFirst)
     {
         var result = new Dictionary<int, float>();
-        foreach (var window in new[] { 10, 50, int.MaxValue })
+        foreach (var window in new[] { 10, 50, 100, int.MaxValue })
         {
             var slice = sortedNewestFirst.Take(window).ToList();
             if (slice.Count == 0) { result[window] = 0f; continue; }
@@ -230,32 +317,50 @@ public sealed class RunHistoryAnalyzer
 
     private static IReadOnlyDictionary<int, IReadOnlyList<DeathEntry>> ComputeDeathCauses(List<RunHistory> runs)
     {
-        // Per-Act bucket: actIndex → encounterId → count
-        var bucket = new Dictionary<int, Dictionary<string, int>>();
+        // Per-Act bucket: actIndex → (encounterId, source) → count
+        var bucket = new Dictionary<int, Dictionary<(string, DeathSource), int>>();
 
         foreach (var run in runs)
         {
             if (run.Win) continue;
 
             int actIndex = Math.Max(1, run.MapPointHistory?.Count ?? 1);
-            string cause = "ABANDONED";
-            if (run.KilledByEncounter != ModelId.none) cause = run.KilledByEncounter.Entry;
-            else if (run.KilledByEvent != ModelId.none) cause = run.KilledByEvent.Entry;
+            string cause;
+            DeathSource src;
+            if (run.KilledByEncounter != ModelId.none)
+            {
+                cause = run.KilledByEncounter.Entry;
+                src = DeathSource.Combat;
+            }
+            else if (run.KilledByEvent != ModelId.none)
+            {
+                cause = run.KilledByEvent.Entry;
+                src = DeathSource.Event;
+            }
             else
             {
-                // Manual feedback Q5: when the player abandoned mid-combat the
-                // KilledBy* fields are both none. Walk back to the last visited
-                // floor and, if it was a combat room, attribute the death to
-                // that encounter so we don't lose information.
-                cause = ResolveAbandonedCause(run) ?? "ABANDONED";
+                // Walk back to the last visited combat floor; that's a combat
+                // death attributed to the encounter we found there.
+                var fallback = ResolveAbandonedCause(run);
+                if (fallback != null)
+                {
+                    cause = fallback;
+                    src = DeathSource.Combat;
+                }
+                else
+                {
+                    cause = "ABANDONED";
+                    src = DeathSource.Abandoned;
+                }
             }
 
             if (!bucket.TryGetValue(actIndex, out var map))
             {
-                map = new Dictionary<string, int>();
+                map = new Dictionary<(string, DeathSource), int>();
                 bucket[actIndex] = map;
             }
-            map[cause] = map.GetValueOrDefault(cause) + 1;
+            var key = (cause, src);
+            map[key] = map.GetValueOrDefault(key) + 1;
         }
 
         var result = new Dictionary<int, IReadOnlyList<DeathEntry>>();
@@ -267,7 +372,8 @@ public sealed class RunHistoryAnalyzer
                 .Take(5)
                 .Select(kv => new DeathEntry
                 {
-                    EncounterId = kv.Key,
+                    EncounterId = kv.Key.Item1,
+                    Source = kv.Key.Item2,
                     Count = kv.Value,
                     Share = total > 0 ? (float)kv.Value / total : 0f,
                 })
@@ -281,7 +387,7 @@ public sealed class RunHistoryAnalyzer
     {
         // Accumulators per Act index (1..N).
         var totals = new Dictionary<int, (long Gained, long Bought, long Removed, long Upgraded,
-                                          long Unknown, long Monster, long Elite, long Shop, int Samples)>();
+                                          long Unknown, long Monster, long Elite, long Shop, long Campfire, int Samples)>();
 
         foreach (var run in runs)
         {
@@ -293,7 +399,7 @@ public sealed class RunHistoryAnalyzer
                 if (floors == null || floors.Count == 0) continue;
 
                 long gained = 0, bought = 0, removed = 0, upgraded = 0;
-                long unknown = 0, monster = 0, elite = 0, shop = 0;
+                long unknown = 0, monster = 0, elite = 0, shop = 0, campfire = 0;
 
                 foreach (var floor in floors)
                 {
@@ -303,6 +409,7 @@ public sealed class RunHistoryAnalyzer
                         case MapPointType.Monster:  monster++;  break;
                         case MapPointType.Elite:    elite++;    break;
                         case MapPointType.Shop:     shop++;     break;
+                        case MapPointType.RestSite: campfire++; break;
                     }
 
                     if (floor.PlayerStats == null) continue;
@@ -330,6 +437,7 @@ public sealed class RunHistoryAnalyzer
                     prev.Monster + monster,
                     prev.Elite + elite,
                     prev.Shop + shop,
+                    prev.Campfire + campfire,
                     prev.Samples + 1);
             }
         }
@@ -348,6 +456,7 @@ public sealed class RunHistoryAnalyzer
                 MonsterRooms  = t.Monster / n,
                 EliteRooms    = t.Elite / n,
                 ShopRooms     = t.Shop / n,
+                CampfireRooms = t.Campfire / n,
                 SampleSize    = t.Samples,
             };
         }
@@ -554,65 +663,167 @@ public sealed class RunHistoryAnalyzer
     }
 
     /// <summary>
-    /// Walk every loaded RunHistory and compute per-card pick / win rates.
-    /// PRD §3.2 round 5: feeds the "我的数据" column of the card library.
+    /// Walk every loaded RunHistory and compute per-card sample / win rates.
+    /// Round 9 round 38: a card's RunsWith is the **union** of two signals:
+    ///   1. `PlayerMapPointHistoryEntry.CardsGained` — every card added to
+    ///      PileType.Deck mid-run (rewards, events, shops, transforms).
+    ///   2. `RunHistoryPlayer.Deck` — the final deck snapshot at run end.
+    ///
+    /// Why both? `CardsGained` is **only written when adding to Deck**, so
+    /// starter cards (Strike/Defend ×N seeded into the player's initial deck
+    /// before any MapPointHistoryEntry exists) are never recorded there.
+    /// Without the Deck-snapshot fallback, every player would see 0 samples
+    /// for basic strikes/defends. Conversely `Deck` alone misses cards that
+    /// were picked then removed/transformed — using both gives us "any card
+    /// the player ever had in this run" which matches user intent.
+    ///
+    /// Counts:
+    ///   Offered  — # CardChoiceHistoryEntry rows mentioning the card
+    ///   Picks    — subset of Offered where wasPicked == true
+    ///   RunsWith — # distinct runs that contained the card via either path
+    ///   WinsAfter — # of those runs where run.Win == true
     /// </summary>
     private static LocalCardStatsBundle ComputeLocalCardBundle(List<RunHistory> runs)
     {
-        // cardId → (offered, picks, runsWith, winsAfter)
-        var bucket = new Dictionary<string, (int offered, int picks, int runsWith, int winsAfter)>();
+        // cardId → (offered, picks, runsWith, winsAfter, upgraded, removed, bought)
+        var bucket = new Dictionary<string,
+            (int offered, int picks, int runsWith, int winsAfter,
+             int upgraded, int removed, int bought)>();
+
+        int diagRunsWithGained = 0;
+        int diagRunsWithDeck = 0;
+        int diagRunsWithUpgraded = 0;
+        int diagRunsWithRemoved = 0;
+        int diagRunsWithBought = 0;
 
         foreach (var run in runs)
         {
-            if (run.MapPointHistory == null) continue;
-
-            // Per-run set of cards seen so we count each card at most once per run
-            // for the win-rate denominator.
             var runCards = new HashSet<string>();
+            // Per-run sets so each card is counted at most once for each rate.
+            var runUpgraded = new HashSet<string>();
+            var runRemoved  = new HashSet<string>();
+            var runBought   = new HashSet<string>();
 
-            foreach (var floors in run.MapPointHistory)
+            // Source 1: walk MapPointHistory floor-by-floor for choices,
+            // gains, upgrades, removals, shop purchases.
+            if (run.MapPointHistory != null)
             {
-                if (floors == null) continue;
-                foreach (var floor in floors)
+                foreach (var floors in run.MapPointHistory)
                 {
-                    if (floor.PlayerStats == null) continue;
-                    foreach (var ps in floor.PlayerStats)
+                    if (floors == null) continue;
+                    foreach (var floor in floors)
                     {
-                        // Pick / offer counts come from CardChoices.
-                        if (ps.CardChoices != null)
-                        {
-                            foreach (var choice in ps.CardChoices)
-                            {
-                                var id = choice.Card.Id?.Entry;
-                                if (string.IsNullOrEmpty(id)) continue;
-                                var prev = bucket.GetValueOrDefault(id!);
-                                bucket[id!] = (prev.offered + 1,
-                                               prev.picks + (choice.wasPicked ? 1 : 0),
-                                               prev.runsWith,
-                                               prev.winsAfter);
-                            }
-                        }
+                        if (floor.PlayerStats == null) continue;
+                        bool isShopFloor = floor.MapPointType
+                            == MegaCrit.Sts2.Core.Map.MapPointType.Shop;
 
-                        // Cards actually obtained (any source) feed runsWith.
-                        if (ps.CardsGained != null)
+                        foreach (var ps in floor.PlayerStats)
                         {
-                            foreach (var card in ps.CardsGained)
+                            // Pick / offer counts.
+                            if (ps.CardChoices != null)
                             {
-                                var id = card.Id?.Entry;
-                                if (!string.IsNullOrEmpty(id)) runCards.Add(id!);
+                                foreach (var choice in ps.CardChoices)
+                                {
+                                    var id = choice.Card.Id?.Entry;
+                                    if (string.IsNullOrEmpty(id)) continue;
+                                    var prev = bucket.GetValueOrDefault(id!);
+                                    bucket[id!] = (prev.offered + 1,
+                                                   prev.picks + (choice.wasPicked ? 1 : 0),
+                                                   prev.runsWith,
+                                                   prev.winsAfter,
+                                                   prev.upgraded,
+                                                   prev.removed,
+                                                   prev.bought);
+                                }
+                            }
+
+                            // Cards gained from any source.
+                            if (ps.CardsGained != null)
+                            {
+                                foreach (var card in ps.CardsGained)
+                                {
+                                    var id = card.Id?.Entry;
+                                    if (string.IsNullOrEmpty(id)) continue;
+                                    runCards.Add(id!);
+                                    // Cards gained on a Shop floor count as bought.
+                                    if (isShopFloor) runBought.Add(id!);
+                                }
+                            }
+
+                            // Upgrades performed this floor.
+                            if (ps.UpgradedCards != null)
+                            {
+                                foreach (var mid in ps.UpgradedCards)
+                                {
+                                    var id = mid.Entry;
+                                    if (!string.IsNullOrEmpty(id)) runUpgraded.Add(id);
+                                }
+                            }
+
+                            // Removals performed this floor.
+                            if (ps.CardsRemoved != null)
+                            {
+                                foreach (var card in ps.CardsRemoved)
+                                {
+                                    var id = card?.Id?.Entry;
+                                    if (!string.IsNullOrEmpty(id)) runRemoved.Add(id!);
+                                }
+                            }
+
+                            // Colorless cards bought from merchant.
+                            if (ps.BoughtColorless != null)
+                            {
+                                foreach (var mid in ps.BoughtColorless)
+                                {
+                                    var id = mid.Entry;
+                                    if (!string.IsNullOrEmpty(id)) runBought.Add(id);
+                                }
                             }
                         }
                     }
                 }
             }
+            int beforeDeck = runCards.Count;
+            if (beforeDeck > 0) diagRunsWithGained++;
+
+            // Source 2: final Deck snapshot for starter cards.
+            try
+            {
+                if (run.Players != null)
+                {
+                    foreach (var player in run.Players)
+                    {
+                        if (player.Deck == null) continue;
+                        foreach (var card in player.Deck)
+                        {
+                            var id = card?.Id?.Entry;
+                            if (!string.IsNullOrEmpty(id)) runCards.Add(id!);
+                        }
+                    }
+                }
+            }
+            catch { /* malformed save — skip silently */ }
+            if (runCards.Count > beforeDeck) diagRunsWithDeck++;
+            if (runUpgraded.Count > 0) diagRunsWithUpgraded++;
+            if (runRemoved.Count > 0)  diagRunsWithRemoved++;
+            if (runBought.Count > 0)   diagRunsWithBought++;
 
             foreach (var id in runCards)
             {
                 var prev = bucket.GetValueOrDefault(id);
-                bucket[id] = (prev.offered, prev.picks, prev.runsWith + 1,
-                              prev.winsAfter + (run.Win ? 1 : 0));
+                bucket[id] = (prev.offered, prev.picks,
+                              prev.runsWith + 1,
+                              prev.winsAfter + (run.Win ? 1 : 0),
+                              prev.upgraded + (runUpgraded.Contains(id) ? 1 : 0),
+                              prev.removed  + (runRemoved.Contains(id)  ? 1 : 0),
+                              prev.bought   + (runBought.Contains(id)   ? 1 : 0));
             }
         }
+
+        Safe.Info($"[RunHistoryAnalyzer] Card bundle: {bucket.Count} distinct cards, " +
+                  $"gained={diagRunsWithGained}/{runs.Count}, " +
+                  $"deck={diagRunsWithDeck}/{runs.Count}, " +
+                  $"upgraded={diagRunsWithUpgraded}, removed={diagRunsWithRemoved}, bought={diagRunsWithBought}");
 
         var dict = new Dictionary<string, LocalCardStats>(bucket.Count);
         foreach (var (id, t) in bucket)
@@ -624,6 +835,9 @@ public sealed class RunHistoryAnalyzer
                 Picks = t.picks,
                 RunsWith = t.runsWith,
                 WinsAfter = t.winsAfter,
+                RunsUpgraded = t.upgraded,
+                RunsRemoved = t.removed,
+                RunsBought = t.bought,
             };
         }
         return new LocalCardStatsBundle
@@ -744,16 +958,17 @@ public sealed class RunHistoryAnalyzer
                 if (floors == null) continue;
 
                 int gained = 0, bought = 0, removed = 0, upgraded = 0;
-                int unknown = 0, monster = 0, elite = 0, shop = 0;
+                int unknown = 0, monster = 0, elite = 0, shop = 0, campfire = 0;
 
                 foreach (var floor in floors)
                 {
                     switch (floor.MapPointType)
                     {
-                        case MapPointType.Unknown: unknown++; break;
-                        case MapPointType.Monster: monster++; break;
-                        case MapPointType.Elite:   elite++;   break;
-                        case MapPointType.Shop:    shop++;    break;
+                        case MapPointType.Unknown:  unknown++;  break;
+                        case MapPointType.Monster:  monster++;  break;
+                        case MapPointType.Elite:    elite++;    break;
+                        case MapPointType.Shop:     shop++;     break;
+                        case MapPointType.RestSite: campfire++; break;
                     }
 
                     if (floor.PlayerStats == null) continue;
@@ -796,6 +1011,7 @@ public sealed class RunHistoryAnalyzer
                     MonsterRooms = monster,
                     EliteRooms = elite,
                     ShopRooms = shop,
+                    CampfireRooms = campfire,
                     SampleSize = 1,
                 };
             }

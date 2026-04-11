@@ -26,7 +26,7 @@ public static class UnknownRoomPanel
     private static readonly Color MonsterColor  = new(0.9f, 0.4f, 0.4f);
     private static readonly Color EliteColor    = new(0.95f, 0.6f, 0.25f);
     private static readonly Color TreasureColor = new(0.95f, 0.85f, 0.4f);
-    private static readonly Color ShopColor     = new(0.95f, 0.8f, 0.3f);
+    private static readonly Color ShopColor     = new(0.36f, 0.66f, 0.98f);
     private static readonly Color EventColor    = new(0.5f, 0.95f, 0.6f);
     private static readonly Color CreamColor    = new("#FFF6E2");
     private static readonly Color GrayColor     = new(0.6f, 0.6f, 0.7f);
@@ -89,6 +89,6 @@ public static class UnknownRoomPanel
     {
         if (value <= 0f) return;
         var pct = (value * 100f).ToString("F1") + "%";
-        panel.AddRow(label, pct, labelColor, CreamColor);
+        panel.AddRow(label, pct, labelColor, labelColor);
     }
 }

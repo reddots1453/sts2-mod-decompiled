@@ -43,6 +43,17 @@ public static class CommunityStatsMod
         // refreshes it after a new run via RunHistoryAnalyzer.InvalidateAll().
         Safe.Run(() => Collection.RunHistoryAnalyzer.Instance.GetCached(null));
 
+        // Round 9 round 34: kick off a background full LoadAllAsync so the
+        // per-card / per-relic bundles (LocalCards / LocalRelics) get
+        // populated. The disk cache only stores CareerStatsData, NOT those
+        // bundles, so without this the card library and relic collection
+        // would show 0 samples until the user opens the career stats screen.
+        Safe.RunAsync(async () =>
+        {
+            try { await Collection.RunHistoryAnalyzer.Instance.LoadAllAsync(null); }
+            catch (Exception ex) { Safe.Warn($"Startup LoadAllAsync failed: {ex.Message}"); }
+        });
+
         // Round 6: pre-bake the monster intent state machines so the hover panel
         // never has to touch live combat state. Walks ModelDb.Monsters once.
         Safe.Run(() => Util.MonsterIntentMetadata.Initialize());
@@ -103,7 +114,51 @@ public static class CommunityStatsMod
             var resolvedChar = filter.ResolveCharacter();
             await StatsProvider.Instance.OnFilterChangedAsync(resolvedChar, filter);
             FilterPanel.Instance.UpdateSampleSizeLabel();
+
+            // Round 9 round 33: when feature toggles flip, immediately strip
+            // any UI that the affected feature already attached so the user
+            // doesn't have to navigate away and back.
+            Safe.Run(RefreshVisibleFeatureUi);
         });
+    }
+
+    /// <summary>
+    /// Walk the live scene tree and clean up UI elements whose owning feature
+    /// toggle is now off (called from OnFilterApplied). Currently handles map
+    /// point danger overlays + compendium card stats panel — both leave
+    /// children in place after their patches early-return on toggle off.
+    /// </summary>
+    private static void RefreshVisibleFeatureUi()
+    {
+        var tree = Engine.GetMainLoop() as SceneTree;
+        var root = tree?.Root;
+        if (root == null) return;
+
+        bool dangerOff = !ModConfig.Toggles.MonsterDanger;
+        bool cardStatsOff = !ModConfig.Toggles.CardLibraryStats;
+
+        WalkAndStrip(root, dangerOff, cardStatsOff);
+    }
+
+    private static void WalkAndStrip(Node node, bool dangerOff, bool cardStatsOff)
+    {
+        // Map danger overlays (StatsLabel children with cs_overlay meta on
+        // NMapPoint) — DetachFrom is no-op when meta is missing so safe.
+        if (dangerOff && node is MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapPoint mp)
+        {
+            UI.MapPointOverlay.DetachFrom(mp);
+        }
+
+        // Compendium card library panel — InjectOrUpdate uses the
+        // "StatsTheSpireCardStats" name; queue-free it on toggle off.
+        if (cardStatsOff && node.Name.ToString() == "StatsTheSpireCardStats")
+        {
+            node.QueueFree();
+            return;
+        }
+
+        foreach (var child in node.GetChildren())
+            WalkAndStrip(child, dangerOff, cardStatsOff);
     }
 
     private static void RegisterHotkeys()

@@ -1,9 +1,14 @@
 # PRD-04: Stats the Spire — 第二轮迭代需求文档
 
-> 版本：3.0 | 日期：2026-04-09  
-> UI 设计约束：参见 `UI_STYLE_GUIDE.md`  
-> 前置：PRD-00（总体需求）、PRD-02（战斗统计，已完成）  
+> 版本：3.2 | 日期：2026-04-10
+> UI 设计约束：参见 `UI_STYLE_GUIDE.md`
+> **技术实现细节**：参见 `PLAN_04_ITERATION2.md`（class / file / patch / 算法 / postmortem 全部住那里）
+> 前置：PRD-00（总体需求）、PRD-02（战斗统计，已完成）
 > 目标：扩展 mod 功能覆盖面，从"战斗贡献统计"扩展为"全面数据分析工具"
+
+> **本文档约定**：PRD 只描述**用户可见的需求**（功能 / 视觉 / 交互 / 数据语义 / 验收标准）。
+> 任何具体类名、方法名、文件路径、Harmony patch 入口、反射调用、布局算法、生命周期 hook、
+> 崩溃 postmortem 都**不应该**出现在这里 — 一律去 `PLAN_04_ITERATION2.md` 对应章节。
 
 ---
 
@@ -35,6 +40,7 @@
 | **实时贡献** | Real-time Contribution | 战斗中每次打牌/用药水后即时刷新贡献图表 |
 | **生涯统计** | Career Stats | 聚合玩家所有历史局数据的统计指标 |
 | **路径统计** | Path Stats | 按 Act 分层的游戏行为计数（抓卡数、商店数等） |
+| **胜率浮动** | 待补充
 
 ---
 
@@ -43,28 +49,27 @@
 ### 3.1 Mod 重命名
 
 - 名称从 "STS2 Community Stats" 改为 **"Stats the Spire"**
-- 涉及：manifest.json 的 `name` 字段、UI 标题、日志输出
-- `id` 字段 "sts2_community_stats" 保持不变（机器标识，避免破坏已有安装）
+- 涉及：UI 标题、日志输出、manifest 显示名
+- 内部机器标识不变（避免破坏已有安装）
 
 ### 3.2 Compendium 卡牌图书馆统计
 
 1. 打开百科大全 → 卡牌图书馆
-2. 在卡牌图书馆，每张已解锁卡牌点击打开大图后，**右下角**显示统计面板（不遮挡卡牌、不与关键词 hover-tip 冲突）
+2. 点击已解锁卡牌打开大图后，**右下角**显示统计面板（不遮挡卡牌、不与关键词 hover-tip 冲突）
 3. 显示指标：**选取率** / **胜率** / **购买率** / **升级率** / **删除率**
-4. **两列双数据源并列显示**（v3.1 round 5 升级）：
-   - **左列：我的数据** — 来自本地 RunHistory 文件聚合（同 §3.13 "我的数据"筛选源）
-   - **右列：社区数据** — 来自 `StatsProvider.GetCardStats(id)`（受 F9 筛选条件影响）
+4. **两列双数据源并列显示**：
+   - **左列：我的数据** — 玩家本地历史局聚合（同 §3.13 "我的数据"筛选源）
+   - **右列：社区数据** — 受 F9 筛选条件影响
 5. 列顶端必须有数据源标签（"我的"/"社区"）以及当前 F9 过滤总样本数
 6. 滚动/切换筛选时面板跟随刷新
 7. 未解锁卡牌不显示统计
+8. 每条指标**只显示一次**（不允许重复行）
+9. 所有百分比显示到小数点后 1 位
 
-**UI 设计**：
-- 注入位置：`NInspectCardScreen.UpdateCardDisplay` postfix
-- 锚点：屏幕**右下角**（Anchor 1.0/1.0 + offset Left=-260, Top=-160），避开关键词 popup 区
-- 内容：GridContainer Columns=3，行=指标（样本数/选取率/胜率/升级率/删除率/购买率），列1=指标名（cream #FFF6E2），列2=我的数据（aqua #28E2BF），列3=社区数据（gold #EFC851）
-- 每条指标**只显示一次**（round 5 修复 4 次重复 bug — 之前 ForCardStats / ForUpgradeRate / ForRemovalRate / ForShopBuyRate 4 个工厂方法都包含胜率行）
+**视觉规范**：
+- 锚点：屏幕**右下角**，避开关键词 popup 区
+- 表格风格：3 列（指标名 / 我的 / 社区），cream + aqua + gold 三色
 - 字号 11-12px
-- 所有百分比显示到小数点后 1 位
 
 ```
 ┌──────────────┐
@@ -81,26 +86,21 @@
                      └──────────────────────────┘
 ```
 
-> v3.1 (round 5) 变更总结：
-> - **bug**：同一胜率被显示了 4 次 → 改为单一表格 6 行
-> - **PRD 升级**：从单源单列 → 双源双列（我的 + 社区），强制双数据对比
-
 ### 3.3 Compendium 遗物收藏统计
 
 1. 打开百科大全 → 遗物收藏
-2. **点击**已解锁遗物（不是 hover）打开 NInspectRelicScreen 大图后，**右下角**显示统计面板
-3. 显示指标：**胜率** 和 **胜率浮动**（去掉选取率 / 购买率，遗物没有"被选中"的概念）
-4. **两列双数据源并列显示**（v3.1 round 6）：
-   - **左列：我的数据** — 来自本地 RunHistory 文件聚合（每局是否拥有该遗物 + 是否胜利）
-   - **右列：社区数据** — 来自 `StatsProvider.GetRelicStats(id)`（受 F9 筛选条件影响）
+2. **点击**已解锁遗物（不是 hover）打开大图后，**右下角**显示统计面板
+3. 显示指标：**胜率** 和 **胜率浮动**（不显示选取率 / 购买率，遗物绝大多数情况下不是"被选取"的）
+4. **两列双数据源并列显示**：
+   - **左列：我的数据** — 玩家本地历史局聚合（每局是否拥有该遗物 + 是否胜利）
+   - **右列：社区数据** — 受 F9 筛选条件影响
 5. 胜率浮动 = 该列数据源的胜率 - 该列数据源的平均遗物胜率
 6. 正值绿色（如 "+3.2%"），负值红色（如 "-1.5%"）
 7. 未解锁 / 未发现遗物不显示统计
 
-**UI 设计**：
-- 注入位置：`NInspectRelicScreen.UpdateRelicDisplay` postfix（非 hover）
+**视觉规范**：
 - 锚点：屏幕**右下角**，与卡牌图书馆面板对齐
-- 内容：GridContainer Columns=3，行=指标（样本数 / 胜率 / 浮动），列1=指标名（cream），列2=我的数据（aqua），列3=社区数据（gold）
+- 表格风格：3 列（指标名 / 我的 / 社区），cream + aqua + gold 三色
 
 ```
 ┌──────────────┐
@@ -113,19 +113,11 @@
                      └──────────────────────────┘
 ```
 
-> v3.1 (round 6) 变更总结：
-> - bug 修复：原实现保留了"选取率"行，遗物没有"被玩家从奖励界面选取"的语义（遗物只能通过事件 / Boss / 商店等渠道获得），删除该列。
-> - PRD 升级：从单源 → 双源双列（我的 + 社区），与卡牌图书馆 §3.2 一致。
-
 ### 3.4 遗物胜率浮动（全局）
 
 - 不仅在 Compendium 中显示，所有遗物 tooltip（背包悬停、商店、Boss 奖励等）均显示胜率浮动
-- 格式：`胜率 52.3% (+2.3%)` — 括号内为浮动值
-- 社区平均胜率暂用 mock 值（服务端部署后从 API 获取）
-
-**UI 设计**：
-- Hook: `IHoverTip.GetHoverTipContents()` postfix
-- BBCode 内联着色：`"胜率 52.3% [color=#7FFF00](+2.3%)[/color]"`
+- 格式：`胜率 52.3% (+2.3%)` — 括号内为浮动值，正绿负红
+- 社区平均胜率：服务端部署前用 mock 值
 
 ### 3.5 事件选项简化
 
@@ -137,60 +129,41 @@
 1. 战斗中按 F8 可随时打开/关闭贡献面板
 2. 面板在打开状态下，**每次打出卡牌或使用药水后自动刷新**
 3. 刷新内容：当前战斗的实时贡献数据（非快照）
-4. 防抖：drop（v3.1 round 6 起改为 CallDeferred 让 Godot 自然合并同帧多次刷新）
+4. 用户手动选择的 tab（本场战斗 / 本局汇总）必须在刷新后保持
 5. 战斗结束后行为不变（自动弹出最终结果）
 
-> v3.1 (round 8 反馈)：round 6 简化后用户仍报告 "open panel → play card → 不更新，关闭再开才更新"。
-> 怀疑根因：`RefreshTabs` 的 dispose-and-recreate 路径在 panel 已显示时被 Godot 跳过 layout
-> （新建的 child 没立刻进入 visible flow），所以 chart 没有重绘。
->
-> **新规则**：实时刷新走专门的 `RebuildTabContent(tabIndex, newData)` 路径，
-> 它把现有 ScrollContainer 的 child（旧 chart）QueueFree 后**同帧** AddChild 新 chart，
-> 并 force-call `panel.QueueRedraw()` + `tabs.SetCurrentTab(tabs.CurrentTab)` 让 Godot
-> 重新评估当前 tab 的 sizing。同时增加 `[ContribPanel]` 系列诊断日志：
->   - `[ContribPanel] CombatDataUpdated → refresh`（事件触发）
->   - `[ContribPanel] DeferredRefresh → SelectCombatTabData returns N entries`（数据进入）
->   - `[ContribPanel] RebuildTabContent: tab=0 entries=N`（rebuild 实际执行）
+### 3.6.1 战斗贡献中途存档持久化
 
-### 3.6.1 战斗贡献中途存档持久化（round 8 新增）
+游戏的"中途保存"功能允许玩家在 run 进行中保存退出。退出后用 Continue 重新进入同一 run 时，
+**本场战斗 / 本局汇总数据必须保持不丢失**。
 
-游戏的"中途保存"功能允许玩家在 run 进行中保存退出。先前 mod 把 `CombatTracker._currentCombat`
-和 `RunContributionAggregator.RunTotals` 保存在内存里 → 退出后重新进入 run 会清零。
-
-**新规则**：
-- **何时写入**：每次战斗结束（`OnCombatEnd`）和 `OnCardPlayFinished` 触发的实时刷新都同步写盘。
-  写入路径 `{cache}/contributions/{seed}_live.json`，包含：
-  - 当前战斗 dict（如果在战斗中）
-  - 本局已累计的 RunTotals dict
-  - 当前 encounterId / floor / turnCount / totalDamageDealt / damageTakenByPlayer
-- **何时读取**：mod init 时尝试读取最新的 `*_live.json`（按 seed 匹配 RunManager.ActiveSeed），
-  把数据 hydrate 回 CombatTracker / RunContributionAggregator。
-- **何时清理**：run 结束（`OnMetricsUpload`）时把 live 文件删掉，留下 summary 文件。
+需求：
+- run 中途任何时刻的数据状态必须能持久化到本地
+- Continue 加载存档后数据必须还原回 mod 内存，保持显示一致
+- run 结束（败北 / 胜利 / 放弃）时清理临时持久化文件，留下完整的 summary 供后续 §3.12 回看
+- 90 天后自动清理过期文件
 
 ### 3.7 每回合平均伤害
 
 - 贡献面板标题区域显示：**"每回合平均伤害: X"**
 - 计算：本场战斗总伤害 ÷ 已经过回合数
 - 本局汇总 Tab 显示：所有战斗的总伤害 ÷ 总回合数
-
-**UI 设计**：
-- 注入位置：ContributionPanel 标题行下方，新增 HBoxContainer
-- 标签 cream 12px，值 gold 12px
+- 视觉：标签 cream 12px，值 gold 12px
 
 ### 3.8 问号房间遭遇概率
 
 1. 地图界面中，鼠标悬停在**未到达的 ? 节点**上时
-2. 显示当前各遭遇类型的概率：
-   - 事件 X% | 怪物 Y% | 宝箱 Z% | 商店 W%
+2. 显示当前各遭遇类型的概率：事件 / 怪物 / 精英 / 宝箱 / 商店
 3. 概率受怜悯机制影响，每次走过 ? 房间后概率重新分配
-4. 数据来源：游戏内 `UnknownMapPointOdds` 的当前概率值
+4. 必须考虑遗物影响（如佛珠手链 Juzu Bracelet 拉黑 Monster、金罗盘 Golden Compass 全转 Event 等）
+5. 总和必须为 100% (±1%)
+6. 所有百分比显示到小数点后 1 位
 
-**UI 设计**（参考 STS1 InfoMod "Next [?] Floor" 截图）：
-- 悬停未到达的 ? 节点时弹出 InfoMod 风格深色面板
+**视觉规范**（参考 STS1 InfoMod "Next [?] Floor" 截图）：
+- 悬停时弹出 InfoMod 风格深色面板
 - 标题 white 14px + 副标题 gray 11px + 分隔线 + 类别列表
 - 各遭遇类别名使用不同颜色区分（事件 green、怪物 red、精英 orange、商店 gold、宝箱 aqua）
-- 概率值 cream 12px，所有百分比显示到小数点后 1 位
-- 面板样式：bg rgba(0.08,0.08,0.12,0.95)、border 1px rgba(0.3,0.4,0.6,0.4)、radius 6px
+- 概率值 cream 12px
 
 ```
 ┌────────────────────────┐
@@ -207,23 +180,24 @@
 
 ### 3.9 药水掉落概率
 
-1. 显示位置：**与游戏顶栏的地图按钮 / 卡组按钮在同一水平线**，作为顶栏的延伸图标
-2. 显示内容：
-   - 当前概率（如 "40%"）
-   - 悬停展开：未来 1/2/3/4/5 场战斗至少掉落一次药水的累计概率
-3. 数据来源：游戏内 `PotionRewardOdds.CurrentValue`
-4. 概率受怜悯机制影响：掉落后 -10%，未掉落 +10%
+1. **显示位置**：顶栏内，**与游戏原生 Map 按钮 / Deck 按钮在同一水平线对齐**
+2. **可见性**：**整场 run 全程可见**，包括地图、战斗、商店、事件、奖励界面等所有 in-run 屏幕。
+   仅在主菜单 / 角色选择 / run 结算等非 run 状态下隐藏。
+   规则：可见性和生命周期与原生 Map / Deck 按钮**完全一致** — 它们在则在、它们走则走
+3. 显示内容：
+   - 常态：药水图标 + 当前概率（如 "40.0%"）
+   - 悬停展开：
+     1. 第一行 **当前精英战掉落概率**
+     2. 然后未来 2 / 3 / 4 / 5 场战斗至少掉落一次药水的累计概率（miss-path 模拟）
+4. 概率受怜悯机制影响：掉落后 -10%，未掉落 +10%；精英战额外加成
+5. **更新时机**：战斗结束 / 药水使用 / 地图过渡时**只更新数值文本和悬停面板内容**，**不重建 UI 节点**
 
-**UI 设计**（v3.1 round 7 重写）：
-- **图标**：使用游戏原生 **混沌药水 (`DistilledChaos`)** 图标
-  路径 `atlases/potion_atlas.sprites/distilled_chaos.tres`
-- **位置**：parent 必须是 `NTopBar`（不是 scene tree root），紧贴 `Map` 按钮的左侧或右侧（根据布局测试）
-- **大小**：使用 `NTopBarMapButton` 的尺寸（约 56×56 px），与原生顶栏图标视觉一致
-- 悬停展开：InfoMod 风格深色面板，列表显示未来 N 场累计概率
-
-> v3.1 (round 7) 变更：
-> - **bug**：round 5 把 indicator parent 到 scene tree root + 使用 emoji 占位符 + 较小尺寸 → 视觉与原生顶栏不匹配
-> - **修复**：reparent 到 NTopBar 自身，作为它的子节点；使用游戏原生 Texture2D 图标
+**视觉规范**：
+- **图标**：使用游戏原生 **混沌药水 (Distilled Chaos)** sprite
+- **位置**：parent 在原生顶栏内，紧贴 Map 按钮（左侧或右侧），与之同高
+- **尺寸**：图标 56×56 px、百分比文本 18 px、容器约 120×64 px，与原生 Map / Deck 按钮视觉一致
+- **垂直对齐**：在顶栏横排容器中垂直居中
+- 悬停展开：InfoMod 风格深色面板
 
 ```
 常态：[药水图标] 40.0%
@@ -242,99 +216,190 @@
 
 ### 3.10 敌人意图状态机
 
-1. 战斗中，鼠标悬停在敌人意图图标上时
-2. 弹出面板显示该怪物的 AI 状态机：
-   - **当前状态**：意图图标 + 伤害值
-   - **箭头** → 指向下一步可能的状态
-   - **简单转移（FollowUp）**：直接显示下一个动作图标
-   - **随机分支**：列出每个分支的概率%、使用约束（≤N 次，表示最多连续使用 N 次）、动作图标（使用游戏意图系统原图标）+ 伤害值
-   - **条件分支**：显示各分支的动作图标（条件为 lambda 无法显示为文本）
-   - **循环箭头** ↩ 表示回到某个状态
-3. 面板样式：深色半透明背景，与游戏 tooltip 风格一致
+参考设计：STS1 经典 mod "Intents"。**权威参考集**：
+`DesignDoc/UI_design_reference/intent_state_machine/`（30 张 STS1 mod 实战截图，
+覆盖单链、随机分支、条件分支、循环回边、多分支并行 lane、HP 触发条件等所有典型场景）。
 
-**数据来源（v3.1 round 8 重写）**：
+> v3.1 (round 9)：原 §3.10.2-3.10.6 完全重写。先前规范基于"自适应网格 + 对角线箭头"的简化方案，
+> 实际渲染与 STS1 mod 差异显著，且组框未渲染分支、多意图 MoveState 只显示首意图、未区分进阶等级。
+> 本次以 STS1 mod 截图为基准重新定义，**目标：与 STS1 mod 视觉相似度 ≥90%**。
 
-> Round 5 直接读 `creature.Monster.MoveStateMachine` → null timing race
-> Round 6 mod init 时遍历 `ModelDb.Monsters` 调 `ToMutable().SetUpForCombat()`
->          → 实测大量怪物 bake 失败（"no metadata for ..."）。
->          根因：`GenerateMoveStateMachine()` 内部经常引用 `AscensionHelper`、`Creature` 等
->          运行时 state，在 mod init 时（RunManager 未启动）抛异常。
->
-> Round 8 改为**懒加载 + 双源 fallback**：
-> 1. **首选 live mutable monster**：hover 时如果 `creature.Monster.MoveStateMachine != null`，
->    直接用它（这是 in-combat 的真实数据，永远是最准确的）。
-> 2. **次选 cache**：如果 live SM 是 null（罕见的 timing race），从 `MonsterIntentMetadata` 缓存读。
-> 3. **缓存懒加载**：缓存只在第一次被请求时才烘焙某个怪物。烘焙逻辑改为先尝试 `creature.Monster`
->    的 SM，然后才尝试从 canonical clone — 都失败时缓存 negative entry 避免反复重试。
+#### 3.10.1 触发方式
 
-**触发方式（round 8 修改）**：
+- 战斗中，**鼠标悬停在敌人本体**（hit box）时弹出
+- 鼠标离开自动隐藏
+- 不响应悬停意图图标（与原生意图 hover tooltip 区分）
 
-- **旧**：hover 在敌人头上的 **意图图标 (NIntent)** 时弹出
-- **新**：hover 在 **敌人本体 (NCreature)** 时弹出，意图图标不再触发
-- 实现：patch `NCreature.OnFocus` postfix（NCreature 内部把 Hitbox MouseEntered 信号绑到 OnFocus）
-- 鼠标离开 (`OnUnfocus`) 自动隐藏
+#### 3.10.2 视觉规范（v3.1 round 9 重写）
 
-**UI 设计**（v3.1 round 8 重写，参考 `UI_design_reference/04_sts1_intent_state_machine.png`）：
+**核心原则（绝对约束）**：除标题栏怪物名外，面板内**完全无文字**。
+**只有**原生意图图标 + 数字 + 黄/红箭头 + 青色意图组框 + 顶部标题。
+任何 MOVE_ID / "ATTACK" 类别名 / 状态名 / 调试标签**绝不允许出现**。
+
+**视觉元素表**：
+
+| 元素 | 含义 |
+|------|------|
+| **顶部标题栏** | 面板左上角，14px 青色 #29EBC0，显示怪物名（中/英按当前语言）|
+| **意图图标** | 游戏原生意图 sprite，**完整尺寸**（不缩小）|
+| **数字** | 图标正下方，cream 13px。**只有 attack 类意图显示数字**（基础伤害值）；其他类型不显示数字 |
+| **multi-attack 格式** | `damage × hits`（例 `5×2` = 5 伤打 2 次）|
+| **多意图 MoveState** | 单 cell 内多个意图（例如 攻击 + 施加 debuff）：图标**水平并排**，每个图标下方独立显示自己的数字（攻击有数字、debuff 无数字）。cell 宽度按图标数线性扩展。**v3.1 round 9 新增**：先前版本只显示首个意图，导致淤泥旋螺等"攻击+负面"敌人信息不全 |
+| **黄色直角箭头** | 常规转移（FollowUp / 随机分支出口）。**绝对禁止对角线箭头** — 必须正交（manhattan routing），先水平后垂直（或先垂直后水平）|
+| **红色直角箭头** | 条件转移（ConditionalBranch），立即跳转 |
+| **回边箭头** | chain 末尾回到入口 / 子图：从源 cell 右边出发，向上或向下绕到目标 cell 左边，**绝不穿过其他 cell** |
+| **青色矩形框（意图组）** | 当一个状态是 RandomBranchState/ConditionalBranchState 时，把所有分支**完整渲染在框内**（每个分支 = 一个完整的意图小 cell：图标 + 数字 + 概率%）。**v3.1 round 9 修复**：先前版本组框内只有左上角的概率标签，框内空荡，违反 STS1 设计 |
+| **左上角概率** | 每个分支 cell 的左上角，11px gold #EFC851，格式 `40%` |
+| **概率旁约束** | 概率标签同行，11px cream #FFF6E2，格式 `≤N` 表示最多连续使用 N 次 |
+| **HP 条件标签** | 仅 ConditionalBranch 必要时显示（极小、12px cream），格式 `HP<=50%`。注：这是**唯一允许的文本例外**，因为图标无法表达 HP 阈值 |
+
+**入口约定**：永远从左上角开始（初始状态），向右流转。
+
+**Unknown 意图**：游戏原生"未知意图"图标（灰色 ???）按普通意图渲染。
+
+#### 3.10.3 布局原则（v3.1 round 9 重写）
+
+**算法**：分层水平流（layered horizontal flow），不是网格：
+
+1. **分层（Depth assignment）**：
+   - 初始状态深度 = 0
+   - 每个后继状态的深度 = max(所有前驱深度) + 1
+   - 回边（back-edge）不参与深度计算
+   - **不超过 5 层**：超出则强行折行到下一行的第 0 列
+
+2. **同层垂直堆叠**：
+   - 同一深度的状态（包括组框）按 BFS 入队顺序自上而下排列
+   - 同层 cell X 坐标对齐，Y 坐标按顺序累加
+
+3. **列宽与行高**：
+   - 列宽 = 该列内最宽 cell 宽 + 水平间隔
+   - 行高 = 该行内最高 cell 高 + 垂直间隔
+   - cell 在所属列内左对齐
+
+4. **箭头路由（正交 / manhattan）**：
+   - **同行相邻列**：单段水平直线
+   - **跨行**：3 段折线（水平 → 垂直 → 水平），先水平走出源 cell 的右侧 gutter 中点再转弯
+   - **回边**：从源右侧出发，向上/向下绕到画布外缘，再水平回到目标左侧；绕行通道占用 cell 上方/下方的额外 gutter 空间
+   - 不允许对角线，不允许 cell 重叠，不允许箭头穿过 cell 内容
+
+5. **组框内分支布局**：
+   - 分支**垂直堆叠**（每行一个分支），每行 = 完整 mini-cell（图标 + 数字 + 左上角概率/约束）
+   - 框宽 = max(branch cell width) + padding
+   - 框高 = sum(branch cell height) + padding
+   - 框右边作为整体出箭头（不是按分支单独出箭头）
+
+6. **多意图 MoveState 内布局**：
+   - 同 cell 内意图水平并排
+   - 每个意图独立 icon + 独立数字 label
+   - cell 宽 = N × IconSize + (N-1) × IntraIconGap + 2×CellPad
+
+#### 3.10.4 数据语义
+
+- **伤害值取基础值**：不算当前 strength / vulnerable / 其他 buff，使用怪物代码里硬编码的 base damage
+- 必须显示**所有可达状态**（包括玩家从未触发过的分支），不只是当前 next move
+- **多意图 MoveState 必须全部显示**（攻击 + debuff、攻击 + 召唤等）
+- **进阶 9 vs 非进阶 9**（v3.1 round 9 新增 — 见 §3.10.7）
+
+#### 3.10.5 样式
 
 ```
-┌─── Jaw Worm (HP 40/40) ─────────────────────┐
-│                                               │
-│  ┌─────────┐                ┌──────────────┐ │
-│  │ ▶ MOVE  │  ─── arrow ──→ │ 25% ≤1       │ │
-│  │ [⚔ 11]  │                │ [⚔ 11] MOVE  │ │
-│  └─────────┘                ├──────────────┤ │
-│   current                   │ 45% ≤1       │ │
-│                             │ [💪] BUFF    │ │
-│                             ├──────────────┤ │
-│                             │ 30% ≤2       │ │
-│                             │ [🛡 7] BLOCK │ │
-│                             └──────────────┘ │
-│                                               │
-└───────────────────────────────────────────────┘
+panel bg:           rgba(0.06, 0.09, 0.16, 0.92)
+panel border:       1px  rgba(0.30, 0.45, 0.70, 0.50)
+panel radius:       8 px
+panel padding:      12 px
+title bar:          14 px aqua #29EBC0  (左对齐，padding-top 8 px)
+title bar height:   22 px
+
+cell width:         64 px
+cell height:        80 px
+icon size:          48 × 48 px (was 56 — 缩小让画布更紧凑)
+intra-icon gap:     6 px (multi-intent cell 内图标间距)
+cell padding:       4 px
+label font:         cream #FFF6E2  13 px
+prob font:          gold  #EFC851  11 px
+constraint font:    cream #FFF6E2  11 px
+
+group box border:   2 px aqua #29EBC0
+group box bg:       rgba(0.10, 0.14, 0.22, 0.55)
+group box radius:   6 px
+group box padding:  6 px
+
+h gutter:           32 px (列间距)
+v gutter:           24 px (行间距)
+back-edge channel:  16 px (回边箭头绕行通道宽度)
+
+yellow arrow:       gold #EFC851
+red arrow:          red  #FF4545
+arrow stroke:       2.5 px
+arrow head:         8 px (was 10 — 与较细线条匹配)
 ```
 
-- **当前状态高亮**：左侧大框带 aqua 左边框 + ▶ 前缀
-- **箭头连接**：金色 "──→" 字符 (round 8 简化，避免 Godot Line2D 复杂度)
-- **分支框**：每行 = 概率% + 约束 + 意图标签
-- **意图标签格式**：`[图标占位] 类型 数值`（如 `[⚔ 11] ATTACK`、`[🛡 7] BLOCK`、`[💪] BUFF`）
-- **多状态机/多阶段**：如果某个怪物有多个独立子图（如阶段切换），用 `═══ Phase N ═══` 分隔符分组渲染
-- **样式**：bg rgba(0.08, 0.10, 0.16, 0.92) + border 1px rgba(0.4, 0.5, 0.7, 0.6) + radius 8px
+#### 3.10.6 ASCII mockup（参考 STS1「第一勇士」）
 
 ```
-┌─── Jaw Worm ──────────────────────┐
-│                                    │
-│  [攻击图标]  ─────→  ┌──────────┐ │
-│     11               │ 25% ≤1   │ │
-│                      │ [攻击] 11│ │
-│                      │ 45% ≤1   │ │
-│                      │ [攻防]   │ │
-│                      │ 30% ≤2   │ │
-│                      │ [防御] 7 │ │
-│                      └──────────┘ │
-│                           ↩       │
-└────────────────────────────────────┘
+┌─ 第一勇士 ─────────────────────────────────┐
+│                                              │
+│  [组框]──────→[组框]──────→[组框]            │
+│  ┌────┐       ┌────┐       ┌────┐            │
+│  │30%│        │30%│        │30%│             │
+│  │[盾]│       │[盾]│       │[盾]│            │
+│  │25%│        │25%│        │25%│             │
+│  │[绿]│       │[绿]│       │[绿]│            │
+│  │ 12 │       │ 12 │       │ 12 │            │
+│  │45%│        │45%│        │45%│             │
+│  │[红]│       │[红]│       │[红]│            │
+│  │ 16 │       │ 16 │       │ 16 │            │
+│  └────┘       └────┘       └────┘            │
+│     │HP<=50%                                 │
+│     ↓                                        │
+│  [蓝]──→[红]                                 │
+│        10×2                                  │
+│                                              │
+└──────────────────────────────────────────────┘
 ```
 
-- 面板 bg rgba(0.15,0.18,0.25,0.9)、border 1px rgba(0.5,0.5,0.6,0.6)、radius 6px
-- 当前状态框：bg rgba(0.15,0.2,0.3,0.8) + aqua #2AEBBE 左边框 3px
-- 分支框：bg rgba(0.1,0.12,0.18,0.8)、border 1px rgba(0.4,0.5,0.7,0.5)
-- 概率值 gold #EFC851 12px、约束标签 cream 11px、箭头/回环 gold #EFC851
+#### 3.10.7 进阶 9 区分（v3.1 round 9 新增）
+
+**问题**：游戏的 `MonsterModel.SetUpForCombat()` 内部通过
+`AscensionHelper.GetValueIfAscension(level, ascensionValue, fallbackValue)`
+读取 `RunManager.Instance.HasAscension(level)` 来选择伤害/HP/move 集合。
+A9 (`AscensionLevel.DeadlyEnemies`) 启用时敌人伤害更高、move 集合可能不同。
+
+**需求**：面板必须根据**当前 run 的进阶等级**显示对应的状态机。
+眼见为实：A9 玩家看到 A9 数据，A0 玩家看到 A0 数据。
+
+**实现策略**（用户选 B：双份预烘焙）：
+
+1. **缓存键**：`(monsterId, ascensionTier)`，其中 `ascensionTier` ∈ `{Standard, Deadly}`：
+   - `Standard`：未启用 `DeadlyEnemies` 也未启用 `ToughEnemies`（A0–A7）
+   - `Deadly`：启用 `DeadlyEnemies`（A9+）。A8 仅 ToughEnemies 用 Standard 数据（伤害不变，仅 HP 变）
+   - 简化：二元划分即可，不再细分 A8
+
+2. **强制烘焙机制**：
+   - 在 `MonsterIntentMetadata` 内维护线程局部变量 `_forcedAscensionDeadly: bool?`
+   - Harmony 前缀 patch `RunManager.HasAscension(AscensionLevel)`：当 `_forcedAscensionDeadly != null` 时，
+     拦截返回值：`level == DeadlyEnemies || level == ToughEnemies` 时返回 `_forcedAscensionDeadly.Value`，其他级别保持游戏原行为
+   - eager bake 顺序：
+     1. 设 `_forcedAscensionDeadly = false`，bake 全部 → 写入 Standard 缓存
+     2. 设 `_forcedAscensionDeadly = true`，bake 全部 → 写入 Deadly 缓存
+     3. 清空 `_forcedAscensionDeadly`
+
+3. **hover 时查询**：
+   - 读取当前 run 的 `RunManager.Instance.HasAscension(DeadlyEnemies)`
+   - 选择对应 cache entry：true → Deadly，false → Standard
+   - 双份缓存命中率 100%，无运行时 bake
+
+4. **缓存失效**：
+   - 仅在 mod init 时填充一次。后续不需要失效（数据是 monster 模板的纯函数）
+   - 例外：mod hot-reload 时清空
+
+
 
 ### 3.11 个人生涯统计
 
 集成到游戏现有的 **百科大全 → 角色数据 → 统计页面**，**插入在游戏原生"总体数据"面板与"角色数据"面板之间**（非独立面板）。
 
-> v3.1 (round 5 反馈)：先前位置写作"总体数据下方"，被实现解读为"角色数据下方"。
-> 现明确为：sibling 节点，`MoveChild` 到 `_characterStatContainer` 的索引前一格，
-> 这样在视觉上夹在 9 格统计 grid 与 5 个角色卡之间。
->
-> v3.1 (round 7 反馈)：round 5/6 的实现把 section 加到 `_characterStatContainer.GetParent()`，
-> 但那个 parent 不一定是 layout container — 角色卡和我的 section 都在绝对位置 (0,0)，重叠显示。
->
-> **新规则**：必须用 `LayoutHelper.FindLayoutAncestor(_characterStatContainer)` 走到第一个
-> `VBoxContainer` / `HBoxContainer` / `GridContainer` / `ScrollContainer` 祖先，把 section
-> 加到那个 layout container 里 — Godot 才会按它的布局规则自动排版而不重叠。
-> 如果完全找不到 layout 祖先，再 fallback 到 `_characterStatContainer.AddChild(section)` 的 first child。
+注入必须不与原生 UI 重叠 — section 应跟随原生 layout 容器的排版规则自动排版。
 
 **统计指标**（按角色分组，含总体）：
 
@@ -355,11 +420,11 @@
 **交互**：鼠标悬停任一统计项时，tooltip 显示**社区对比数据**（社区数据受 F9 筛选面板条件影响）。
 
 **UI 设计**（参考 STS2 角色数据面板截图风格）：
-- 注入位置：**"总体数据"面板下方**，通过 postfix 注入新区块
+- 注入位置：**"总体数据"面板下方**，注入新区块
 - 风格与角色数据面板完全一致：深色面板背景、图标+标签对排列、绿色/红色/金色语义色
 - 节标题 14px gold #EFC851、数据行 12px cream #FFF6E2、辅助值 11px gray
 - 路径统计使用全称描述（获取卡牌/购买卡牌/...，不用简写）
-- **先古遗物**：OptionButton 下拉选单。下拉项格式：
+- **先古遗物**：下拉选单。下拉项格式：
   `第 N 幕  [先古图标] 先古之民名称  (M 遭遇次数)`，
   其中 N 是该先古之民出现的 Act（OVERGROWTH=1, HIVE=2, GLORY=3, UNDERDOCKS=4, DARV=共享）。
   选中后显示：
@@ -380,15 +445,12 @@
 └─────────────────────────────────────────────┘
 ```
 
-> v3.1 (round 5)：先前实现把所有遗物展平为单一 "all" 选项池，违反需求。
-> 真实结构：每个先古之民事件**严格 3 个选项**，分别从 3 个独立 pool 抽取
-> （Pael / Tezcatara / Vakuu / Orobas 都有 OptionPool1/2/3 私有成员；
-> Tanx / Nonupeipe / Neow / Darv 没有清晰 3 池结构，按"通用池"显示）。
-> Mod 应通过反射读取每个 elder 的私有 pool 字段并建立静态映射 `AncientPoolMap`。
-> 先古之民图标使用 `AncientEventModel.RunHistoryIcon` (Texture2D)；
-> 遗物图标使用 `RelicModel.PackedIconPath` 加载。
+**Ancient pool 数据规则**：每个先古之民事件**严格 3 个选项**，分别从 3 个独立 pool 抽取
+（每个 pool 是一组遗物）。统计必须按池子分组显示，**不能**展平成单一池。
+某些先古之民没有清晰 3 池结构（按"通用池"显示）。
+某些遗物有"幕限定"约束（只能在特定 Act 出现），UI 必须在遗物名后加 `(只在第 X 幕出现)` 后缀。
 
-- **Boss 战损**：OptionButton 下拉选单。下拉项格式：
+- **Boss 战损**：下拉选单。下拉项格式：
   `第 N 幕  [Boss图标] Boss名称  (M 遭遇次数)`。
   选中后显示：
 
@@ -403,10 +465,9 @@ Boss 战损:
 └─────────────────────────────────────────┘
 ```
 
-> v3.1 (round 5)：Boss 名称必须本地化（`LocString("encounters", id+".title").GetFormattedText()`），
-> 必须用 Act 前缀，遭遇次数显示为 `(N 遭遇次数)` 而不是单独数字。
+数据规则：Boss 名称必须本地化（中文），必须有 Act 前缀，遭遇次数显示为 `(N 遭遇次数)` 而不是单独数字。
 
-- 社区对比 tooltip：标准 360px NHoverTipSet
+- 社区对比 tooltip：标准 360px hover tooltip
 
 ### 3.12 Run History 增强
 
@@ -422,19 +483,10 @@ Boss 战损:
      图标可选（先古图标 + 遗物图标）。
    - **每层 Boss 战斗损失**：每个 Boss 一行，格式 `Boss 名称  HP 战损`，按 Act 顺序。
 2. **"查看贡献图表" 按钮**：点击后弹出本局汇总的贡献面板，**只显示"本局汇总" tab**，不显示"本场战斗" tab。
-   - 局结束时将贡献汇总数据持久化到 `{cache}/contributions/{seed}_summary.json`；如果该文件不存在则从 per-combat snapshot 文件 fallback 合并。
 
-**UI 设计**（v3.1 round 7 重写）：
-- **注入位置**：用 `LayoutHelper.FindLayoutAncestor(_deckHistory ?? _relicHistory)` 走到
-  第一个 `VBoxContainer` / `HBoxContainer` 祖先，把 `本局统计` section 加到那个 layout container 里。
-  Run history 的 deck/relic 都是 VBoxContainer，它们的祖先大概率是 HBox/VBox 列布局。
-  通过加入到同一 layout container，section 自然按 Godot 布局规则排版，不会和原生 UI 重叠。
-- **fallback**：如果找不到 layout 祖先，使用绝对定位的 ScrollContainer 锚到 `_screenContents`
-  右侧（offset Left=-340, Right=-20, Top=160, Bottom=-50），但这只是兜底，正常情况下不应触发。
-- 风格与 Run History 页面一致：标签 cream、标题 gold、同级排列。
-
-> v3.1 (round 7) 反馈：round 5/6 的右侧浮动栏方案（绝对锚点）即使缩窄到 420px 仍与原生 UI 重叠。
-> 改为查询 native scene 的 layout 祖先并 inject 进去，让 Godot 自己排版。
+**视觉规范**：
+- 注入位置：与原生 deck / relic 列同一 layout 容器内，跟随原生排版规则，**不重叠**原生 UI
+- 风格与 Run History 页面一致：标签 cream、标题 gold、同级排列
 
 ```
 ┌─── Run History 详情 ──────────────────────────────────────┐
@@ -472,8 +524,8 @@ Boss 战损:
 
 - 筛选面板（F9）新增 "仅显示我的数据" 复选框
 - 选中后，所有社区统计标签切换为玩家个人数据
-- 数据来源：本地 RunHistory 文件聚合
-- 筛选条件（含此项）持久化到 config.json，重启后保持
+- 数据来源：本地历史局记录聚合
+- 筛选条件（含此项）持久化到本地配置，重启后保持
 
 ### 3.18 角色筛选
 
@@ -488,8 +540,8 @@ Boss 战损:
   1. 自动匹配当前角色（默认）
   2. 所有角色
   3. 铁甲战士
-  4. 沉默猎手
-  5. 缺陷体
+  4. 静默猎手
+  5. 故障机器人
   6. 亡灵契约师
   7. 储君
 
@@ -503,7 +555,7 @@ Boss 战损:
 #### 3.18.3 个人生涯统计独立角色下拉
 
 - 个人生涯统计（CareerStats）页面内**独立**新增一个角色下拉，与 F9 的角色筛选互不影响
-- 选项：所有角色 / 铁甲战士 / 沉默猎手 / 缺陷体 / 亡灵契约师 / 储君
+- 选项：所有角色 / 铁甲战士 / 静默猎手 / 故障机器人 / 亡灵契约师 / 储君
 - 默认显示"所有角色"
 - 用户切换后页面数据重新加载并刷新
 
@@ -522,7 +574,7 @@ Boss 战损:
 
 ### 3.14 功能开关
 
-- F9 设置面板中为每个子功能提供独立开关（NTickbox 样式）：
+- F9 设置面板中为每个子功能提供独立开关（原生勾选框样式）：
   - ☑ 战斗贡献面板（F8 面板及实时刷新）
   - ☑ 卡牌选取率/胜率统计显示
   - ☑ 遗物胜率/胜率浮动显示
@@ -534,8 +586,8 @@ Boss 战损:
   - ☑ 商店价格显示
   - ☑ 敌人意图状态机显示
   - ☑ 个人生涯统计
-- 关闭的功能完全不执行对应 Harmony patch（性能零开销）
-- 设置持久化到 config.json
+- 关闭的功能完全不执行对应逻辑（性能零开销）
+- 设置持久化到本地配置
 - 标签 cream 12px，默认全部启用
 
 ### 3.15 多人游戏基础兼容
@@ -553,21 +605,20 @@ Boss 战损:
    - 各稀有度遗物价格范围（普通/非普通/稀有/商店限定）
    - 各稀有度药水价格范围
    - 无色牌价格 +15% 注脚（**只在底部出现一次**）
-3. 数据来源：游戏内 `MerchantCardEntry.GetCost()`、`RelicModel.MerchantCost`、`MerchantPotionEntry.GetCost()`、`MerchantCardRemovalEntry.CalcCost()`
-4. 价格范围计算：基础价格 × ±随机波动（卡牌/药水 ±5%，遗物 ±15%）
-5. **折扣联动**（v3.1 round 5）：当玩家拥有 `MembershipCard` (×0.5) 或 `TheCourier` (×0.8) 时，
+3. 价格范围计算：基础价格 × ±随机波动（卡牌/药水 ±5%，遗物 ±15%）
+4. **折扣联动**：当玩家持有会员卡（×0.5）或送货员（×0.8）时，
    表格里显示**折扣后**的价格区间，并在面板顶部"当前折扣"行列出已激活的遗物。
-6. **没有任何折扣遗物时不显示任何折扣说明文字**（v3.1 round 6 修复）。
-   先前 subtitle 写死 "会员卡 50%、送货员 20%、无色牌价格 +15%" 即使玩家两个都没有，
-   会让人误以为商店总是打折。改为：subtitle 仅写"商店价格表"；折扣行只在真正持有时出现；
-   "无色牌价格 +15%" 只在面板**底部**出现一次（不再同时出现在 subtitle 和 footer）。
+5. **没有任何折扣遗物时不显示任何折扣说明文字**。subtitle 仅写"商店价格表"；
+   折扣行只在真正持有时出现；"无色牌价格 +15%" 只在面板**底部**出现一次。
 
 **UI 设计**（参考 STS1 InfoMod "Shop Prices" 截图）：
 - InfoMod 风格深色面板
 - 标题 white 14px + 副标题 "商店价格表"（gray 11px，无折扣描述）
-- 顶部"当前折扣"行：仅当玩家有 MembershipCard / TheCourier 时显示
+- 顶部"当前折扣"行：仅当玩家有折扣遗物时显示
 - 表格布局：类别名（gold/aqua）× 稀有度列 → 价格范围 cream 12px
 - 底部："无色牌价格 +15%" 单行 footer note
+
+> 实现细节见 `PLAN_04_ITERATION2.md` §3.16。
 
 ```
 ┌───────────────────────────────────┐
@@ -584,20 +635,23 @@ Boss 战损:
 ### 3.17 卡牌掉落概率
 
 1. 显示位置：**与游戏顶栏的地图按钮 / 卡组按钮在同一水平线**，紧贴药水概率图标
-2. 显示内容：稀有卡当前概率
-3. 悬停展开面板显示详细掉落概率：
+2. **可见性范围**：与 §3.9 完全一致——**整场 run 全程可见**，不限于战斗。可见性与原生顶栏 Map / Deck 按钮一致，它们在则在、它们走则走。
+3. 显示内容：稀有卡当前概率
+4. 悬停展开面板显示详细掉落概率：
    - 区分普通战斗 vs 精英战斗
    - 各稀有度（稀有/非普通/普通）的掉落概率
    - 概率受怜悯机制影响：每次非稀有掉落后稀有概率 +1%（苦行 +0.5%），稀有掉落后重置 -5%
-4. 数据来源：游戏内 `CardRarityOdds`、`Player.PlayerOdds.CardRarity.CurrentValue`
+5. **更新时机**：与 §3.9 一致——只更新数值文本和悬停面板内容，**绝不重建 UI 节点**。
+6. **尺寸与 §3.9 一致**：图标 56×56 px，与原生 Map/Deck 按钮视觉对齐。
 
-**UI 设计**（v3.1 round 7 重写）：
-- **图标**：使用游戏原生 **卡牌奖励图标** `ui/reward_screen/reward_icon_card.png`
-  （战斗结束时"将一张牌添加到你的牌组"的奖励行图标）
-- **位置**：parent 必须是 `NTopBar`（不是 scene tree root），紧贴药水概率图标
-- **大小**：与 NTopBarMapButton 一致（约 56×56 px）
+**UI 设计**：
+- **图标**：使用游戏原生**卡牌奖励图标**（战斗结束时"将一张牌添加到你的牌组"的奖励行图标）
+- **位置**：紧贴药水概率图标，与原生顶栏按钮同一水平线
+- **大小**：与原生 Map 按钮一致（约 56×56 px）
 - 悬停展开：InfoMod 风格面板，表格布局（稀有度 × 战斗类型）
 - 稀有度标签颜色与游戏卡牌稀有度色对应
+
+> 实现细节（生命周期 / 守卫规则 / 数据来源）见 `PLAN_04_ITERATION2.md` §3.17。
 
 ```
 常态：[卡牌图标] 3.0%
@@ -630,11 +684,9 @@ Boss 战损:
 - 双倍伤害贡献 = 18 - 18/2 = 18 - 9 = 9
 - 各自贡献之和 = 6 + 9 = 15 > 实际 bonus 12
 
-**解决方案**：强制约束 `DirectDamage + ModifierDamage = TotalDamage`。当修正器贡献之和超过 `TotalDamage - baseDamage` 时，按比例缩放各修正器贡献：
-```
-缩放系数 = (TotalDamage - baseDamage) / 修正器贡献之和
-每个修正器实际贡献 = 原贡献 × 缩放系数
-```
+**解决方案**：强制约束 `DirectDamage + ModifierDamage = TotalDamage`。当修正器贡献之和超过 `TotalDamage - baseDamage` 时，按比例缩放各修正器贡献，使之和恰好等于实际 bonus。
+
+> 实现细节见 `PLAN_04_ITERATION2.md` §4.1。
 
 ### 4.2 Confused/SneckoEye 随机改费
 
@@ -662,23 +714,23 @@ PRD-00 §4.5.1 防御计算第 5 步 Buffer 的公式补充示例：
 
 ### 4.5 贡献面板 UI 重设计
 
-**问题**：当前面板在屏幕右侧，遮挡战斗结束后的"前进"按钮（round 4 反馈）。
+**问题**：初版面板放在屏幕右侧，遮挡战斗结束后的"前进"按钮。
 
-**解决方案**：
+**用户可见需求**：
 
 | 属性 | 值 |
 |------|-----|
-| 默认位置 | **屏幕左侧**（anchor_left = 0.0），避开右侧 GO 按钮 + 中央卡牌奖励 |
+| 默认位置 | **屏幕左侧**，避开右侧 GO 按钮与中央卡牌奖励 |
 | 宽度 | 460px，不遮挡左侧弃牌堆 / 抽牌堆图标 |
-| 可拖拽 | 是（InputEventMouseMotion），位置记忆到 config.json |
-| 避让逻辑 | 战斗结束自动弹出时，检测奖励面板是否打开，若打开则自动偏移避让 |
-| 帮助按钮（?） | 标题栏右侧，**点击**（不是 hover）弹出 InfoModPanel 说明窗口；窗口右上角有"X"关闭按钮，再次点击 ? 也可关闭 |
+| 可拖拽 | 是，位置记忆到配置文件，重启保持 |
+| 避让逻辑 | 战斗结束自动弹出时，若奖励面板打开则自动偏移避让 |
+| 帮助按钮（?） | 标题栏右侧，**点击**（不是 hover）弹出说明窗口；窗口右上角"X"关闭；再次点击 ? 也可关闭 |
 | 子来源展开 | 默认自动展开，点击展开箭头（▶/▼）可收起 |
 | 每回合平均伤害 | 标题行下方新增一行显示 |
-| Tab 标签 | 用 `tabs.SetTabTitle(idx, ...)` 显式设置（**不是** Node.Name），永远显示"本场战斗" / "本局汇总"两个 tab |
-| 数据源选择 | 战斗中→`GetCurrentCombatData()`；战斗外→`LastCombatData`。每次 `CombatTracker.CombatDataUpdated` 事件触发时刷新 |
-| 防御百分比 | 分母只用**正贡献之和**（自伤显示为负条但不进入 % 分母）。先前实现把 `TotalDefense - SelfDamage` 同时算入分母与分子，导致 Defend 出现 125% 这种错误 |
-| 帮助内容 | 必须包含：(1) 每种条状颜色对应的 source type / 子项含义；(2) 每种贡献指标（DirectDamage / ModifierDamage / AttributedDamage / EffectiveBlock / MitigatedBy* / SelfDamage / EnergyGained / HpHealed / CardsDrawn / StarsContribution）的计算公式摘要；(3) 数据来源（CombatTracker live + RunContributionAggregator 累计）；(4) 快捷键 F8/F9 |
+| Tab 标签 | 永远显示"本场战斗" / "本局汇总"两个 tab，标签文案固定 |
+| 数据源 | 战斗中显示当前战斗实时数据；战斗外显示最近一场战斗数据 |
+| 防御百分比 | 分母只用**正贡献之和**；自伤显示为红色负条但**不进入**分母（否则会出现 Defend >100% 这种错误） |
+| 帮助内容 | 必须包含：(1) 每种条状颜色对应的来源含义；(2) 每种贡献指标（直接伤害 / 修正器伤害 / 归因伤害 / 有效格挡 / 各类减伤 / 自伤 / 获取能量 / 治疗 HP / 抽牌 / 辉星贡献）的计算公式摘要；(3) 数据来源说明（实时 + 全局累计）；(4) 快捷键 F8 / F9 |
 
 ```
 ┌─── Stats the Spire ──────────────┐
@@ -695,6 +747,8 @@ PRD-00 §4.5.1 防御计算第 5 步 Buffer 的公式补充示例：
 │   ...                            │
 └──────────────────────────────────┘
 ```
+
+> 实现细节（默认位置 anchor / 拖拽 / 数据源选择 / 防御百分比公式 / 帮助面板结构）见 `PLAN_04_ITERATION2.md` §4.5。
 
 ### 4.6 数据上传补充
 
@@ -742,7 +796,7 @@ PRD-00 §4.5.1 防御计算第 5 步 Buffer 的公式补充示例：
 ### AC-07: 个人统计
 - [ ] 百科大全 → 角色数据 → 统计页面"总体数据"下方显示 mod 增强统计区块
 - [ ] 统计区块风格与角色数据面板一致（深色面板、图标+标签）
-- [ ] 胜率趋势数值正确（与手动计算 RunHistory 一致）
+- [ ] 胜率趋势数值正确（与手动聚合历史局一致）
 - [ ] 死因排行显示正确的遭遇名称和次数
 - [ ] 路径统计按 Act 正确分层，使用全称（获取卡牌/购买卡牌/...）
 - [ ] 路径统计包含 ? 房间数、小怪战斗数、精英战斗数、商店数
@@ -757,7 +811,7 @@ PRD-00 §4.5.1 防御计算第 5 步 Buffer 的公式补充示例：
 
 ### AC-09: 功能开关
 - [ ] 11 个子功能可独立关闭（含新增的卡牌掉落概率、商店价格）
-- [ ] 关闭后对应 UI 不显示、对应 patch 不执行
+- [ ] 关闭后对应 UI 不显示、对应逻辑不执行
 - [ ] 设置在重启后保持
 
 ### AC-10: 多人兼容
@@ -790,9 +844,9 @@ PRD-00 §4.5.1 防御计算第 5 步 Buffer 的公式补充示例：
 - [ ] 面板使用 InfoMod 风格深色面板
 
 ### AC-15: UI 风格一致性
-- [ ] 所有新增 UI 颜色来自 StsColors 或 UI_STYLE_GUIDE.md 色板
+- [ ] 所有新增 UI 颜色遵循 UI_STYLE_GUIDE.md 色板
 - [ ] 所有百分比显示到小数点后 1 位
-- [ ] 面板样式使用 StyleBoxFlat，参数遵循 UI_STYLE_GUIDE.md
+- [ ] 面板样式遵循 UI_STYLE_GUIDE.md 规范
 - [ ] 交互动画使用标准时长（hover 0.05s、press 0.5s Expo.Out）
 
 ---

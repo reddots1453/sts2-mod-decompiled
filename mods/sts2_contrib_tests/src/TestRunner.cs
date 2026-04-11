@@ -69,6 +69,15 @@ public sealed class TestRunner
         list.AddRange(Catalog_InteractionTests.All);
         list.AddRange(Catalog_RelicTests.All);
 
+        // Round 10 batch 1: §19.4 closes the 0% potion-coverage gap.
+        list.AddRange(Catalog_PotionTests.All);
+
+        // Round 10 batch 2: §19.3 patched-but-untested food + block relics.
+        list.AddRange(Catalog_RelicTestsBatch2.All);
+
+        // Round 10 batch 3: §19.2.5 closes the 0-coverage Necrobinder gap.
+        list.AddRange(Catalog_NecrobinderCardTests.All);
+
         return list;
     }
 

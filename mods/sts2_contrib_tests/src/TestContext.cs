@@ -5,6 +5,7 @@ using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Entities.Potions;
 using MegaCrit.Sts2.Core.Entities.Relics;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
@@ -214,6 +215,57 @@ public sealed class TestContext
     /// <summary>Get the current combat room (for AfterRoomEntered triggers).</summary>
     public AbstractRoom? GetCurrentRoom()
         => Player.RunState.CurrentRoom;
+
+    // ── Potion Helpers ──────────────────────────────────────
+    // Round 10 batch 1: closes the §19.4 zero-coverage gap. Pattern:
+    //   ctx.TakeSnapshot();
+    //   await ctx.UsePotion<FirePotion>(target: enemy);
+    //   var d = ctx.GetDelta();
+    //   ctx.AssertEquals(result, "FIRE_POTION.DirectDamage", 20, d["FIRE_POTION"].DirectDamage);
+
+    /// <summary>
+    /// Procure a potion into the player's first open slot, then immediately
+    /// consume it via OnUseWrapper. Going through OnUseWrapper is required so
+    /// PotionContextPatch.BeforePotionUse fires SetActivePotion — without that,
+    /// none of the contribution events get attributed to the potion source.
+    /// </summary>
+    public async Task<T> UsePotion<T>(Creature? target = null) where T : PotionModel
+    {
+        // Ensure a free slot. CombatOnly potions auto-remove when consumed,
+        // but defensive: clear slot 0 if something stale is parked there.
+        if (!Player.HasOpenPotionSlots && Player.PotionSlots.Count > 0)
+        {
+            var stale = Player.PotionSlots[0];
+            if (stale != null) await PotionCmd.Discard(stale);
+        }
+
+        var procureResult = await PotionCmd.TryToProcure<T>(Player);
+        if (!procureResult.success || procureResult.potion is not T potion)
+        {
+            throw new InvalidOperationException(
+                $"UsePotion<{typeof(T).Name}> failed to procure: {procureResult.failureReason}");
+        }
+        await Task.Delay(80);
+
+        // Default targeting: self for AnyPlayer/AllPlayers, first enemy otherwise.
+        var resolvedTarget = target ?? ResolveDefaultPotionTarget(potion);
+
+        var choiceCtx = new BlockingPlayerChoiceContext();
+        await potion.OnUseWrapper(choiceCtx, resolvedTarget);
+        await Task.Delay(300);
+        return potion;
+    }
+
+    private Creature? ResolveDefaultPotionTarget(PotionModel potion)
+    {
+        var tt = potion.TargetType;
+        if (tt == TargetType.AnyPlayer || tt == TargetType.Self
+            || tt == TargetType.AnyAlly || tt == TargetType.AllAllies
+            || tt == TargetType.None)
+            return PlayerCreature;
+        // AnyEnemy / AllEnemies / RandomEnemy — pick first hittable enemy
+        return CombatState.HittableEnemies.FirstOrDefault();
+    }
 
     /// <summary>Set player energy to a specific value.</summary>
     public async Task SetEnergy(int amount)

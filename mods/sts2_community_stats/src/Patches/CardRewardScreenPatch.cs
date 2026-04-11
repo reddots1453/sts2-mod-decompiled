@@ -23,6 +23,16 @@ public static class CardRewardScreenPatch
             var cardRow = Traverse.Create(__instance).Field("_cardRow").GetValue<Control>();
             if (cardRow == null) return;
 
+            // Round 9 round 33: respect the CardLibraryStats toggle here too —
+            // previously the toggle only gated the compendium inspect screen,
+            // leaving labels visible on the reward selection screen.
+            if (!Config.ModConfig.Toggles.CardLibraryStats)
+            {
+                foreach (var child in cardRow.GetChildren())
+                    if (child is NGridCardHolder h) DeckViewPatch.RemoveExistingLabel(h);
+                return;
+            }
+
             int index = 0;
             foreach (var child in cardRow.GetChildren())
             {

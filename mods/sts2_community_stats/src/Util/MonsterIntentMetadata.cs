@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Entities.Ascension;
+using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.MonsterMoves.Intents;
 using MegaCrit.Sts2.Core.MonsterMoves.MonsterMoveStateMachine;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace CommunityStats.Util;
 
@@ -41,13 +44,33 @@ public static class MonsterIntentMetadata
         public int? Damage { get; init; }
         public int? Block { get; init; }
         public int Repeats { get; init; } = 1;
+        /// <summary>
+        /// Round 9 round 4: live AbstractIntent instance (kept across the
+        /// metadata cache lifetime) so the icon cache can read SpritePath
+        /// via reflection — many intent classes have non-parameterless
+        /// constructors so we can't cheaply re-instantiate them later.
+        /// Plain managed object, no Godot binding, safe to cache.
+        /// </summary>
+        public AbstractIntent? IntentInstance { get; init; }
     }
 
     public sealed class BranchInfo
     {
-        public string TargetStateId { get; init; } = "";
+        // Round 9 round 31: TargetStateId is mutable so monster-specific
+        // override passes (e.g. Queen's SetMoveImmediate(Enrage)) can rewrite
+        // a branch target without rebuilding the whole BranchInfo.
+        public string TargetStateId { get; set; } = "";
         public float Weight { get; init; } = 1f;
         public int MaxTimes { get; init; }
+
+        // Round 9 round 17: structural repetition rules captured from
+        // RandomBranchState.StateWeight. Used to render annotations like
+        // "≤1" / "≤N" / "×1" / "CD:N" next to the probability label, in the
+        // STS1 mod style. The lambda's bare weight remains the displayed
+        // percentage; these annotations describe the structural constraint.
+        public MegaCrit.Sts2.Core.MonsterMoves.MoveRepeatType RepeatType { get; init; }
+            = MegaCrit.Sts2.Core.MonsterMoves.MoveRepeatType.CanRepeatForever;
+        public int Cooldown { get; init; }
     }
 
     public sealed class StateInfo
@@ -55,7 +78,9 @@ public static class MonsterIntentMetadata
         public string Id { get; init; } = "";
         public StateKind Kind { get; init; }
         public List<IntentInfo> Intents { get; init; } = new();
-        public string? FollowUpStateId { get; init; }
+        // Round 9 round 31: FollowUpStateId is mutable so the CannotRepeat
+        // unfolding post-pass can rewrite it without rebuilding the instance.
+        public string? FollowUpStateId { get; set; }
         public List<BranchInfo> Branches { get; init; } = new();
     }
 
@@ -67,16 +92,38 @@ public static class MonsterIntentMetadata
         public List<StateInfo> States { get; init; } = new();
     }
 
-    // Round 8: lazy cache. Negative entries (failures) live in here too so
-    // we don't keep retrying broken monsters.
-    private static readonly Dictionary<string, MonsterEntry?> _cache = new();
+    // Round 9 round 9: cache key is (monsterId, isDeadly) so we can hold both
+    // ascension tiers simultaneously. `isDeadly` mirrors AscensionLevel.DeadlyEnemies
+    // (A9+) which is the only ascension that changes intent damage / move sets.
+    // A8 only adds ToughEnemies (HP only) so it shares the Standard tier per spec §3.10.7.
+    private static readonly Dictionary<(string id, bool deadly), MonsterEntry?> _cache = new();
     public static int Count => _cache.Count;
 
     /// <summary>
-    /// Look up a monster's pre-baked state-machine snapshot. Round 8: tries
-    /// to use the LIVE mutable monster instance first (which always has its
-    /// SM populated during combat), then falls back to baking from the
-    /// canonical instance. Negative results are cached.
+    /// Round 9 round 9: forced ascension flag. While non-null, the Harmony prefix
+    /// `AscensionForcePatch` returns this value from `RunManager.HasAscension` for
+    /// the `DeadlyEnemies` and `ToughEnemies` levels (other levels pass through to
+    /// the real implementation). Used by `Initialize()` to bake both tiers in one
+    /// pass without needing an actual run in progress.
+    /// </summary>
+    internal static bool? ForcedAscensionDeadly;
+
+    /// <summary>
+    /// Returns true if the current run has Ascension 9+ (DeadlyEnemies). At
+    /// non-run contexts (mod init / main menu) returns false. Wrapped in try
+    /// because some code paths can be called before RunManager.Instance exists.
+    /// </summary>
+    private static bool IsCurrentRunDeadly()
+    {
+        try { return RunManager.Instance?.HasAscension(AscensionLevel.DeadlyEnemies) ?? false; }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Look up a monster's pre-baked state-machine snapshot for the CURRENT run's
+    /// ascension tier. Falls back to live in-combat MonsterModel.MoveStateMachine
+    /// (which is always populated and always matches current ascension) when no
+    /// cache entry exists.
     /// </summary>
     public static MonsterEntry? Get(string monsterId) =>
         Get(monsterId, liveMonster: null);
@@ -85,8 +132,21 @@ public static class MonsterIntentMetadata
     {
         if (string.IsNullOrEmpty(monsterId)) return null;
 
-        // Live monster path: prefer the in-combat instance because its SM
-        // is guaranteed populated and matches whatever the game is using.
+        bool deadly = IsCurrentRunDeadly();
+        var key = (monsterId, deadly);
+
+        // Round 9 round 13: ALWAYS prefer live monster when available, even on
+        // cache hits. Many monsters (TwoTailedRat, Hexaghost-style) have
+        // RandomBranchState weight lambdas that capture `this` and read
+        // dynamic counters like `_turnsUntilSummonable` / `_callForBackupCount`
+        // / encounter slots. At eager-bake time those values are uninitialized
+        // (default ints / null encounter), so the cached weights bear no
+        // relation to actual combat. The live in-combat MonsterModel has those
+        // counters at their CURRENT values, and the lambdas evaluate against
+        // them — giving the same numbers the player sees in real moves.
+        //
+        // We DO NOT cache the live result: weights change every turn, so caching
+        // would just re-create the staleness problem.
         if (liveMonster != null)
         {
             try
@@ -95,10 +155,7 @@ public static class MonsterIntentMetadata
                 {
                     var live = BuildEntryFromInstance(liveMonster);
                     if (live != null && live.States.Count > 0)
-                    {
-                        _cache[monsterId] = live;
                         return live;
-                    }
                 }
             }
             catch (Exception ex)
@@ -107,25 +164,174 @@ public static class MonsterIntentMetadata
             }
         }
 
-        // Cache hit (positive or negative).
-        if (_cache.TryGetValue(monsterId, out var cached)) return cached;
+        // Cache hit (used when no live monster, e.g. external callers / non-combat).
+        if (_cache.TryGetValue(key, out var cached) && cached != null)
+            return cached;
 
-        // Cache miss: try to bake from canonical instance.
+        // Last-resort: bake from canonical instance now.
         var entry = TryBakeFromCanonical(monsterId);
-        _cache[monsterId] = entry; // store negative result too
-        if (entry == null)
-            Safe.Warn($"[IntentMeta] no metadata could be built for {monsterId}");
-        return entry;
+        if (entry != null)
+        {
+            _cache[key] = entry;
+            return entry;
+        }
+
+        if (!_warnedMissing.Contains(monsterId))
+        {
+            _warnedMissing.Add(monsterId);
+            Safe.Warn($"[IntentMeta] no metadata could be built for {monsterId} (will retry on next hover)");
+        }
+        return null;
+    }
+
+    private static readonly HashSet<string> _warnedMissing = new();
+
+    /// <summary>
+    /// Round 9 round 5: eager pre-bake at mod init. Walks every monster in
+    /// `ModelDb.Monsters`, attempts a canonical clone bake, stores positive
+    /// results in the cache. Failures are NOT cached so the lazy hover path
+    /// can retry them with a live monster (whose state machine will already
+    /// be populated by SetUpForCombat at combat start).
+    ///
+    /// Also reports a summary log so we can see how many bakes succeeded /
+    /// failed at init time, helping diagnose missing-metadata reports.
+    /// </summary>
+    private static bool _eagerBakeDone;
+
+    /// <summary>
+    /// Round 9 round 9: bake every monster TWICE — once at Standard tier
+    /// (no DeadlyEnemies/ToughEnemies) and once at Deadly tier (DeadlyEnemies+
+    /// ToughEnemies forced on). The forcing is done by `AscensionForcePatch`
+    /// reading `ForcedAscensionDeadly` and short-circuiting `RunManager.HasAscension`.
+    /// </summary>
+    private static void BakeAllMonsters(List<MonsterModel> monsters, bool deadly,
+        ref int success, ref int failure, ref int total)
+    {
+        ForcedAscensionDeadly = deadly;
+        try
+        {
+            foreach (var canonical in monsters)
+            {
+                total++;
+                if (canonical?.Id?.Entry == null) { failure++; continue; }
+                var id = canonical.Id.Entry;
+                var key = (id, deadly);
+                if (_cache.TryGetValue(key, out var existing) && existing != null)
+                {
+                    success++;
+                    continue;
+                }
+                MonsterEntry? entry = null;
+                try { entry = Bake(canonical); }
+                catch (Exception ex)
+                {
+                    Safe.Warn($"[IntentMeta] eager bake threw for {id} (deadly={deadly}): {ex.Message}");
+                }
+                if (entry != null)
+                {
+                    _cache[key] = entry;
+                    success++;
+                }
+                else
+                {
+                    failure++;
+                }
+            }
+        }
+        finally
+        {
+            ForcedAscensionDeadly = null;
+        }
     }
 
     /// <summary>
-    /// Backwards-compat shim for the old eager init call site. Round 8 is
-    /// fully lazy so this is now a no-op kept to avoid breaking the mod
-    /// initialization order.
+    /// Round 9 round 6 fix: the previous version called `ModelDb.Monsters` which
+    /// chains through `Acts.SelectMany(act.AllMonsters)` → `Act&lt;Overgrowth&gt;()` →
+    /// `_contentById[GetId&lt;Overgrowth&gt;()]`. At mod-init time `ModelDb.Init()` has
+    /// NOT yet run, so that dictionary lookup throws
+    /// `KeyNotFoundException 'ACT.OVERGROWTH'` and the entire enumeration aborts
+    /// before any monster gets baked (observed 0/0 in godot.log).
+    ///
+    /// New approach: read `ModelDb._contentById` directly via Traverse and filter
+    /// its values to `MonsterModel` subclasses. This bypasses the Acts indirection
+    /// entirely. If the dict is still empty (too early), we no-op — the method is
+    /// also wired into `CombatLifecyclePatch.AfterSetUpCombat` so it re-runs at
+    /// first combat start when ModelDb is guaranteed populated. Idempotent via
+    /// the `_eagerBakeDone` flag.
     /// </summary>
     public static void Initialize()
     {
-        // Lazy mode — see Get(monsterId, liveMonster).
+        if (_eagerBakeDone) return;
+
+        int success = 0, failure = 0, total = 0;
+        List<MonsterModel> monsters = new();
+        try
+        {
+            var dict = Traverse.Create(typeof(ModelDb))
+                .Field("_contentById")
+                .GetValue<System.Collections.IDictionary>();
+            if (dict == null)
+            {
+                Safe.Warn("[IntentMeta] eager bake skipped: ModelDb._contentById unreachable");
+                return;
+            }
+            if (dict.Count == 0)
+            {
+                // ModelDb.Init hasn't run yet — defer to combat-start retry.
+                Safe.Info("[IntentMeta] eager bake deferred: ModelDb not yet initialized");
+                return;
+            }
+            foreach (var v in dict.Values)
+            {
+                if (v is MonsterModel m) monsters.Add(m);
+            }
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"[IntentMeta] eager bake enumeration failed: {ex.Message}");
+            return;
+        }
+
+        // Round 9 round 9: double-bake. Standard tier first, then Deadly.
+        int sStd = 0, fStd = 0, tStd = 0;
+        BakeAllMonsters(monsters, deadly: false, ref sStd, ref fStd, ref tStd);
+
+        int sDly = 0, fDly = 0, tDly = 0;
+        BakeAllMonsters(monsters, deadly: true, ref sDly, ref fDly, ref tDly);
+
+        success = sStd + sDly;
+        failure = fStd + fDly;
+        total = tStd + tDly;
+
+        _eagerBakeDone = success > 0;
+        Safe.Info($"[IntentMeta] eager bake complete: standard={sStd}/{tStd}, deadly={sDly}/{tDly}, failures={failure}");
+
+        // Round 9 round 10: report monsters whose decode produced 0 branches in
+        // any RandomBranch / ConditionalBranch state — these will render as
+        // empty cyan boxes in the panel and indicate a decode regression.
+        try
+        {
+            int emptyBranchMonsters = 0;
+            foreach (var kv in _cache)
+            {
+                var ent = kv.Value;
+                if (ent == null) continue;
+                bool hasEmptyBranch = false;
+                foreach (var s in ent.States)
+                {
+                    if ((s.Kind == StateKind.RandomBranch || s.Kind == StateKind.ConditionalBranch)
+                        && s.Branches.Count == 0)
+                    {
+                        hasEmptyBranch = true;
+                        break;
+                    }
+                }
+                if (hasEmptyBranch) emptyBranchMonsters++;
+            }
+            if (emptyBranchMonsters > 0)
+                Safe.Warn($"[IntentMeta] {emptyBranchMonsters} monsters have at least one branch state with 0 branches (will render as empty boxes)");
+        }
+        catch { }
     }
 
     private static MonsterEntry? TryBakeFromCanonical(string monsterId)
@@ -160,12 +366,20 @@ public static class MonsterIntentMetadata
         }
         catch { }
 
+        // Round 9 round 15: pass the live Creature owner so RandomBranch decoding
+        // can call the game's own GetStateWeight (which applies CannotRepeat,
+        // UseOnlyOnce, cooldown filters in addition to the lambda).
+        Creature? owner = null;
+        try { owner = m.Creature; } catch { }
+
         var states = new List<StateInfo>();
         foreach (var kv in sm.States)
         {
-            try { states.Add(BuildState(kv.Key, kv.Value)); }
+            try { states.Add(BuildState(kv.Key, kv.Value, owner)); }
             catch (Exception ex) { Safe.Warn($"[IntentMeta] {m.Id.Entry}.{kv.Key}: {ex.Message}"); }
         }
+        UnfoldCannotRepeatFollowUps(states);
+        ApplyMonsterSpecificOverrides(states, m.Id.Entry);
         return new MonsterEntry
         {
             MonsterId = m.Id.Entry,
@@ -218,12 +432,18 @@ public static class MonsterIntentMetadata
         }
         catch { }
 
+        // Bake from canonical clone — no live Creature owner, so RandomBranch
+        // decoding falls back to the bare lambda (no CannotRepeat / UseOnlyOnce
+        // filtering). The cache is only used outside combat anyway; in-combat
+        // hovers go through BuildEntryFromInstance which has a live owner.
         var states = new List<StateInfo>();
         foreach (var kv in sm.States)
         {
-            try { states.Add(BuildState(kv.Key, kv.Value)); }
+            try { states.Add(BuildState(kv.Key, kv.Value, owner: null)); }
             catch (Exception ex) { Safe.Warn($"[IntentMeta] {id}.{kv.Key}: {ex.Message}"); }
         }
+        UnfoldCannotRepeatFollowUps(states);
+        ApplyMonsterSpecificOverrides(states, id!);
 
         return new MonsterEntry
         {
@@ -240,7 +460,116 @@ public static class MonsterIntentMetadata
         catch { return fallback; }
     }
 
-    private static StateInfo BuildState(string id, MonsterState state)
+    /// <summary>
+    /// Round 9 round 31: CannotRepeat unfolding pass. For each MoveState `X`
+    /// whose FollowUp is a RandomBranch `R`, if `R` contains `X` as a branch
+    /// with MoveRepeatType.CannotRepeat, and removing `X` leaves exactly one
+    /// candidate branch, rewrite `X.FollowUpStateId` to that unique remaining
+    /// branch's target. Visualization then shows the effective next state,
+    /// skipping the redundant RandomBranch pick that's structurally forced.
+    /// Canonical case: Exoskeleton SKITTER → RAND(SKITTER cannotRepeat,
+    /// MANDIBLE cannotRepeat) ⇒ SKITTER → MANDIBLE.
+    /// </summary>
+    private static void UnfoldCannotRepeatFollowUps(List<StateInfo> states)
+    {
+        var byId = new Dictionary<string, StateInfo>();
+        foreach (var s in states) byId[s.Id] = s;
+
+        foreach (var state in states)
+        {
+            if (state.Kind != StateKind.Move) continue;
+            var fu = state.FollowUpStateId;
+            if (string.IsNullOrEmpty(fu)) continue;
+            if (!byId.TryGetValue(fu!, out var target)) continue;
+            if (target.Kind != StateKind.RandomBranch) continue;
+
+            int selfIdx = -1;
+            for (int i = 0; i < target.Branches.Count; i++)
+            {
+                if (target.Branches[i].TargetStateId == state.Id) { selfIdx = i; break; }
+            }
+            if (selfIdx < 0) continue;
+            if (target.Branches[selfIdx].RepeatType
+                != MegaCrit.Sts2.Core.MonsterMoves.MoveRepeatType.CannotRepeat) continue;
+
+            string? unique = null;
+            bool multi = false;
+            for (int i = 0; i < target.Branches.Count; i++)
+            {
+                if (i == selfIdx) continue;
+                var t = target.Branches[i].TargetStateId;
+                if (string.IsNullOrEmpty(t)) continue;
+                if (unique == null) unique = t;
+                else if (unique != t) { multi = true; break; }
+            }
+            if (multi || unique == null) continue;
+
+            state.FollowUpStateId = unique;
+        }
+    }
+
+    /// <summary>
+    /// Round 9 round 31: monster-specific post-processing for runtime
+    /// intent overrides that the pure state-machine read cannot see. Canonical
+    /// case is Queen: `AmalgamDeathResponse` calls `SetMoveImmediate(Enrage)`
+    /// when the Amalgam dies and Queen's queued move is BurnBrightForMe,
+    /// jumping straight to Enrage without going through the OFF → EXECUTION
+    /// → ENRAGE chain. Also Queen has two structurally identical Conditional
+    /// Branch states (YOURE_MINE_NOW_BRANCH and BURN_BRIGHT_FOR_ME_BRANCH)
+    /// which is visually redundant — we merge them into one box.
+    /// </summary>
+    private static void ApplyMonsterSpecificOverrides(List<StateInfo> states, string monsterId)
+    {
+        if (monsterId == "WRIGGLER")
+        {
+            // Rewrite SPAWNED.FollowUp from INIT_MOVE to BITE so INIT_MOVE
+            // becomes dead code and gets hidden, leaving SPAWNED → BITE
+            // direct + BITE↔WRIGGLE cycle. The "1/3号位" / "2/4号位" branch
+            // semantics are surfaced via MonsterInitialVariants labels on
+            // BITE and WRIGGLE.
+            StateInfo? spawned = null, bite = null;
+            foreach (var s in states)
+            {
+                if (s.Id == "SPAWNED_MOVE") spawned = s;
+                else if (s.Id == "NASTY_BITE_MOVE") bite = s;
+            }
+            if (spawned != null && bite != null)
+                spawned.FollowUpStateId = bite.Id;
+        }
+
+        if (monsterId == "QUEEN")
+        {
+            StateInfo? box1 = null;     // YOURE_MINE_NOW_BRANCH (canonical)
+            StateInfo? box2 = null;     // BURN_BRIGHT_FOR_ME_BRANCH (merged into box1)
+            StateInfo? burnBright = null;
+            foreach (var s in states)
+            {
+                if (s.Id == "YOURE_MINE_NOW_BRANCH") box1 = s;
+                else if (s.Id == "BURN_BRIGHT_FOR_ME_BRANCH") box2 = s;
+                else if (s.Id == "BURN_BRIGHT_FOR_ME_MOVE") burnBright = s;
+            }
+            if (box1 != null && box2 != null && burnBright != null)
+            {
+                // Redirect BURN_BRIGHT's followup from Box2 to Box1 so the two
+                // structurally identical conditional boxes merge into one.
+                if (burnBright.FollowUpStateId == box2.Id)
+                    burnBright.FollowUpStateId = box1.Id;
+
+                // Rewrite Box1's "HasAmalgamDied" branch target from
+                // OFF_WITH_YOUR_HEAD to ENRAGE, matching the runtime
+                // SetMoveImmediate(Enrage) override.
+                foreach (var b in box1.Branches)
+                {
+                    if (b.TargetStateId == "OFF_WITH_YOUR_HEAD_MOVE")
+                        b.TargetStateId = "ENRAGE_MOVE";
+                }
+                // Box2 is now dead code (no incoming references). The panel's
+                // dead-cell pass will hide it automatically.
+            }
+        }
+    }
+
+    private static StateInfo BuildState(string id, MonsterState state, Creature? owner)
     {
         switch (state)
         {
@@ -253,6 +582,17 @@ public static class MonsterIntentMetadata
                     FollowUpStateId = move.FollowUpStateId ?? move.FollowUpState?.Id,
                 };
             case RandomBranchState rnd:
+                // Round 9 round 17: switch back to BARE LAMBDA weights per
+                // user spec (option B — STS1 mod style). The runtime
+                // GetStateWeight wrapper (round 9 round 15) and the
+                // degenerate-picker fallback (round 9 round 16) are reverted —
+                // the panel now shows the design-intent base distribution and
+                // surfaces structural rules via separate annotations
+                // (≤1 / ≤N / ×1 / CD:N) rendered next to the probability.
+                // This is simpler, more readable, and avoids edge cases where
+                // the picker's `num <= 0` short-circuit produces nonsense
+                // (e.g. HauntedShip round 4 = 100%/0%/0%/0% because all
+                // weights collapsed to 0 — accidental fallback, not design).
                 var branches = new List<BranchInfo>();
                 foreach (var sw in rnd.States)
                 {
@@ -263,28 +603,45 @@ public static class MonsterIntentMetadata
                         TargetStateId = sw.stateId,
                         Weight = Math.Max(0f, w),
                         MaxTimes = sw.maxTimes,
+                        RepeatType = sw.repeatType,
+                        Cooldown = sw.cooldown,
                     });
                 }
                 return new StateInfo { Id = id, Kind = StateKind.RandomBranch, Branches = branches };
             case ConditionalBranchState cond:
-                // Conditional branches store lambda predicates we can't display;
-                // we list the candidate target ids if reachable via reflection.
+                // Round 9 round 10 fix: previous version used `Field("_branches")`
+                // and `Field("stateId")` — both wrong. The actual decompiled
+                // shape (see _decompiled/.../ConditionalBranchState.cs) is:
+                //   private List<ConditionalBranch> States { get; } = new();
+                //   private readonly struct ConditionalBranch {
+                //       public readonly string id;
+                //       private readonly Func<bool> _conditionalLambda;
+                //   }
+                // So the field is `States` (private auto-property) and the
+                // inner field is `id`. Reading these via Traverse now succeeds.
                 var condBranches = new List<BranchInfo>();
                 try
                 {
-                    var rawList = Traverse.Create(cond).Field("_branches").GetValue<System.Collections.IEnumerable>();
+                    var rawList = Traverse.Create(cond).Property("States").GetValue<System.Collections.IEnumerable>();
                     if (rawList != null)
                     {
                         foreach (var entry in rawList)
                         {
                             var t = Traverse.Create(entry);
-                            var stateId = t.Field("stateId").GetValue<string>();
+                            var stateId = t.Field("id").GetValue<string>();
                             if (!string.IsNullOrEmpty(stateId))
-                                condBranches.Add(new BranchInfo { TargetStateId = stateId });
+                                condBranches.Add(new BranchInfo
+                                {
+                                    TargetStateId = stateId,
+                                    Weight = 1f, // conditional branches don't have explicit weights
+                                });
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Safe.Warn($"[IntentMeta] ConditionalBranch decode failed for {id}: {ex.Message}");
+                }
                 return new StateInfo { Id = id, Kind = StateKind.ConditionalBranch, Branches = condBranches };
             default:
                 return new StateInfo { Id = id, Kind = StateKind.Other };
@@ -293,14 +650,17 @@ public static class MonsterIntentMetadata
 
     private static IntentInfo BuildIntent(AbstractIntent intent)
     {
+        // Round 9 round 4: keep a reference to the live AbstractIntent
+        // instance so IntentIconCache can read SpritePath via reflection
+        // later (no need for a live combat owner — SpritePath is a class
+        // constant on every concrete intent subclass).
         var info = new IntentInfo
         {
             IntentType = intent.IntentType,
-            IntentTypeName = intent.IntentType.ToString(),
+            IntentTypeName = intent.GetType().Name,
+            IntentInstance = intent,
         };
 
-        // Use reflection on the abstract DamageCalc and Repeats since the
-        // labelling helpers want a live target/owner pair.
         try
         {
             if (intent is AttackIntent atk)
@@ -318,6 +678,7 @@ public static class MonsterIntentMetadata
                     IntentTypeName = atk.GetType().Name,
                     Damage = baseDamage,
                     Repeats = repeats,
+                    IntentInstance = atk,
                 };
             }
         }

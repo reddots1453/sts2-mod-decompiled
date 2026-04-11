@@ -55,7 +55,9 @@ public partial class ContributionPanel : PanelContainer
         };
         panel.AddThemeStyleboxOverride("panel", style);
 
-        panel.CustomMinimumSize = new Vector2(460, 400);
+        // Round 9 round 51: bumped width 460 → 760 so the bar charts fit
+        // without a horizontal scrollbar. The OffsetRight is widened to match.
+        panel.CustomMinimumSize = new Vector2(760, 460);
 
         // Manual feedback round 4: anchor LEFT side. The right side covered the
         // post-combat 前进 button; the LEFT side leaves the central reward card
@@ -65,7 +67,7 @@ public partial class ContributionPanel : PanelContainer
         panel.AnchorTop = 0.1f;
         panel.AnchorBottom = 0.9f;
         panel.OffsetLeft = 10;
-        panel.OffsetRight = 470;
+        panel.OffsetRight = 770;
 
         // Main layout
         var vbox = new VBoxContainer();
@@ -129,22 +131,17 @@ public partial class ContributionPanel : PanelContainer
     }
 
     /// <summary>
-    /// Handler for CombatTracker.CombatDataUpdated. Round 6 simplification:
-    /// the previous version had a 500ms leading + trailing debounce that
-    /// caused the first card-play of a turn to be the only one that
-    /// rendered. Replaced with a deferred call (next frame) that always
-    /// schedules a refresh — Godot collapses multiple deferred calls per
-    /// frame to one, so spamming card plays still doesn't churn the UI.
+    /// Handler for CombatTracker.CombatDataUpdated. Round 9 round 32 fix:
+    /// the previous version used `CallDeferred(nameof(DeferredRefresh))` to
+    /// schedule the work next frame, but Godot 4's StringName-based
+    /// CallDeferred didn't reliably resolve the private C# method, so the
+    /// live refresh silently skipped. Harmony postfixes already run on the
+    /// main thread, so we can refresh inline.
     /// </summary>
     private void OnCombatDataUpdated()
     {
         if (!Visible) return;
         Safe.Info("[ContribPanel] CombatDataUpdated → refresh");
-        CallDeferred(nameof(DeferredRefresh));
-    }
-
-    private void DeferredRefresh()
-    {
         Safe.Run(() => RefreshLive());
     }
 
@@ -346,7 +343,8 @@ public partial class ContributionPanel : PanelContainer
     /// </summary>
     public static void ShowRunReplay(IReadOnlyDictionary<string, ContributionAccum>? runSummary)
     {
-        if (!ModConfig.Toggles.ContributionPanel) return;
+        // Round 9 round 33: ContributionPanel toggle now only gates the
+        // auto-open after combat. Run-history replay button must always work.
         if (runSummary == null || runSummary.Count == 0) return;
 
         var panel = Instance;
@@ -358,8 +356,8 @@ public partial class ContributionPanel : PanelContainer
 
     public static void Toggle()
     {
-        if (!ModConfig.Toggles.ContributionPanel) return;
-
+        // Round 9 round 33: F8 hotkey ignores the toggle (which now only
+        // controls post-combat auto-open).
         var panel = Instance;
         if (panel.Visible)
             panel.Visible = false;
@@ -556,9 +554,21 @@ public partial class ContributionPanel : PanelContainer
 
     private static ScrollContainer WrapInScroll(Control content)
     {
-        var scroll = new ScrollContainer();
-        scroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+        // Round 9 round 51: explicitly disable horizontal scroll. The default
+        // ScrollContainer enables horizontal scrolling whenever content > view,
+        // and the run-replay tab was triggering this because the chart's
+        // bar-row width hadn't been recomputed for the new wider panel until
+        // the tab was opened. Mirror NewTabScroll which already does this.
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+        };
+        // Make the chart content also stretch to fill horizontally so it
+        // can use the full panel width.
+        content.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         scroll.AddChild(content);
         return scroll;
     }

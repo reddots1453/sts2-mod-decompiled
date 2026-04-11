@@ -195,9 +195,14 @@ public static class AncientPoolMap
             ActIndex = 2,
             Pools = new()
             {
-                new Pool { DisplayKey = "ancient.pool_1", RelicIds = new() { "ELECTRIC_SHRYMP", "GLASS_EYE", "SAND_CASTLE", "PRISMATIC_GEM" } },
+                // Round 9 round 49: pool 1 includes the alternate slot-1
+                // rewards (PrismaticGem 33% / SeaGlass 67%); the previous
+                // DISCOVERY_TOTEM_* IDs were placeholders that never resolved.
+                // See _decompiled/.../Models.Events/Orobas.cs for the canonical
+                // option layout.
+                new Pool { DisplayKey = "ancient.pool_1", RelicIds = new() { "ELECTRIC_SHRYMP", "GLASS_EYE", "SAND_CASTLE", "PRISMATIC_GEM", "SEA_GLASS" } },
                 new Pool { DisplayKey = "ancient.pool_2", RelicIds = new() { "ALCHEMICAL_COFFER", "DRIFTWOOD", "RADIANT_PEARL" } },
-                new Pool { DisplayKey = "ancient.pool_3", RelicIds = new() { "DISCOVERY_TOTEM_FIRE", "DISCOVERY_TOTEM_WATER", "DISCOVERY_TOTEM_EARTH" } },
+                new Pool { DisplayKey = "ancient.pool_3", RelicIds = new() { "TOUCH_OF_OROBAS", "ARCHAIC_TOOTH" } },
             },
         };
 

@@ -32,12 +32,14 @@ public sealed partial class CareerStatsSection : VBoxContainer
     private static readonly Color SectionBg = new(0.05f, 0.06f, 0.10f, 0.85f);
     private static readonly Color Border    = new(0.3f, 0.4f, 0.6f, 0.45f);
 
-    private const int TitleSize    = 18;
-    private const int SubtitleSize = 13;
-    private const int LabelSize    = 12;
-    private const int ValueSize    = 12;
+    // Round 9 round 48: +4 across the board per user request.
+    private const int TitleSize    = 36;
+    private const int SubtitleSize = 28;
+    private const int LabelSize    = 26;
+    private const int ValueSize    = 26;
 
     private string? _characterFilter;
+    private int _minAscension; // Round 9 round 46: ascension floor for the panel
     private CareerStatsData? _data;
 
     private CareerStatsSection() { }
@@ -50,12 +52,14 @@ public sealed partial class CareerStatsSection : VBoxContainer
             Name = "ModCareerStatsSection",
             _characterFilter = characterFilter,
         };
-        s.AddThemeConstantOverride("separation", 6);
+        // Round 9 round 45: bigger gap between SectionPanels so each card
+        // breathes against its neighbour.
+        s.AddThemeConstantOverride("separation", 16);
         s.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         s.MouseFilter = MouseFilterEnum.Pass;
 
         // Try cached snapshot first
-        s._data = RunHistoryAnalyzer.Instance.GetCached(characterFilter);
+        s._data = RunHistoryAnalyzer.Instance.GetCached(characterFilter, s._minAscension);
         s.Rebuild();
 
         // Subscribe for async result
@@ -65,8 +69,10 @@ public sealed partial class CareerStatsSection : VBoxContainer
         // Kick off async load if cache miss
         if (s._data == null || s._data.IsEmpty)
         {
+            var capturedChar = characterFilter;
+            var capturedAsc = s._minAscension;
             Util.Safe.RunAsync(async () =>
-                await RunHistoryAnalyzer.Instance.LoadAllAsync(characterFilter));
+                await RunHistoryAnalyzer.Instance.LoadAllAsync(capturedChar, minAscension: capturedAsc));
         }
 
         return s;
@@ -74,13 +80,18 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private void OnCareerStatsLoaded(CareerStatsData data)
     {
-        // Filter must match
+        // Filter must match (character + ascension)
         if ((data.CharacterFilter ?? "") != (_characterFilter ?? "")) return;
-        // Marshal to main thread for UI rebuild
+        if (data.MinAscension != _minAscension) return;
+        // Round 9 round 49: CallDeferred(string) routes through Godot's
+        // reflection, which can't see private C# methods like Rebuild —
+        // the call silently failed with "Method not found" and the screen
+        // froze on "loading". Use Callable.From(Rebuild) instead so the
+        // dispatch goes through the C# delegate path.
         Util.Safe.Run(() =>
         {
             _data = data;
-            CallDeferred(nameof(Rebuild));
+            Godot.Callable.From(Rebuild).CallDeferred();
         });
     }
 
@@ -106,12 +117,157 @@ public sealed partial class CareerStatsSection : VBoxContainer
             return;
         }
 
-        AddChild(BuildWinRateTrend());
+        // Round 9 round 49: merged 数据汇总 + 胜率趋势 into a single
+        // 胜率汇总卡片 panel with the min-ascension selector on top.
+        AddChild(BuildWinRateSummaryCard());
         AddChild(BuildDeathCauses());
         AddChild(BuildDeckTable());
         AddChild(BuildPathTable());
         AddChild(BuildAncientPickRates());
         AddChild(BuildBossStats());
+    }
+
+    private Control BuildWinRateSummaryCard()
+    {
+        var panel = SectionPanel(L.Get("career.win_summary_card"));
+        var v = (VBoxContainer)panel.GetChild(0);
+
+        // Row 1: min-ascension selector (moved from BuildWinRateTrend).
+        var ascRow = new HBoxContainer();
+        ascRow.AddThemeConstantOverride("separation", 8);
+        ascRow.AddChild(MakeLabel(L.Get("career.min_ascension"), Cream, LabelSize));
+        var ascSpin = new SpinBox
+        {
+            MinValue = 0,
+            // Round 9 round 49: cap at 10 — the game's ascension ladder tops
+            // out at 10, and values >10 caused data-load exceptions when the
+            // backend tried to filter on impossible levels.
+            MaxValue = 10,
+            Step = 1,
+            Value = _minAscension,
+            SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
+            CustomMinimumSize = new Vector2(100, 0),
+        };
+        ascSpin.AddThemeFontSizeOverride("font_size", LabelSize);
+        ascSpin.ValueChanged += d => OnAscensionChanged((int)d);
+        ascRow.AddChild(ascSpin);
+        v.AddChild(ascRow);
+
+        // Row 2: NStat summary cards (range / W-L / win rate / best streak).
+        v.AddChild(BuildSummaryNStatGrid());
+
+        // Row 3: rolling-window cells (10 / 50 / 100 / all).
+        if (_data != null)
+        {
+            var grid = new HBoxContainer();
+            grid.AddThemeConstantOverride("separation", 24);
+            v.AddChild(grid);
+
+            AppendWindowCell(grid, 10, _data.WinRateByWindow);
+            AppendWindowCell(grid, 50, _data.WinRateByWindow);
+            AppendWindowCell(grid, 100, _data.WinRateByWindow);
+            AppendWindowCell(grid, int.MaxValue, _data.WinRateByWindow);
+        }
+
+        return panel;
+    }
+
+    // Native asset paths shared across the summary cards.
+    private static string IconClock        => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("atlases/stats_screen_atlas.sprites/stats_clock.tres");
+    private static string IconSwords       => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("atlases/stats_screen_atlas.sprites/stats_swords.tres");
+    private static string IconChain        => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("atlases/stats_screen_atlas.sprites/stats_chain.tres");
+    private static string IconAchievements => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("atlases/stats_screen_atlas.sprites/stats_achievements.tres");
+    private static string IconCards    => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("atlases/stats_screen_atlas.sprites/stats_cards.tres");
+    private static string IconMonsters => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("atlases/stats_screen_atlas.sprites/stats_monsters.tres");
+    private static string IconAncients => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("atlases/stats_screen_atlas.sprites/stats_ancients.tres");
+
+    /// <summary>
+    /// Round 9 round 46: top summary now has only 3 cards in a single row,
+    /// all driven by the current ascension filter:
+    ///   1. 数据范围: 64 局     (run count for current filter)
+    ///   2. 进阶N 胜利/失败     (W/L count at ascension >= N)
+    ///   3. 进阶N 胜率           (win rate at ascension >= N)
+    /// The bottom rows of avg cards-gained / removed / upgraded were dropped
+    /// per user feedback — they belong in the per-Act path stats panel.
+    /// </summary>
+    private Control BuildSummaryNStatGrid()
+    {
+        // Round 9 round 49: 4 cards on a single row pushed the panel beyond
+        // the screen width — wrap into a 2×2 grid instead.
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddThemeConstantOverride("h_separation", 18);
+        grid.AddThemeConstantOverride("v_separation", 12);
+        grid.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+        int total = _data?.TotalRuns ?? 0;
+        int wins = _data?.Wins ?? 0;
+        int losses = total - wins;
+        float overall = total > 0 ? (float)wins / total : 0f;
+
+        // Card 1: data scope — only the bottom line "数据范围: N 局".
+        AddSummaryCard(grid, IconClock,
+            "",
+            string.Format(L.Get("settings.sample"), total));
+
+        // Cards 2 + 3: ascension-filtered W/L and win rate. The label uses
+        // the currently selected min ascension; ascension 0 falls back to "全部".
+        string ascLabel = _minAscension > 0
+            ? string.Format(L.Get("career.ascension_n"), _minAscension)
+            : L.Get("career.ascension_all");
+
+        // Round 9 round 49: user requested top/bottom swap so the descriptive
+        // label sits above the numeric value on cards 2 and 3.
+        AddSummaryCard(grid, IconSwords,
+            string.Format(L.Get("career.asc_winloss"), ascLabel),
+            $"{wins} W / {losses} L");
+        AddSummaryCard(grid, IconChain,
+            string.Format(L.Get("career.asc_winrate"), ascLabel),
+            $"{overall * 100:F1}%");
+        // Round 9 round 49: best win streak among filtered runs.
+        int bestStreak = _data?.MaxWinStreak ?? 0;
+        AddSummaryCard(grid, IconAchievements,
+            string.Format(L.Get("career.asc_max_streak"), ascLabel),
+            bestStreak.ToString());
+
+        return grid;
+    }
+
+    /// <summary>
+    /// Helper: instantiate the native NStatEntry prefab and set text on it.
+    /// Uses CallDeferred so the text is set after _Ready has wired up the
+    /// internal labels (instantiation order can be subtle for PackedScenes).
+    /// </summary>
+    private static void AddSummaryCard(GridContainer grid, string iconPath, string topText, string bottomText)
+    {
+        try
+        {
+            var entry = MegaCrit.Sts2.Core.Nodes.Screens.StatsScreen.NStatEntry.Create(iconPath);
+            grid.AddChild(entry);
+
+            // Schedule text-setting on the next idle frame so NStatEntry._Ready
+            // (which lazily resolves _topLabel / _bottomLabel via %-syntax)
+            // is guaranteed to have run.
+            // Round 9 round 49: skip SetTopText when topText is empty so the
+            // native NStatEntry leaves _topLabel hidden — that lets the
+            // remaining bottom label vertically center inside the card.
+            if (!string.IsNullOrEmpty(topText))
+            {
+                entry.CallDeferred(
+                    MegaCrit.Sts2.Core.Nodes.Screens.StatsScreen.NStatEntry.MethodName.SetTopText,
+                    topText);
+            }
+            if (!string.IsNullOrEmpty(bottomText))
+            {
+                entry.CallDeferred(
+                    MegaCrit.Sts2.Core.Nodes.Screens.StatsScreen.NStatEntry.MethodName.SetBottomText,
+                    bottomText);
+            }
+            Util.Safe.Info($"[CareerStatsSection] AddSummaryCard scheduled top='{topText}' bottom='{bottomText}'");
+        }
+        catch (System.Exception ex)
+        {
+            Util.Safe.Warn($"[CareerStatsSection] AddSummaryCard failed: {ex.Message}");
+        }
     }
 
     // PRD §3.18.3 — independent character dropdown for CareerStats. Order
@@ -138,36 +294,131 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private Control BuildHeader()
     {
-        var panel = WrapInPanel();
-        var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 4);
-        panel.AddChild(v);
+        // Round 9 round 42: header is now wrapped in the same SectionPanel as
+        // the rest of the career-stats blocks, with title + character filter
+        // inside. The "X runs · Y wins · Z%" subtitle is removed per user
+        // request — that info is in the summary cards below.
+        var panel = SectionPanel(L.Get("career.title"));
+        var v = (VBoxContainer)panel.GetChild(0);
 
-        var title = MakeLabel(L.Get("career.title"), Gold, TitleSize);
-        v.AddChild(title);
-
-        // PRD §3.18.3 — character filter dropdown (independent of F9 panel)
+        // Character filter row.
         var charRow = new HBoxContainer();
-        charRow.AddThemeConstantOverride("separation", 6);
-        charRow.AddChild(MakeLabel(L.Get("settings.character"), Gray, LabelSize));
+        charRow.AddThemeConstantOverride("separation", 8);
+        charRow.AddChild(MakeLabel(L.Get("settings.character"), Cream, LabelSize));
+
         var charDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        charDropdown.AddThemeFontSizeOverride("font_size", LabelSize);
-        for (int i = 0; i < _careerCharacterLocKeys.Length; i++)
-            charDropdown.AddItem(L.Get(_careerCharacterLocKeys[i]), i);
+        // Use AddIconItem so each dropdown row shows the character's
+        // top-bar icon next to its proper localized name.
+        PopulateCharacterDropdown(charDropdown);
         var currentIdx = Array.IndexOf(_careerCharacters, _characterFilter);
         charDropdown.Selected = currentIdx >= 0 ? currentIdx : 0;
         charDropdown.ItemSelected += i => OnCharacterDropdownChanged((int)i);
         charRow.AddChild(charDropdown);
         v.AddChild(charRow);
 
-        if (_data != null && !_data.IsEmpty)
+        return panel;
+    }
+
+    /// <summary>
+    /// Add icon+name items for "全部角色" + the 5 characters. Uses
+    /// CharacterModel.IconTexture (the small top-panel character icon) and
+    /// CharacterModel.Title.GetFormattedText() for the localized name.
+    /// "全部角色" reuses RandomCharacter's icon (the same one that appears
+    /// on the character-select random button).
+    /// </summary>
+    private static void PopulateCharacterDropdown(OptionButton dropdown)
+    {
+        AddCharIcon(dropdown, 0,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.RandomCharacter>(),
+            L.Get("settings.char_all"));
+        AddCharIcon(dropdown, 1,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Ironclad>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Ironclad>("char.IRONCLAD"));
+        AddCharIcon(dropdown, 2,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Silent>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Silent>("char.SILENT"));
+        AddCharIcon(dropdown, 3,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Defect>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Defect>("char.DEFECT"));
+        AddCharIcon(dropdown, 4,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Necrobinder>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Necrobinder>("char.NECROBINDER"));
+        AddCharIcon(dropdown, 5,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Regent>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Regent>("char.REGENT"));
+    }
+
+    private static void AddCharIcon(OptionButton dropdown, int id, Texture2D? icon, string label)
+    {
+        if (icon != null)
+            dropdown.AddIconItem(icon, label, id);
+        else
+            dropdown.AddItem(label, id);
+    }
+
+    private static Texture2D? TryGetCharIcon<T>() where T : MegaCrit.Sts2.Core.Models.CharacterModel
+    {
+        try { return MegaCrit.Sts2.Core.Models.ModelDb.Character<T>().IconTexture; }
+        catch { return null; }
+    }
+
+    private static string TryGetCharTitle<T>(string fallbackKey) where T : MegaCrit.Sts2.Core.Models.CharacterModel
+    {
+        try
         {
-            float overall = _data.TotalRuns > 0 ? (float)_data.Wins / _data.TotalRuns : 0f;
-            var sub = MakeLabel(
-                $"{_data.TotalRuns} runs · {_data.Wins} wins · {(overall * 100):F1}%",
-                Gray, SubtitleSize);
-            v.AddChild(sub);
+            var t = MegaCrit.Sts2.Core.Models.ModelDb.Character<T>().Title.GetFormattedText();
+            if (!string.IsNullOrEmpty(t)) return t!;
         }
+        catch { }
+        return L.Get(fallbackKey);
+    }
+
+    /// <summary>
+    /// Build a SectionPanel that visually matches the native 总体数据 panel:
+    /// dark rounded background, gold header label at the top, content VBox
+    /// underneath. The first child is the VBox so callers can grab it via
+    /// `panel.GetChild(0)` and append rows.
+    /// </summary>
+    private static PanelContainer SectionPanel(string headerText)
+    {
+        var panel = new PanelContainer();
+        // Round 9 round 43: brighter, more saturated colors so the panel
+        // actually contrasts against the StatsScreen background. The previous
+        // (0.06, 0.07, 0.11) was within 1 channel of the screen tone and
+        // appeared completely invisible.
+        var style = new StyleBoxFlat
+        {
+            BgColor = new Color(0.13f, 0.16f, 0.23f, 0.96f),
+            BorderColor = new Color(0.55f, 0.70f, 0.95f, 0.75f),
+            BorderWidthLeft = 2,
+            BorderWidthRight = 2,
+            BorderWidthTop = 2,
+            BorderWidthBottom = 2,
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomLeft = 10,
+            CornerRadiusBottomRight = 10,
+            ContentMarginLeft = 18,
+            ContentMarginRight = 18,
+            ContentMarginTop = 14,
+            ContentMarginBottom = 14,
+            ShadowColor = new Color(0f, 0f, 0f, 0.4f),
+            ShadowSize = 4,
+        };
+        panel.AddThemeStyleboxOverride("panel", style);
+        panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+
+        var v = new VBoxContainer();
+        v.AddThemeConstantOverride("separation", 10);
+        panel.AddChild(v);
+
+        var header = MakeLabel(headerText, Gold, TitleSize);
+        v.AddChild(header);
+
+        // Subtle separator under the header to mimic the native 总体数据 panel.
+        var sep = new HSeparator();
+        sep.AddThemeConstantOverride("separation", 4);
+        v.AddChild(sep);
 
         return panel;
     }
@@ -178,64 +429,50 @@ public sealed partial class CareerStatsSection : VBoxContainer
         var newFilter = _careerCharacters[idx];
         if (newFilter == _characterFilter) return;
         _characterFilter = newFilter;
-        // Show loading state immediately, kick off async reload, Rebuild on callback.
-        _data = RunHistoryAnalyzer.Instance.GetCached(newFilter);
+        ReloadForCurrentFilter();
+    }
+
+    private void OnAscensionChanged(int newMinAsc)
+    {
+        if (newMinAsc == _minAscension) return;
+        _minAscension = newMinAsc;
+        ReloadForCurrentFilter();
+    }
+
+    private void ReloadForCurrentFilter()
+    {
+        _data = RunHistoryAnalyzer.Instance.GetCached(_characterFilter, _minAscension);
         Rebuild();
         if (_data == null || _data.IsEmpty)
         {
+            var c = _characterFilter;
+            var a = _minAscension;
             Util.Safe.RunAsync(async () =>
-                await RunHistoryAnalyzer.Instance.LoadAllAsync(newFilter));
+                await RunHistoryAnalyzer.Instance.LoadAllAsync(c, minAscension: a));
         }
-    }
-
-    private Control BuildWinRateTrend()
-    {
-        var panel = WrapInPanel();
-        var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 4);
-        panel.AddChild(v);
-
-        v.AddChild(MakeLabel(L.Get("career.win_trend"), Gold, SubtitleSize));
-
-        if (_data == null) return panel;
-
-        var grid = new HBoxContainer();
-        grid.AddThemeConstantOverride("separation", 18);
-        v.AddChild(grid);
-
-        // 10 / 50 / All windows
-        AppendWindowCell(grid, 10, _data.WinRateByWindow);
-        AppendWindowCell(grid, 50, _data.WinRateByWindow);
-        AppendWindowCell(grid, int.MaxValue, _data.WinRateByWindow);
-
-        return panel;
     }
 
     private void AppendWindowCell(HBoxContainer parent, int window, IReadOnlyDictionary<int, float> map)
     {
         var cell = new VBoxContainer();
-        cell.AddThemeConstantOverride("separation", 2);
+        cell.AddThemeConstantOverride("separation", 4);
 
         string header = window == int.MaxValue
             ? L.Get("career.all")
             : string.Format(L.Get("career.last_n"), window);
-        cell.AddChild(MakeLabel(header, Gray, LabelSize));
+        cell.AddChild(MakeLabel(header, Cream, LabelSize));
 
         float rate = map.TryGetValue(window, out var v) ? v : 0f;
         var color = rate >= 0.6f ? Green : (rate >= 0.4f ? Cream : Red);
-        cell.AddChild(MakeLabel($"{rate * 100:F1}%", color, ValueSize + 2));
+        cell.AddChild(MakeLabel($"{rate * 100:F1}%", color, ValueSize + 4));
 
         parent.AddChild(cell);
     }
 
     private Control BuildDeathCauses()
     {
-        var panel = WrapInPanel();
-        var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 3);
-        panel.AddChild(v);
-
-        v.AddChild(MakeLabel(L.Get("career.death_causes"), Gold, SubtitleSize));
+        var panel = SectionPanel(L.Get("career.death_causes"));
+        var v = (VBoxContainer)panel.GetChild(0);
 
         if (_data == null || _data.DeathCausesByAct.Count == 0)
         {
@@ -243,18 +480,17 @@ public sealed partial class CareerStatsSection : VBoxContainer
             return panel;
         }
 
-        // Round 9 fix: per user feedback, do NOT split by Act and show top 10
-        // (was: split by Act, top 5 each). Aggregate counts across all Acts
-        // by encounter id, then take the 10 largest.
-        var aggregated = new Dictionary<string, int>();
+        // Round 9 round 47: aggregate across acts, preserve source for icon,
+        // top 10 rows. Each row prefixed with a TextureRect icon (or Unicode
+        // fallback for Abandoned).
+        var aggregated = new Dictionary<(string id, DeathSource src), int>();
         int totalDeaths = 0;
         foreach (var entries in _data.DeathCausesByAct.Values)
         {
             foreach (var entry in entries)
             {
-                if (!aggregated.ContainsKey(entry.EncounterId))
-                    aggregated[entry.EncounterId] = 0;
-                aggregated[entry.EncounterId] += entry.Count;
+                var key = (entry.EncounterId, entry.Source);
+                aggregated[key] = aggregated.GetValueOrDefault(key) + entry.Count;
                 totalDeaths += entry.Count;
             }
         }
@@ -264,21 +500,122 @@ public sealed partial class CareerStatsSection : VBoxContainer
             .Take(10)
             .ToList();
 
-        foreach (var (id, count) in top10)
+        foreach (var (key, count) in top10)
         {
-            var row = new HBoxContainer();
-            row.AddThemeConstantOverride("separation", 8);
-            var name = MakeLabel("· " + Util.NameLookup.DeathCause(id), Cream, LabelSize);
-            name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            float share = totalDeaths > 0 ? (float)count / totalDeaths : 0f;
-            var countLbl = MakeLabel($"{count} ({share * 100:F1}%)", Gray, LabelSize);
-            row.AddChild(name);
-            row.AddChild(countLbl);
-            v.AddChild(row);
+            v.AddChild(BuildDeathRow(key.id, key.src, count, totalDeaths));
         }
 
         return panel;
     }
+
+    private Control BuildDeathRow(string encounterId, DeathSource src, int count, int totalDeaths)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 12);
+
+        // Icon column — fixed width so labels line up. Round 9 round 49:
+        // bumped from 36×28 → 44×36 and centered vertically with the label.
+        var iconWrap = new Control { CustomMinimumSize = new Vector2(44, 36) };
+        iconWrap.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        var iconNode = BuildDeathIcon(src, encounterId);
+        if (iconNode != null)
+        {
+            iconWrap.AddChild(iconNode);
+            if (iconNode is Control ic)
+            {
+                ic.AnchorLeft = 0; ic.AnchorRight = 1;
+                ic.AnchorTop = 0;  ic.AnchorBottom = 1;
+            }
+        }
+        row.AddChild(iconWrap);
+
+        var name = MakeLabel(Util.NameLookup.DeathCause(encounterId), Cream, LabelSize);
+        name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        row.AddChild(name);
+
+        float share = totalDeaths > 0 ? (float)count / totalDeaths : 0f;
+        var countLbl = MakeLabel($"{count} ({share * 100:F1}%)", Gray, LabelSize);
+        row.AddChild(countLbl);
+
+        return row;
+    }
+
+    // Round 9 round 49: ancient elder ids that should render an Ancient
+    // portrait icon instead of the generic Combat / Event one. NEOW shows up
+    // as a Combat death (engine attributes it to KilledByEncounter) but the
+    // user expects the elder portrait — same for the other elders.
+    private static readonly HashSet<string> AncientElderIds = new()
+    {
+        "NEOW", "PAEL", "TEZCATARA", "OROBAS", "VAKUU", "TANX", "NONUPEIPE", "DARV",
+    };
+
+    private static Control? BuildDeathIcon(DeathSource src, string encounterId)
+    {
+        // 1. Ancient elder portrait — game stores per-elder PNGs at
+        //    ui/run_history/{lowercase_id}.png (see AncientEventModel).
+        if (!string.IsNullOrEmpty(encounterId) && AncientElderIds.Contains(encounterId))
+        {
+            var ancTex = TryLoadTexture("ui/run_history/" + encounterId.ToLowerInvariant() + ".png");
+            if (ancTex != null) return MakeIconRect(ancTex);
+        }
+
+        // 2. Generic source-based icon: monster for combat, event PNG for events.
+        string? path = src switch
+        {
+            DeathSource.Combat
+                => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("ui/run_history/monster.png"),
+            DeathSource.Event
+                => MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath("ui/run_history/event.png"),
+            _ => null,
+        };
+        if (path != null)
+        {
+            var tex = TryLoadTextureFromAbsolute(path);
+            if (tex != null) return MakeIconRect(tex);
+        }
+
+        // 3. Abandoned: render a colored "←" glyph as the return arrow.
+        //    "←" (U+2190) is supported by the screen-theme font; "↩" was
+        //    rendering as a tofu / fallback emoji on the user's setup.
+        string glyph = src == DeathSource.Abandoned ? "←"
+                     : src == DeathSource.Event ? "?"
+                     : "⚔";
+        var lbl = new Label { Text = glyph };
+        lbl.HorizontalAlignment = HorizontalAlignment.Center;
+        lbl.VerticalAlignment = VerticalAlignment.Center;
+        lbl.AddThemeFontSizeOverride("font_size", LabelSize + 10);
+        lbl.AddThemeColorOverride("font_color", new Color(0.95f, 0.55f, 0.25f));
+        return lbl;
+    }
+
+    private static Texture2D? TryLoadTexture(string innerPath)
+    {
+        try
+        {
+            var path = MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath(innerPath);
+            return TryLoadTextureFromAbsolute(path);
+        }
+        catch { return null; }
+    }
+
+    private static Texture2D? TryLoadTextureFromAbsolute(string path)
+    {
+        try
+        {
+            if (!Godot.ResourceLoader.Exists(path)) return null;
+            return Godot.ResourceLoader.Load<Texture2D>(path, null, ResourceLoader.CacheMode.Reuse);
+        }
+        catch { return null; }
+    }
+
+    private static TextureRect MakeIconRect(Texture2D tex) => new TextureRect
+    {
+        Texture = tex,
+        CustomMinimumSize = new Vector2(36, 36),
+        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+    };
 
     // ── Deck construction table (round 5 — split from path stats) ──
 
@@ -289,22 +626,21 @@ public sealed partial class CareerStatsSection : VBoxContainer
         new Color(0.90f, 0.30f, 0.30f),     // red
         new Color(0.30f, 0.85f, 0.40f),     // green
     };
+    // Round 9 round 49: recolored per user spec — monsters yellow, elite orange,
+    // ? lavender (kept), shops blue, campfire red.
     private static readonly Color[] PathColors = new[]
     {
-        new Color(0.90f, 0.30f, 0.30f),     // red — monsters
+        new Color("#EFC851"),               // yellow — monsters
         new Color(0.95f, 0.55f, 0.25f),     // orange — elite
         new Color(0.74f, 0.55f, 0.95f),     // lavender — ?
-        new Color("#EFC851"),               // gold — shop
+        new Color(0.36f, 0.66f, 0.98f),     // blue — shop
+        new Color(0.90f, 0.30f, 0.30f),     // red — campfire
     };
 
     private Control BuildDeckTable()
     {
-        var panel = WrapInPanel();
-        var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 3);
-        panel.AddChild(v);
-
-        v.AddChild(MakeLabel(L.Get("career.deck_section"), Gold, SubtitleSize));
+        var panel = SectionPanel(L.Get("career.deck_section"));
+        var v = (VBoxContainer)panel.GetChild(0);
 
         if (_data == null || _data.PathStatsByAct.Count == 0)
         {
@@ -316,21 +652,22 @@ public sealed partial class CareerStatsSection : VBoxContainer
         var grid = NewActGrid(acts);
         v.AddChild(grid);
 
-        AddPathRow(grid, acts, "career.cards_gained",   DeckColors[0], s => s.CardsGained);
-        AddPathRow(grid, acts, "career.cards_bought",   DeckColors[1], s => s.CardsBought);
-        AddPathRow(grid, acts, "career.cards_removed",  DeckColors[2], s => s.CardsRemoved);
-        AddPathRow(grid, acts, "career.cards_upgraded", DeckColors[3], s => s.CardsUpgraded);
+        // Round 9 round 48: per-row icons in front of the label.
+        AddPathRow(grid, acts, "career.cards_gained",   DeckColors[0], s => s.CardsGained,
+            iconPath: "ui/reward_screen/reward_icon_card.png");
+        AddPathRow(grid, acts, "career.cards_bought",   DeckColors[1], s => s.CardsBought,
+            iconPath: "ui/run_history/shop.png");
+        AddPathRow(grid, acts, "career.cards_removed",  DeckColors[2], s => s.CardsRemoved,
+            iconPath: "ui/reward_screen/reward_icon_card_removal.png");
+        AddPathRow(grid, acts, "career.cards_upgraded", DeckColors[3], s => s.CardsUpgraded,
+            iconPath: "ui/rest_site/option_smith.png");
         return panel;
     }
 
     private Control BuildPathTable()
     {
-        var panel = WrapInPanel();
-        var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 3);
-        panel.AddChild(v);
-
-        v.AddChild(MakeLabel(L.Get("career.path_section"), Gold, SubtitleSize));
+        var panel = SectionPanel(L.Get("career.path_section"));
+        var v = (VBoxContainer)panel.GetChild(0);
 
         if (_data == null || _data.PathStatsByAct.Count == 0)
         {
@@ -342,10 +679,16 @@ public sealed partial class CareerStatsSection : VBoxContainer
         var grid = NewActGrid(acts);
         v.AddChild(grid);
 
-        AddPathRow(grid, acts, "career.monster_rooms", PathColors[0], s => s.MonsterRooms);
-        AddPathRow(grid, acts, "career.elite_rooms",   PathColors[1], s => s.EliteRooms);
-        AddPathRow(grid, acts, "career.unknown_rooms", PathColors[2], s => s.UnknownRooms);
-        AddPathRow(grid, acts, "career.shop_rooms",    PathColors[3], s => s.ShopRooms);
+        AddPathRow(grid, acts, "career.monster_rooms",  PathColors[0], s => s.MonsterRooms,
+            iconPath: "ui/run_history/monster.png");
+        AddPathRow(grid, acts, "career.elite_rooms",    PathColors[1], s => s.EliteRooms,
+            iconPath: "ui/run_history/elite.png");
+        AddPathRow(grid, acts, "career.unknown_rooms",  PathColors[2], s => s.UnknownRooms,
+            iconPath: "ui/run_history/event.png");
+        AddPathRow(grid, acts, "career.shop_rooms",     PathColors[3], s => s.ShopRooms,
+            iconPath: "ui/run_history/shop.png");
+        AddPathRow(grid, acts, "career.campfire_rooms", PathColors[4], s => s.CampfireRooms,
+            iconPath: "ui/run_history/rest_site.png");
         return panel;
     }
 
@@ -375,11 +718,25 @@ public sealed partial class CareerStatsSection : VBoxContainer
     }
 
     private void AddPathRow(GridContainer grid, List<int> acts, string labelKey, Color rowColor,
-        System.Func<ActPathStats, float> selector)
+        System.Func<ActPathStats, float> selector, string? iconPath = null)
     {
+        // First column is now an HBox containing optional icon + label so the
+        // icon sits flush left of the row label.
+        var headerHb = new HBoxContainer();
+        headerHb.AddThemeConstantOverride("separation", 8);
+        headerHb.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+        if (iconPath != null)
+        {
+            var iconNode = TryLoadIconRect(iconPath, 32);
+            if (iconNode != null) headerHb.AddChild(iconNode);
+        }
+
         var label = MakeLabel(L.Get(labelKey), rowColor, LabelSize);
         label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        grid.AddChild(label);
+        label.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        headerHb.AddChild(label);
+        grid.AddChild(headerHb);
 
         foreach (var act in acts)
         {
@@ -403,12 +760,8 @@ public sealed partial class CareerStatsSection : VBoxContainer
     /// </summary>
     private Control BuildAncientPickRates()
     {
-        var panel = WrapInPanel();
-        var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 4);
-        panel.AddChild(v);
-
-        v.AddChild(MakeLabel(L.Get("career.ancient_title"), Gold, SubtitleSize));
+        var panel = SectionPanel(L.Get("career.ancient_title"));
+        var v = (VBoxContainer)panel.GetChild(0);
 
         // Always show every elder we know about (even with 0 encounters) so the
         // dropdown is consistent across runs and shows the full menu structure.
@@ -427,7 +780,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Text = L.Get("career.elder_select"),
         };
-        dropdown.AddThemeFontSizeOverride("font_size", LabelSize);
+        // (font size inherits from screen theme)
         for (int i = 0; i < allElders.Count; i++)
         {
             var elder = allElders[i];
@@ -512,6 +865,11 @@ public sealed partial class CareerStatsSection : VBoxContainer
         // header row, and have visual breathing room between metrics.
         foreach (var pool in info.Pools)
         {
+            // Round 9 round 49: extra vertical breathing room above each pool
+            // header so the title doesn't crowd the previous pool's last row.
+            var spacer = new Control { CustomMinimumSize = new Vector2(0, 14) };
+            parent.AddChild(spacer);
+
             var poolHeader = MakeLabel("• " + L.Get(pool.DisplayKey), Gold, LabelSize);
             parent.AddChild(poolHeader);
 
@@ -570,20 +928,24 @@ public sealed partial class CareerStatsSection : VBoxContainer
     private void AddRelicGridRow(GridContainer grid, string relicId, ElderRelicStats? stats,
         int poolTotalPicks, float poolAvgWin, Util.AncientPoolMap.Pool pool)
     {
+        // Round 9 round 49: enlarge relic icons to match the row text height
+        // and vertically center them with the row label.
         var icon = Util.AncientPoolMap.GetRelicIcon(relicId);
         if (icon != null)
         {
-            grid.AddChild(new TextureRect
+            var rect = new TextureRect
             {
                 Texture = icon,
-                CustomMinimumSize = new Vector2(20, 20),
+                CustomMinimumSize = new Vector2(LabelSize + 6, LabelSize + 6),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-                StretchMode = TextureRect.StretchModeEnum.KeepAspect,
-            });
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            };
+            grid.AddChild(rect);
         }
         else
         {
-            grid.AddChild(new Control { CustomMinimumSize = new Vector2(20, 20) });
+            grid.AddChild(new Control { CustomMinimumSize = new Vector2(LabelSize + 6, LabelSize + 6) });
         }
 
         var displayName = Util.NameLookup.Relic(relicId);
@@ -591,6 +953,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             displayName += " " + string.Format(L.Get("ancient.act_only_n"), gateAct);
         var name = MakeLabel(displayName, Cream, LabelSize);
         name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         grid.AddChild(name);
 
         if (stats != null && stats.Picks > 0)
@@ -603,7 +966,14 @@ public sealed partial class CareerStatsSection : VBoxContainer
                         : stats.WinRate >= 0.4f ? Cream : Red;
             AppendNumericCell(grid, $"{stats.WinRate * 100:F1}%", winColor);
 
-            float delta = (stats.WinRate - poolAvgWin) * 100f;
+            // Round 9 round 49: delta = relic win rate − overall career win
+            // rate (under the same character + ascension filter), NOT vs the
+            // pool average. Pool average was a poor baseline because it shifts
+            // when one relic dominates picks.
+            float overallWin = (_data != null && _data.TotalRuns > 0)
+                ? (float)_data.Wins / _data.TotalRuns
+                : 0f;
+            float delta = (stats.WinRate - overallWin) * 100f;
             var sign = delta >= 0 ? "+" : "";
             var dColor = MathF.Abs(delta) < 1f ? Gray : (delta >= 0 ? Green : Red);
             AppendNumericCell(grid, $"{sign}{delta:F1}%", dColor);
@@ -634,23 +1004,32 @@ public sealed partial class CareerStatsSection : VBoxContainer
     /// </summary>
     private Control BuildBossStats()
     {
-        var panel = WrapInPanel();
-        var v = new VBoxContainer();
-        v.AddThemeConstantOverride("separation", 4);
-        panel.AddChild(v);
+        var panel = SectionPanel(L.Get("career.boss_title"));
+        var v = (VBoxContainer)panel.GetChild(0);
 
-        v.AddChild(MakeLabel(L.Get("career.boss_title"), Gold, SubtitleSize));
+        // Round 9 round 49: union the player's BossStats with the full game
+        // boss list so 0-encounter bosses still appear as placeholder rows.
+        var statsByEnc = _data?.BossStats ?? new Dictionary<string, BossEncounterStats>();
+        var allIds = AllKnownBossEncounterIds();
+        // Add any extra ids the player has data for that aren't in ModelDb
+        // (paranoid catch — modded encounters etc.).
+        foreach (var id in statsByEnc.Keys)
+            if (!allIds.Contains(id)) allIds.Add(id);
 
-        if (_data == null || _data.BossStats.Count == 0)
+        if (allIds.Count == 0)
         {
             v.AddChild(MakeLabel(L.Get("career.no_data_short"), Gray, LabelSize));
             return panel;
         }
 
-        // Sort by act first, then by encounter count desc.
-        var ranked = _data.BossStats.Values
-            .OrderBy(b => BossActIndex(b.EncounterId))
+        // Build display rows: every known boss + its (possibly zero) stats.
+        var ranked = allIds
+            .Select(id => statsByEnc.TryGetValue(id, out var s)
+                ? s
+                : new BossEncounterStats { EncounterId = id, Encounters = 0, Deaths = 0, AverageDamageTaken = 0f })
+            .OrderBy(b => BossActFor(b.EncounterId).SortKey)
             .ThenByDescending(b => b.Encounters)
+            .ThenBy(b => Util.NameLookup.Encounter(b.EncounterId))
             .ToList();
 
         var dropdown = new OptionButton
@@ -658,12 +1037,16 @@ public sealed partial class CareerStatsSection : VBoxContainer
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Text = L.Get("career.boss_select"),
         };
-        dropdown.AddThemeFontSizeOverride("font_size", LabelSize);
+        // Round 9 round 49: cap the popup height so a long boss list doesn't
+        // cover the whole screen. PopupMenu inherits from Window, so MaxSize
+        // controls the absolute upper bound; items beyond it auto-scroll.
+        try { dropdown.GetPopup().MaxSize = new Vector2I(0, 560); } catch { }
+        // (font size inherits from screen theme)
         for (int i = 0; i < ranked.Count; i++)
         {
             var b = ranked[i];
-            int actIdx = BossActIndex(b.EncounterId);
-            var actLabel = actIdx == 0 ? "" : Util.NameLookup.ActLabel(actIdx) + "  ";
+            var actInfo = BossActFor(b.EncounterId);
+            var actLabel = string.IsNullOrEmpty(actInfo.Label) ? "" : actInfo.Label + "  ";
             var name = Util.NameLookup.Encounter(b.EncounterId);
             var label = $"{actLabel}{name}  ({b.Encounters} {L.Get("career.encounters")})";
             dropdown.AddItem(label, i);
@@ -700,9 +1083,9 @@ public sealed partial class CareerStatsSection : VBoxContainer
                     StretchMode = TextureRect.StretchModeEnum.KeepAspect,
                 });
             }
-            int actIdx = BossActIndex(b.EncounterId);
-            if (actIdx > 0)
-                titleRow.AddChild(MakeLabel(Util.NameLookup.ActLabel(actIdx), Gold, LabelSize + 1));
+            var actInfo2 = BossActFor(b.EncounterId);
+            if (!string.IsNullOrEmpty(actInfo2.Label))
+                titleRow.AddChild(MakeLabel(actInfo2.Label, Gold, LabelSize + 1));
             var nameLbl = MakeLabel(Util.NameLookup.Encounter(b.EncounterId), Cream, LabelSize + 2);
             nameLbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             titleRow.AddChild(nameLbl);
@@ -734,42 +1117,106 @@ public sealed partial class CareerStatsSection : VBoxContainer
     }
 
     /// <summary>
-    /// Map a Boss encounter id to its act index using the game's ActModel
-    /// hierarchy. Falls back to 0 (unknown) if the model can't be found.
-    ///
-    /// Round 9 fix: previously this returned the FIRST matching act, but
-    /// some Act 1 bosses (e.g. 灵魂异鱼 / Soul Fish) also appear in Act 4
-    /// encounter pools. The user reported 灵魂异鱼 mislabeled as Act 4. We
-    /// now scan ALL acts and return the LOWEST matching index, since the
-    /// canonical "first appearance" act is what the user expects.
+    /// Round 9 round 49: ActModel order in code is Overgrowth(0)/Hive(1)/
+    /// Glory(2)/Underdocks(3), but Underdocks is actually an alternate Act 1
+    /// (暗港), not Act 4. This struct exposes a sort key + display label so
+    /// the boss dropdown groups Overgrowth and Underdocks together as "第1幕".
     /// </summary>
-    private static int BossActIndex(string encounterId)
+    private readonly record struct BossActInfo(int SortKey, string Label);
+
+    private static BossActInfo BossActInfoForActIndex(int actIdx0)
+    {
+        // actIdx0 is the 0-based index into ModelDb.Acts.
+        // Sort keys interleave Overgrowth/Underdocks before Hive/Glory.
+        return actIdx0 switch
+        {
+            0 => new BossActInfo(10, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_overgrowth")),
+            3 => new BossActInfo(15, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_underdocks")),
+            1 => new BossActInfo(20, string.Format(L.Get("career.act_n"), 2)),
+            2 => new BossActInfo(30, string.Format(L.Get("career.act_n"), 3)),
+            _ => new BossActInfo(99, ""),
+        };
+    }
+
+    /// <summary>
+    /// Locate the lowest act (by code index) that contains this boss encounter,
+    /// then map to the display info. Falls back to (0, "") on miss.
+    /// </summary>
+    private static BossActInfo BossActFor(string encounterId)
     {
         try
         {
             var acts = MegaCrit.Sts2.Core.Models.ModelDb.Acts.ToList();
-            int best = int.MaxValue;
             for (int i = 0; i < acts.Count; i++)
             {
                 foreach (var enc in acts[i].AllEncounters)
                 {
                     if (enc.Id.Entry == encounterId)
-                    {
-                        if (i + 1 < best) best = i + 1;
-                        break;
-                    }
+                        return BossActInfoForActIndex(i);
                 }
             }
-            if (best != int.MaxValue) return best;
         }
         catch { }
-        return 0;
+        return new BossActInfo(0, "");
+    }
+
+    /// <summary>
+    /// Round 9 round 49: enumerate every boss encounter known to the game
+    /// (across all 4 acts in code) so the dropdown can show 0-encounter rows
+    /// alongside the ones the player has actually fought.
+    /// </summary>
+    private static List<string> AllKnownBossEncounterIds()
+    {
+        var seen = new HashSet<string>();
+        var result = new List<string>();
+        try
+        {
+            foreach (var act in MegaCrit.Sts2.Core.Models.ModelDb.Acts)
+            {
+                foreach (var enc in act.AllBossEncounters)
+                {
+                    var id = enc.Id.Entry;
+                    if (string.IsNullOrEmpty(id)) continue;
+                    if (seen.Add(id)) result.Add(id);
+                }
+            }
+        }
+        catch { }
+        return result;
     }
 
     // ── UI helpers ──────────────────────────────────────────
 
+    /// <summary>
+    /// Best-effort load an image at `ui/...` and wrap in a sized TextureRect.
+    /// Returns null when the path doesn't resolve so callers can skip the row.
+    /// </summary>
+    private static TextureRect? TryLoadIconRect(string innerPath, int size)
+    {
+        try
+        {
+            var path = MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath(innerPath);
+            if (!Godot.ResourceLoader.Exists(path)) return null;
+            var tex = Godot.ResourceLoader.Load<Texture2D>(path, null, ResourceLoader.CacheMode.Reuse);
+            if (tex == null) return null;
+            return new TextureRect
+            {
+                Texture = tex,
+                CustomMinimumSize = new Vector2(size, size),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            };
+        }
+        catch { return null; }
+    }
+
     private static Label MakeLabel(string text, Color color, int size)
     {
+        // Round 9 round 44: re-enable explicit font_size override. The screen
+        // theme's default Label font is much smaller than the native MegaLabel
+        // sizes used in the 总体数据 panel; without this override our content
+        // looks tiny next to the surrounding game UI.
         var l = new Label();
         l.Text = text;
         l.AddThemeFontSizeOverride("font_size", size);

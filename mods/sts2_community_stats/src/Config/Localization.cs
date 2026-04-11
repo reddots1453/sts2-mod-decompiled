@@ -51,7 +51,7 @@ public static class L
         ["settings.upload"] = "Upload run data",
         ["settings.language"] = "Language:",
         // PRD §3.18 — character filter (F9 + CareerStats)
-        ["settings.character"] = "Character:",
+        ["settings.character"] = "Data Source (Character):",
         ["settings.char_auto"] = "Auto-match current",
         ["settings.char_all"] = "All Characters",
         ["char.IRONCLAD"] = "Ironclad",
@@ -86,6 +86,7 @@ public static class L
         ["potion.title"] = "Potion Chance",
         ["potion.subtitle"] = "Cumulative odds over N combats",
         ["potion.within"] = "Within {0} combats",
+        ["potion.elite"] = "Elite combat drop",
 
         // Card drop odds (§3.17)
         ["carddrop.title"] = "Card Drops (Next Combat)",
@@ -120,17 +121,14 @@ public static class L
         ["mod.settings_btn"] = "Stats the Spire Settings",
 
         // Feature toggles (§3.14)
-        ["toggle.contribution_panel"] = "Combat Contribution Panel (F8 + real-time)",
+        ["toggle.contribution_panel"] = "Auto-open Contribution Panel after combat",
         ["toggle.card_library_stats"] = "Card Pick/Win Rate in Library",
         ["toggle.relic_stats"] = "Relic Win Rate / Delta Display",
         ["toggle.event_pick_rate"] = "Event Option Pick Rate",
         ["toggle.monster_danger"] = "Monster Room Danger Rating",
         ["toggle.unknown_room_odds"] = "Unknown Room Encounter Odds",
-        ["toggle.potion_drop_odds"] = "Potion Drop Chance Display",
-        ["toggle.card_drop_odds"] = "Card Drop Rarity Odds",
         ["toggle.shop_prices"] = "Shop Price Table",
         ["toggle.intent_state_machine"] = "Enemy Intent State Machine",
-        ["toggle.career_stats"] = "Personal Career Stats",
 
         // ContributionPanel v2 (§3.7, §4.5)
         ["contrib.dps"] = "Avg Damage per Turn:",
@@ -194,6 +192,15 @@ public static class L
 
         // Career stats (§3.11)
         ["career.title"] = "Career Statistics",
+        ["career.summary_title"] = "Summary",
+        ["career.win_summary_card"] = "Win Rate",
+        ["run_hist_btn"] = "Run Stats",
+        ["run_hist_popup_title"] = "Run Statistics",
+        ["career.ascension_n"] = "A{0}",
+        ["career.ascension_all"] = "All Ascensions",
+        ["career.asc_winloss"] = "{0} Wins/Losses",
+        ["career.asc_winrate"] = "{0} Win Rate",
+        ["career.min_ascension"] = "Min Ascension:",
         ["career.win_trend"] = "Win Rate Trend",
         // Round 9: column headers above ancient pool relic rows.
         ["career.col_pick_rate"] = "Pick Rate",
@@ -212,6 +219,8 @@ public static class L
         ["career.monster_rooms"] = "Monster Fights",
         ["career.elite_rooms"] = "Elite Fights",
         ["career.shop_rooms"] = "Shops",
+        ["career.campfire_rooms"] = "Campfires",
+        ["career.asc_max_streak"] = "{0} Best Streak",
         ["career.ancient_title"] = "Ancient Relic Pick Rate",
         ["career.boss_title"] = "Boss Damage Taken",
         ["career.avg_damage"] = "Avg Damage:",
@@ -224,6 +233,8 @@ public static class L
         ["career.community_comparison"] = "Community Comparison",
         ["career.cause_abandoned"] = "Abandoned",
         ["career.act_n"] = "Act {0}",
+        ["career.act_overgrowth"] = " (Overgrowth)",
+        ["career.act_underdocks"] = " (Underdocks)",
         ["career.elder_select"] = "Select Elder",
         ["career.boss_select"] = "Select Boss",
         ["career.encounters"] = "encounters",
@@ -241,7 +252,7 @@ public static class L
         ["card_lib.mine"] = "Mine",
         ["card_lib.community"] = "Community",
         ["card_lib.metric"] = "Metric",
-        ["card_lib.samples"] = "Samples",
+        ["card_lib.samples"] = "Run Samples",
         ["card_lib.pick_rate"] = "Pick Rate",
         ["card_lib.win_rate"] = "Win Rate",
         ["card_lib.upgrade_rate"] = "Upgrade Rate",
@@ -255,6 +266,9 @@ public static class L
         ["runhist.ancient_picks"] = "Ancient Picks",
         ["runhist.boss_damage"] = "Boss Damage:",
         ["runhist.view_contrib"] = "View Contribution Chart",
+        ["runhist.victory"] = "VICTORY",
+        ["runhist.defeat"] = "DEFEAT",
+        ["runhist.floors_n"] = "{0} floors",
 
         // Intent state machine (§3.10)
         ["intent.subtitle"] = "Intent State Machine",
@@ -305,7 +319,7 @@ public static class L
         ["settings.upload"] = "上传游玩数据",
         ["settings.language"] = "语言:",
         // PRD §3.18 — 角色筛选（F9 + 个人生涯统计）
-        ["settings.character"] = "角色:",
+        ["settings.character"] = "数据来源（角色）:",
         ["settings.char_auto"] = "自动匹配当前角色",
         ["settings.char_all"] = "所有角色",
         ["char.IRONCLAD"] = "铁甲战士",
@@ -340,12 +354,13 @@ public static class L
         ["potion.title"] = "药水概率",
         ["potion.subtitle"] = "多场累计掉落概率",
         ["potion.within"] = "{0} 场内",
+        ["potion.elite"] = "精英战掉落",
 
         // Card drop odds (§3.17)
         ["carddrop.title"] = "卡牌掉落(下一场)",
         ["carddrop.subtitle"] = "各稀有度至少出现一张的概率",
         ["carddrop.rare"] = "稀有",
-        ["carddrop.uncommon"] = "非普通",
+        ["carddrop.uncommon"] = "罕见",
         ["carddrop.common"] = "普通",
         ["carddrop.col_regular"] = "普通战斗",
         ["carddrop.col_elite"] = "精英战斗",
@@ -374,17 +389,14 @@ public static class L
         ["mod.settings_btn"] = "Stats the Spire 设置",
 
         // Feature toggles (§3.14)
-        ["toggle.contribution_panel"] = "战斗贡献面板（F8 面板及实时刷新）",
+        ["toggle.contribution_panel"] = "战斗结束后自动打开战斗贡献面板",
         ["toggle.card_library_stats"] = "卡牌选取率/胜率统计显示",
         ["toggle.relic_stats"] = "遗物胜率/胜率浮动显示",
         ["toggle.event_pick_rate"] = "事件选项选择率显示",
         ["toggle.monster_danger"] = "怪物房间危险度显示",
         ["toggle.unknown_room_odds"] = "问号房间遭遇概率显示",
-        ["toggle.potion_drop_odds"] = "药水掉落概率显示",
-        ["toggle.card_drop_odds"] = "卡牌掉落概率显示",
         ["toggle.shop_prices"] = "商店价格显示",
         ["toggle.intent_state_machine"] = "敌人意图状态机显示",
-        ["toggle.career_stats"] = "个人生涯统计",
 
         // ContributionPanel v2 (§3.7, §4.5)
         ["contrib.dps"] = "每回合平均伤害:",
@@ -448,6 +460,15 @@ public static class L
 
         // Career stats (§3.11)
         ["career.title"] = "个人生涯统计",
+        ["career.summary_title"] = "数据汇总",
+        ["career.win_summary_card"] = "胜率汇总",
+        ["run_hist_btn"] = "本局统计",
+        ["run_hist_popup_title"] = "本局统计",
+        ["career.ascension_n"] = "进阶{0}",
+        ["career.ascension_all"] = "全部进阶",
+        ["career.asc_winloss"] = "{0} 胜利/失败",
+        ["career.asc_winrate"] = "{0} 胜率",
+        ["career.min_ascension"] = "最低进阶:",
         ["career.win_trend"] = "胜率趋势",
         // Round 9: column headers above ancient pool relic rows.
         ["career.col_pick_rate"] = "选取率",
@@ -457,7 +478,7 @@ public static class L
         ["career.last_n"] = "最近 {0} 局",
         ["career.all"] = "全部",
         ["career.death_causes"] = "死因排行",
-        ["career.path_stats"] = "路径统计（每 Act 平均）",
+        ["career.path_stats"] = "路线统计（每 Act 平均）",
         ["career.cards_gained"] = "获取卡牌",
         ["career.cards_bought"] = "购买卡牌",
         ["career.cards_removed"] = "删除卡牌",
@@ -466,6 +487,8 @@ public static class L
         ["career.monster_rooms"] = "小怪战斗数",
         ["career.elite_rooms"] = "精英战斗数",
         ["career.shop_rooms"] = "商店数",
+        ["career.campfire_rooms"] = "火堆数",
+        ["career.asc_max_streak"] = "{0} 最高连胜",
         ["career.ancient_title"] = "先古遗物选择率",
         ["career.boss_title"] = "Boss 战损",
         ["career.avg_damage"] = "平均战损:",
@@ -478,12 +501,14 @@ public static class L
         ["career.community_comparison"] = "社区对比",
         ["career.cause_abandoned"] = "中途放弃",
         ["career.act_n"] = "第{0}幕",
+        ["career.act_overgrowth"] = "（密林）",
+        ["career.act_underdocks"] = "（暗港）",
         ["career.elder_select"] = "选择先古之民",
         ["career.boss_select"] = "选择 Boss",
         ["career.encounters"] = "遭遇次数",
         ["career.no_data_short"] = "—",
         ["career.deck_section"] = "卡组构筑",
-        ["career.path_section"] = "路径统计",
+        ["career.path_section"] = "路线统计",
         ["ancient.pool_1"] = "选项一池",
         ["ancient.pool_2"] = "选项二池",
         ["ancient.pool_3"] = "选项三池",
@@ -495,7 +520,7 @@ public static class L
         ["card_lib.mine"] = "我的",
         ["card_lib.community"] = "社区",
         ["card_lib.metric"] = "指标",
-        ["card_lib.samples"] = "样本数",
+        ["card_lib.samples"] = "对局样本数",
         ["card_lib.pick_rate"] = "选取率",
         ["card_lib.win_rate"] = "胜率",
         ["card_lib.upgrade_rate"] = "升级率",
@@ -509,6 +534,9 @@ public static class L
         ["runhist.ancient_picks"] = "先古遗物选取",
         ["runhist.boss_damage"] = "Boss 战损:",
         ["runhist.view_contrib"] = "查看贡献图表",
+        ["runhist.victory"] = "胜利",
+        ["runhist.defeat"] = "失败",
+        ["runhist.floors_n"] = "第{0}层",
 
         // Intent state machine (§3.10)
         ["intent.subtitle"] = "意图状态机",

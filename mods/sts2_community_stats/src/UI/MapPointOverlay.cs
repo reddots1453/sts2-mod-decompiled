@@ -22,7 +22,12 @@ public static class MapPointOverlay
 
         var label = StatsLabel.ForEncounter(stats);
         label.Position = new Vector2(-30, mapPointNode.Size.Y + 2);
-        label.ZIndex = 10;
+        // Round 9 round 49: previously ZIndex = 10 — that punches above any
+        // later sibling Control in the same CanvasLayer, so opening the
+        // 百科大全 (compendium) screen on top of the map showed our overlay
+        // bleeding through. Default ZIndex (0) lets normal sibling tree-order
+        // hide it correctly.
+        label.ZIndex = 0;
 
         mapPointNode.AddChild(label);
         mapPointNode.SetMeta(OverlayMeta, true);

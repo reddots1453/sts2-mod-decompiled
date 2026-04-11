@@ -36,7 +36,8 @@ public partial class ContributionChart : VBoxContainer
 
     private const int MaxBarsPerSection = 10;
     private const float BarHeight = 22f;
-    private const float MaxBarWidth = 260f;
+    // Round 9 round 51: 260 → 540 to match the new 760-wide panel.
+    private const float MaxBarWidth = 540f;
     private const int BarCornerRadius = 4;
     private static int _rowCounter; // alternating background rows
 

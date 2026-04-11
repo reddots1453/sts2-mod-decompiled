@@ -1,19 +1,46 @@
 # 第二轮迭代 — 进度与上下文
 
-> 最后更新：2026-04-10（Round 9 §3.18 角色筛选 + 仓库重定位完成，等待 round 9 in-game 测试反馈）
+> 最后更新：2026-04-12（**第二轮迭代完成**，发布 v0.12.0，已 git push）
 > 此文件供跨设备会话使用，确保新会话能完整理解当前状态
 
 ---
 
 ## 当前位置
 
-**工作流阶段**：Stage 5 人工验收测试循环中（已完成 8 轮反馈 + Round 9 §3.18 角色筛选代码已 build 通过）
+**工作流阶段**：**Stage 6 — 已发布**。第二轮迭代全部 phase 完成 + 人工验收通过。
+
+**v0.12.0 发布产物**：
+- 仓库根 `./stats_the_spire/` — 可直接拷到游戏 `mods/` 目录的完整运行文件夹
+- 包含：manifest.json / config.json / sts2_community_stats.dll / README.md / test/test_data.json
+- 已 git push 到 origin/master
 
 **下次开机第一件事**：
-1. 阅读本文件 §"跨设备交接快照（2026-04-10 update 2）"
-2. 阅读 `PRD_04_ITERATION2.md` §3.18（v3.1 round 9 新增角色筛选需求 + AC1-AC8）
-3. 把最新 DLL 拷到游戏 mods 目录、重启游戏、按 AC1-AC8 实测 F9 面板和 CareerStats 页面的角色筛选行为
-4. 等待用户提供 Round 9 测试反馈
+1. 读本文件顶部（确认仍是已发布状态）
+2. 等待用户提供第三轮迭代需求 / bug 反馈
+3. 如有新需求，按工作流先改 `PRD_04_ITERATION2.md`（升 v3.2）再写代码
+
+**v0.12.0 验收完成的功能**（详见 [CHANGELOG.md](../CHANGELOG.md)）：
+1. 个人生涯统计（百科大全 → 角色数据）— 8 大区块全部对齐游戏原生 UI 风格
+2. 历史记录本局统计弹窗（按钮 + 居中模态）— 与生涯统计同款风格 + 中文化
+3. 卡牌图书馆 / 遗物收藏个人样本数 + 选取率 + 升级 / 删除 / 购买率
+4. 战斗贡献面板加宽到 760，回看路径无水平滚动条
+5. F9 面板进阶 SpinBox 上限 10 + min/max 联动
+6. RunHistoryAnalyzer 启动顺序 bug 修复（SaveManager 未 init 时不污染缓存）
+7. CareerStatsCache schema 版本检测，旧缓存自动失效
+
+## Round 9 round 50-51 关键修复回顾（本次新增）
+
+1. **历史记录本局统计弹窗（PopupOverlay 重构）** — 三次失败迭代才找到正确路径：
+   - 第一版用 Godot `Window` — 自动可见、关闭信号未捕获，输入被困
+   - 第二版加 `_ExitTree` Harmony patch — 该方法在 NRunHistory 上不存在，整个 patcher 类未注册（按钮消失）
+   - 第三版按钮 parent 到 `_screenContents` (MarginContainer) — 按钮被强制拉伸成全屏，背景成 dim 层
+   - **最终版**：按钮 parent 到 `screen` (NRunHistory，普通 Control)，overlay parent 到 `GetTree().Root`
+2. **战斗贡献面板水平滚动**：`WrapInScroll` 没有 disable horizontal mode，与 `NewTabScroll` 行为不一致
+3. **z-order 冲突**：`OnReplayPressed` 在调用 `ContributionPanel.ShowRunReplay` 前先调用 `RunHistoryPatch.CloseOpenPopup()` 关弹窗
+4. **图标加载 .tres 失败统一改为 PNG**：`ui/run_history/{type}.png`、`ui/run_history/{elder_id}.png`
+5. **`CallDeferred(nameof(Rebuild))` → `Callable.From(Rebuild).CallDeferred()`**：Godot string-based CallDeferred 找不到 private C# 方法
+6. **MarginContainer 是布局容器**：不要往 MarginContainer 里 AddChild 然后期望 anchors 生效，会被强制拉伸到全屏
+7. **`[HarmonyPatch(typeof(X), "MethodName")]` 必须方法真实存在**：否则整个 patcher 类全失效
 
 **核心文档**：
 - `PRD_04_ITERATION2.md` — **第二轮迭代完整需求**（v3.1，含所有 round 4-8 reflowed 注释）

@@ -23,7 +23,9 @@ public partial class PotionOddsIndicator : Control
         {
             Name = "StatsTheSpirePotionOdds",
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(96, 44),
+            // Round 9 round 2: enlarged to match native top-bar buttons
+            // (~56×56 icon + 18 px text + spacing → ~120×64 total).
+            CustomMinimumSize = new Vector2(120, 64),
         };
         node.BuildUi();
         return node;
@@ -34,7 +36,7 @@ public partial class PotionOddsIndicator : Control
         // Round 9: HBox layout — icon on the left, percentage label to the
         // right (user feedback: previously percent was below the icon).
         var hbox = new HBoxContainer();
-        hbox.AddThemeConstantOverride("separation", 6);
+        hbox.AddThemeConstantOverride("separation", 8);
         hbox.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         AddChild(hbox);
 
@@ -48,7 +50,8 @@ public partial class PotionOddsIndicator : Control
             iconNode = new TextureRect
             {
                 Texture = icon,
-                CustomMinimumSize = new Vector2(40, 40),
+                // Round 9 round 2: 40 → 56 to match native button size.
+                CustomMinimumSize = new Vector2(56, 56),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
@@ -58,7 +61,7 @@ public partial class PotionOddsIndicator : Control
         else
         {
             var lbl = new Label { Text = "🧪" };
-            lbl.AddThemeFontSizeOverride("font_size", 28);
+            lbl.AddThemeFontSizeOverride("font_size", 36);
             lbl.AddThemeColorOverride("font_color", GoldColor);
             lbl.HorizontalAlignment = HorizontalAlignment.Center;
             iconNode = lbl;
@@ -66,7 +69,8 @@ public partial class PotionOddsIndicator : Control
         hbox.AddChild(iconNode);
 
         _percentLabel = new Label { Text = "—" };
-        _percentLabel.AddThemeFontSizeOverride("font_size", 12);
+        // Round 9 round 2: 12 → 18 to match native top-bar text scale.
+        _percentLabel.AddThemeFontSizeOverride("font_size", 18);
         _percentLabel.AddThemeColorOverride("font_color", CreamColor);
         _percentLabel.HorizontalAlignment = HorizontalAlignment.Left;
         _percentLabel.VerticalAlignment = VerticalAlignment.Center;
@@ -131,11 +135,31 @@ public partial class PotionOddsIndicator : Control
 
         _hoverPanel = InfoModPanel.Create(L.Get("potion.title"), L.Get("potion.subtitle"));
         _hoverPanel.AddSeparator();
+
+        // Round 9 round 2 PRD §3.9 #3: first row in the hover panel is the
+        // CURRENT elite-fight drop probability. PotionRewardOdds.Roll uses
+        // `currentOdds + eliteBonus * 0.5` where eliteBonus = 0.25, so the
+        // effective elite probability is `currentOdds + 0.125`.
+        float eliteOdds = Mathf.Clamp(_currentOdds + 0.125f, 0f, 1f);
+        _hoverPanel.AddRow(L.Get("potion.elite"),
+            (eliteOdds * 100f).ToString("F1") + "%");
+
+        _hoverPanel.AddSeparator();
+
+        // Gradient: light → deep blue across the 2..5 fight rows.
+        var gradient = new[]
+        {
+            new Color(0.62f, 0.82f, 1.00f),
+            new Color(0.42f, 0.68f, 0.98f),
+            new Color(0.26f, 0.54f, 0.92f),
+            new Color(0.14f, 0.38f, 0.82f),
+        };
         for (int n = 2; n <= 5; n++)
         {
             var p = CumulativeOdds(_currentOdds, n, anyElite: false);
+            var c = gradient[n - 2];
             _hoverPanel.AddRow(string.Format(L.Get("potion.within"), n),
-                (p * 100f).ToString("F1") + "%");
+                (p * 100f).ToString("F1") + "%", c, c);
         }
 
         AddChild(_hoverPanel);

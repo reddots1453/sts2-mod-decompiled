@@ -26,8 +26,18 @@ public sealed class LocalCardStats
     public int RunsWith { get; init; }
     public int WinsAfter { get; init; }
 
-    public float PickRate => Offered > 0 ? (float)Picks / Offered : 0f;
-    public float WinRate  => RunsWith > 0 ? (float)WinsAfter / RunsWith : 0f;
+    // Round 9 round 39 — three new per-card aggregations sourced from
+    // PlayerMapPointHistoryEntry.{UpgradedCards, CardsRemoved, BoughtColorless}
+    // + Shop-floor CardsGained, all counted at most once per run.
+    public int RunsUpgraded { get; init; }
+    public int RunsRemoved { get; init; }
+    public int RunsBought { get; init; }
+
+    public float PickRate    => Offered > 0 ? (float)Picks / Offered : 0f;
+    public float WinRate     => RunsWith > 0 ? (float)WinsAfter / RunsWith : 0f;
+    public float UpgradeRate => RunsWith > 0 ? (float)RunsUpgraded / RunsWith : 0f;
+    public float RemovalRate => RunsWith > 0 ? (float)RunsRemoved / RunsWith : 0f;
+    public float BuyRate     => RunsWith > 0 ? (float)RunsBought / RunsWith : 0f;
 }
 
 /// <summary>

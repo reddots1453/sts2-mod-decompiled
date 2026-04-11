@@ -30,6 +30,12 @@ public static class CombatLifecyclePatch
 
             CombatTracker.Instance.OnCombatStart(encounterId, encounterType, floor);
             Safe.Info($"Combat started: {encounterId} ({encounterType}) on floor {floor}");
+
+            // Round 9 round 6: retry the intent-metadata eager bake here. At
+            // mod-init time ModelDb._contentById is empty, so Initialize() just
+            // logs "deferred". By the time combat starts, ModelDb.Init has run
+            // and every monster is reachable — idempotent via `_eagerBakeDone`.
+            MonsterIntentMetadata.Initialize();
         });
     }
 

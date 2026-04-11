@@ -37,6 +37,15 @@ public static class CareerStatsCache
             var json = File.ReadAllText(path);
             var dto = JsonSerializer.Deserialize<CareerStatsDto>(json, JsonOpts);
             if (dto == null) return null;
+            // Round 9 round 49: reject snapshots written by an older schema
+            // (no MaxWinStreak). If the player has any wins but the field is
+            // 0, the cache predates the field — force a rebuild rather than
+            // showing a wrong "0 best streak".
+            if (dto.Wins > 0 && dto.MaxWinStreak == 0)
+            {
+                Safe.Info("CareerStatsCache.Load: stale cache (no MaxWinStreak) — discarding");
+                return null;
+            }
             return FromDto(dto);
         }
         catch (Exception ex)
@@ -102,6 +111,7 @@ public static class CareerStatsCache
         CharacterFilter = d.CharacterFilter,
         TotalRuns = d.TotalRuns,
         Wins = d.Wins,
+        MaxWinStreak = d.MaxWinStreak,
         WinRateByWindow = d.WinRateByWindow.ToDictionary(kv => kv.Key, kv => kv.Value),
         DeathCausesByAct = d.DeathCausesByAct.ToDictionary(
             kv => kv.Key,
@@ -167,6 +177,7 @@ public static class CareerStatsCache
         CharacterFilter = d.CharacterFilter,
         TotalRuns = d.TotalRuns,
         Wins = d.Wins,
+        MaxWinStreak = d.MaxWinStreak,
         WinRateByWindow = d.WinRateByWindow ?? new(),
         DeathCausesByAct = (d.DeathCausesByAct ?? new()).ToDictionary(
             kv => kv.Key,
@@ -234,6 +245,7 @@ public static class CareerStatsCache
         [JsonPropertyName("char")]   public string? CharacterFilter { get; set; }
         [JsonPropertyName("runs")]   public int TotalRuns { get; set; }
         [JsonPropertyName("wins")]   public int Wins { get; set; }
+        [JsonPropertyName("mws")]    public int MaxWinStreak { get; set; }
         [JsonPropertyName("wr")]     public Dictionary<int, float> WinRateByWindow { get; set; } = new();
         [JsonPropertyName("deaths")] public Dictionary<int, List<DeathEntryDto>> DeathCausesByAct { get; set; } = new();
         [JsonPropertyName("path")]   public Dictionary<int, ActPathStatsDto> PathStatsByAct { get; set; } = new();

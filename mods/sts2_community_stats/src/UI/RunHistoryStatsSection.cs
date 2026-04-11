@@ -40,13 +40,28 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
     private static readonly Color SectionBg = new(0.05f, 0.06f, 0.10f, 0.85f);
     private static readonly Color Border    = new(0.3f, 0.4f, 0.6f, 0.45f);
 
-    // Per-row colors so each metric is visually distinct
-    private static readonly Color[] DeckColors = new[] { Gold, Aqua, Red, Green };
-    private static readonly Color[] PathColors = new[] { Red, Orange, Lavender, Gold };
+    // Round 9 round 51: per-row colors mirror CareerStatsSection.
+    private static readonly Color[] DeckColors = new[]
+    {
+        new Color("#EFC851"),               // gold
+        new Color(0.16f, 0.92f, 0.75f),     // aqua
+        new Color(0.90f, 0.30f, 0.30f),     // red
+        new Color(0.30f, 0.85f, 0.40f),     // green
+    };
+    private static readonly Color[] PathColors = new[]
+    {
+        new Color("#EFC851"),               // yellow — monsters
+        new Color(0.95f, 0.55f, 0.25f),     // orange — elite
+        new Color(0.74f, 0.55f, 0.95f),     // lavender — ?
+        new Color(0.36f, 0.66f, 0.98f),     // blue — shop
+        new Color(0.90f, 0.30f, 0.30f),     // red — campfire
+    };
 
-    private const int TitleSize    = 16;
-    private const int SubtitleSize = 13;
-    private const int LabelSize    = 12;
+    // Round 9 round 51: bumped from 16/13/12 to match the popup viewing
+    // distance and the existing CareerStatsSection sizes.
+    private const int TitleSize    = 30;
+    private const int SubtitleSize = 24;
+    private const int LabelSize    = 22;
 
     private SingleRunStatsData? _data;
     private RunHistory? _history;
@@ -59,7 +74,7 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
         {
             Name = "ModRunHistoryStatsSection",
         };
-        s.AddThemeConstantOverride("separation", 6);
+        s.AddThemeConstantOverride("separation", 14);
         s.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         s.MouseFilter = MouseFilterEnum.Pass;
 
@@ -92,15 +107,36 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
 
         if (_data != null)
         {
-            string winText = _data.Win ? "VICTORY" : "DEFEAT";
+            string winText = _data.Win ? L.Get("runhist.victory") : L.Get("runhist.defeat");
             var color = _data.Win ? Green : Red;
+            var charName = ResolveCharacterName(_data.Character);
+            var ascText = string.Format(L.Get("career.ascension_n"), _data.Ascension);
+            var floorText = string.Format(L.Get("runhist.floors_n"), _data.FloorReached);
             var sub = MakeLabel(
-                $"{_data.Character} · A{_data.Ascension} · {_data.FloorReached} floors · {winText}",
+                $"{charName} · {ascText} · {floorText} · {winText}",
                 color, SubtitleSize);
             v.AddChild(sub);
         }
 
         return panel;
+    }
+
+    private static string ResolveCharacterName(string characterId)
+    {
+        if (string.IsNullOrEmpty(characterId)) return "";
+        try
+        {
+            foreach (var c in MegaCrit.Sts2.Core.Models.ModelDb.AllCharacters)
+            {
+                if (c.Id.Entry == characterId)
+                {
+                    var t = c.Title.GetFormattedText();
+                    if (!string.IsNullOrEmpty(t)) return t!;
+                }
+            }
+        }
+        catch { }
+        return characterId;
     }
 
     // ── Deck construction table ─────────────────────────────
@@ -124,10 +160,14 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
         var grid = BuildActHeaderGrid(acts);
         v.AddChild(grid);
 
-        AddRow(grid, acts, "career.cards_gained",   DeckColors[0], s => s.CardsGained);
-        AddRow(grid, acts, "career.cards_bought",   DeckColors[1], s => s.CardsBought);
-        AddRow(grid, acts, "career.cards_removed",  DeckColors[2], s => s.CardsRemoved);
-        AddRow(grid, acts, "career.cards_upgraded", DeckColors[3], s => s.CardsUpgraded);
+        AddRow(grid, acts, "career.cards_gained",   DeckColors[0], s => s.CardsGained,
+            iconPath: "ui/reward_screen/reward_icon_card.png");
+        AddRow(grid, acts, "career.cards_bought",   DeckColors[1], s => s.CardsBought,
+            iconPath: "ui/run_history/shop.png");
+        AddRow(grid, acts, "career.cards_removed",  DeckColors[2], s => s.CardsRemoved,
+            iconPath: "ui/reward_screen/reward_icon_card_removal.png");
+        AddRow(grid, acts, "career.cards_upgraded", DeckColors[3], s => s.CardsUpgraded,
+            iconPath: "ui/rest_site/option_smith.png");
 
         return panel;
     }
@@ -153,10 +193,16 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
         var grid = BuildActHeaderGrid(acts);
         v.AddChild(grid);
 
-        AddRow(grid, acts, "career.monster_rooms", PathColors[0], s => s.MonsterRooms);
-        AddRow(grid, acts, "career.elite_rooms",   PathColors[1], s => s.EliteRooms);
-        AddRow(grid, acts, "career.unknown_rooms", PathColors[2], s => s.UnknownRooms);
-        AddRow(grid, acts, "career.shop_rooms",    PathColors[3], s => s.ShopRooms);
+        AddRow(grid, acts, "career.monster_rooms",  PathColors[0], s => s.MonsterRooms,
+            iconPath: "ui/run_history/monster.png");
+        AddRow(grid, acts, "career.elite_rooms",    PathColors[1], s => s.EliteRooms,
+            iconPath: "ui/run_history/elite.png");
+        AddRow(grid, acts, "career.unknown_rooms",  PathColors[2], s => s.UnknownRooms,
+            iconPath: "ui/run_history/event.png");
+        AddRow(grid, acts, "career.shop_rooms",     PathColors[3], s => s.ShopRooms,
+            iconPath: "ui/run_history/shop.png");
+        AddRow(grid, acts, "career.campfire_rooms", PathColors[4], s => s.CampfireRooms,
+            iconPath: "ui/run_history/rest_site.png");
 
         return panel;
     }
@@ -188,20 +234,65 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
     }
 
     private void AddRow(GridContainer grid, List<int> acts, string labelKey, Color rowColor,
-        System.Func<ActPathStats, float> selector)
+        System.Func<ActPathStats, float> selector, string? iconPath = null)
     {
+        // Round 9 round 51: row label column now wraps an HBox containing
+        // optional icon + text label, mirroring CareerStatsSection.
+        var headerHb = new HBoxContainer();
+        headerHb.AddThemeConstantOverride("separation", 8);
+        headerHb.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+        if (iconPath != null)
+        {
+            var iconRect = TryLoadIconRect(iconPath, LabelSize + 6);
+            if (iconRect != null) headerHb.AddChild(iconRect);
+        }
+
         var label = MakeLabel(L.Get(labelKey), rowColor, LabelSize);
         label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        grid.AddChild(label);
+        label.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        headerHb.AddChild(label);
+        grid.AddChild(headerHb);
+
         foreach (var act in acts)
         {
             float v = _data!.PathStatsByAct.TryGetValue(act, out var stats) ? selector(stats) : 0f;
             var cell = MakeLabel($"{(int)v}", Cream, LabelSize);
             cell.HorizontalAlignment = HorizontalAlignment.Right;
             cell.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-            cell.CustomMinimumSize = new Vector2(48, 0);
+            cell.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            cell.CustomMinimumSize = new Vector2(56, 0);
             grid.AddChild(cell);
         }
+    }
+
+    private static TextureRect MakeIconRect(Texture2D tex, int size) => new TextureRect
+    {
+        Texture = tex,
+        CustomMinimumSize = new Vector2(size, size),
+        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        SizeFlagsVertical = SizeFlags.ShrinkCenter,
+    };
+
+    private static TextureRect? TryLoadIconRect(string innerPath, int size)
+    {
+        try
+        {
+            var path = MegaCrit.Sts2.Core.Helpers.ImageHelper.GetImagePath(innerPath);
+            if (!Godot.ResourceLoader.Exists(path)) return null;
+            var tex = Godot.ResourceLoader.Load<Texture2D>(path, null, ResourceLoader.CacheMode.Reuse);
+            if (tex == null) return null;
+            return new TextureRect
+            {
+                Texture = tex,
+                CustomMinimumSize = new Vector2(size, size),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+                SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            };
+        }
+        catch { return null; }
     }
 
     // ── Ancient picks chronological list ────────────────────
@@ -225,12 +316,24 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
         foreach (var pick in picks)
         {
             var row = new HBoxContainer();
-            row.AddThemeConstantOverride("separation", 6);
+            row.AddThemeConstantOverride("separation", 8);
 
             row.AddChild(MakeLabel(NameLookup.ActLabel(pick.Act), Gold, LabelSize));
-            row.AddChild(MakeLabel(NameLookup.Encounter(pick.ElderId), Aqua, LabelSize));
+
+            // Round 9 round 51: elder portrait icon + chinese name.
+            var elderIcon = Util.AncientPoolMap.GetElderIcon(pick.ElderId);
+            if (elderIcon != null)
+                row.AddChild(MakeIconRect(elderIcon, LabelSize + 6));
+            row.AddChild(MakeLabel(NameLookup.Ancient(pick.ElderId), Aqua, LabelSize));
+
+            // Relic icon + name. ExpandFill on the name pushes it to take the
+            // remaining horizontal space.
+            var relicIcon = Util.AncientPoolMap.GetRelicIcon(pick.RelicId);
+            if (relicIcon != null)
+                row.AddChild(MakeIconRect(relicIcon, LabelSize + 6));
             var relic = MakeLabel(NameLookup.Relic(pick.RelicId), Cream, LabelSize);
             relic.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            relic.SizeFlagsVertical = SizeFlags.ShrinkCenter;
             row.AddChild(relic);
 
             v.AddChild(row);
@@ -306,9 +409,15 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
         {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 8);
+            // Round 9 round 51: boss encounter icon before the name.
+            var bossIcon = Util.AncientPoolMap.GetEncounterIcon(boss);
+            if (bossIcon != null)
+                row.AddChild(MakeIconRect(bossIcon, LabelSize + 6));
             var name = MakeLabel(NameLookup.Encounter(boss), Cream, LabelSize);
             name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            name.SizeFlagsVertical = SizeFlags.ShrinkCenter;
             var dmgLabel = MakeLabel($"{dmg} HP", Red, LabelSize);
+            dmgLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
             row.AddChild(name);
             row.AddChild(dmgLabel);
             v.AddChild(row);
@@ -352,6 +461,11 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
         {
             var summary = ContributionPersistence.LoadRunSummary(seed);
             if (summary == null) return;
+            // Round 9 round 51: close our popup overlay before opening the
+            // contribution panel. ContributionPanel is parented to the scene
+            // root and would otherwise render BEHIND our popup (which is also
+            // root-level but added later). Closing avoids the z-order fight.
+            CommunityStats.Patches.RunHistoryPatch.CloseOpenPopup();
             // Round 5 fix: only the 本局汇总 tab should be shown when replaying
             // a historical run — there's no live combat to display.
             ContributionPanel.ShowRunReplay(summary);
@@ -371,17 +485,21 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
 
     private static PanelContainer WrapInPanel()
     {
+        // Round 9 round 51: brighter section panel matching CareerStatsSection
+        // (rounded blue-tinted dark panel with 18/14 padding).
         var panel = new PanelContainer();
         var style = new StyleBoxFlat
         {
-            BgColor = SectionBg,
-            BorderColor = Border,
-            BorderWidthLeft = 1, BorderWidthRight = 1,
-            BorderWidthTop = 1, BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4,
-            CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
-            ContentMarginLeft = 10, ContentMarginRight = 10,
-            ContentMarginTop = 6, ContentMarginBottom = 6,
+            BgColor = new Color(0.13f, 0.16f, 0.23f, 0.96f),
+            BorderColor = new Color(0.55f, 0.70f, 0.95f, 0.75f),
+            BorderWidthLeft = 2, BorderWidthRight = 2,
+            BorderWidthTop = 2, BorderWidthBottom = 2,
+            CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
+            CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
+            ContentMarginLeft = 18, ContentMarginRight = 18,
+            ContentMarginTop = 14, ContentMarginBottom = 14,
+            ShadowColor = new Color(0f, 0f, 0f, 0.4f),
+            ShadowSize = 4,
         };
         panel.AddThemeStyleboxOverride("panel", style);
         panel.SizeFlagsHorizontal = SizeFlags.ExpandFill;

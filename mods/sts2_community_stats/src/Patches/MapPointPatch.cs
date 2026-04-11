@@ -28,12 +28,21 @@ public static class MapPointPatch
     [HarmonyPostfix]
     public static void AfterRefreshVisuals(NMapPoint __instance)
     {
-        if (!ModConfig.Toggles.MonsterDanger) return;
         Safe.Run(() =>
         {
             var point = __instance.Point;
             if (point == null) return;
             if (!CombatPointTypes.Contains(point.PointType)) return;
+
+            // Round 9 round 33: when MonsterDanger toggle is off, also strip
+            // any overlay already attached on traveled nodes — previously the
+            // toggle only suppressed *future* attachments, leaving old labels
+            // visible until the player re-visited the screen.
+            if (!ModConfig.Toggles.MonsterDanger)
+            {
+                MapPointOverlay.DetachFrom(__instance);
+                return;
+            }
 
             // Only show stats on nodes the player has already visited
             if (__instance.State != MapPointState.Traveled)

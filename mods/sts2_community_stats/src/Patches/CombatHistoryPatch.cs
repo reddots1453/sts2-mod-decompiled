@@ -62,15 +62,11 @@ public static class CombatHistoryPatch
         Safe.Run(() =>
         {
             CombatTracker.Instance.OnCardPlayFinished();
-            // Real-time UI refresh — round 6 fix: consolidated from
-            // RealTimeCombatPatch which used a duplicate postfix on the same
-            // method. Two postfixes on the same target are technically
-            // supported by Harmony but the user reported the live refresh
-            // never running, so we collapse the chain into one entry point.
-            if (Config.ModConfig.Toggles.ContributionPanel)
-            {
-                CombatTracker.Instance.NotifyCombatDataUpdated();
-            }
+            // Round 9 round 33: real-time refresh always fires regardless of
+            // the ContributionPanel toggle (which now only gates auto-open
+            // after combat). The handler in ContributionPanel still bails
+            // when the panel isn't visible, so cost is negligible.
+            CombatTracker.Instance.NotifyCombatDataUpdated();
         });
     }
 
@@ -157,6 +153,16 @@ public static class CombatHistoryPatch
             if (!receiver.IsPlayer) return;
             var cardPlayId = cardPlay?.Card?.Id.Entry;
             CombatTracker.Instance.OnBlockGained(amount, cardPlayId);
+
+            // Round 9 round 33: block gained outside a card play (relic
+            // BeforeTurnEnd / AfterBlockCleared, power tick, etc.) wasn't
+            // triggering the F8 panel auto-refresh. CardPlayFinished already
+            // covers the in-card path, so only fire here when cardPlay is null
+            // to avoid double-refreshing during normal card plays.
+            if (cardPlay == null)
+            {
+                CombatTracker.Instance.NotifyCombatDataUpdated();
+            }
         });
     }
 
@@ -1131,6 +1137,11 @@ public static class PotionUsedPatch
             // Clear potion context here — this sync method fires AFTER OnUse() completes
             // inside the async OnUseWrapper chain (line 258 of PotionModel.cs).
             CombatTracker.Instance.ClearActivePotion();
+
+            // Round 9 round 32: real-time UI refresh after potion use, mirroring
+            // CardPlayFinished. Without this, F8 panel stayed stale until the
+            // next card play.
+            CombatTracker.Instance.NotifyCombatDataUpdated();
         });
     }
 }

@@ -28,6 +28,10 @@ public static class ShopPricePanel
     private static readonly Color AquaColor   = new(0.16f, 0.92f, 0.75f);
     private static readonly Color CreamColor  = new("#FFF6E2");
     private static readonly Color GrayColor   = new(0.62f, 0.62f, 0.72f);
+    private static readonly Color RedColor    = new(0.94f, 0.42f, 0.42f);
+    private static readonly Color BlueColor   = new(0.36f, 0.66f, 0.98f);
+    private static readonly Color GreenColor  = new(0.45f, 0.88f, 0.50f);
+    private static readonly Color DimColor    = new(0.45f, 0.45f, 0.50f);
 
     private const int LabelSize  = 13;
     private const int HeaderSize = 12;
@@ -43,7 +47,9 @@ public static class ShopPricePanel
         AppendDiscountSummary(panel, player, multiplier);
 
         int removalCost = (int)Math.Round((75 + 25 * cardRemovalsUsed) * multiplier);
-        panel.AddRow(string.Format(L.Get("shop.removal"), removalCost), "", CreamColor, GoldColor);
+        int playerGold = TryGetGold(player);
+        var removalColor = (playerGold >= 0 && playerGold < removalCost) ? DimColor : RedColor;
+        panel.AddRow(string.Format(L.Get("shop.removal"), removalCost), "", removalColor, removalColor);
 
         panel.AddSeparator();
 
@@ -61,15 +67,15 @@ public static class ShopPricePanel
 
         // Relics: 200 / 250 / 300, ±15%
         AddCategoryRow(grid, L.Get("shop.relics"), GoldColor, multiplier,
-            new[] { 200, 250, 300 }, 0.15f);
+            new[] { 200, 250, 300 }, 0.15f, playerGold);
 
         // Cards: 50 / 75 / 150, ±5%
-        AddCategoryRow(grid, L.Get("shop.cards"), AquaColor, multiplier,
-            new[] { 50, 75, 150 }, 0.05f);
+        AddCategoryRow(grid, L.Get("shop.cards"), BlueColor, multiplier,
+            new[] { 50, 75, 150 }, 0.05f, playerGold);
 
         // Potions: 50 / 75 / 100, ±5%
-        AddCategoryRow(grid, L.Get("shop.potions"), CreamColor, multiplier,
-            new[] { 50, 75, 100 }, 0.05f);
+        AddCategoryRow(grid, L.Get("shop.potions"), GreenColor, multiplier,
+            new[] { 50, 75, 100 }, 0.05f, playerGold);
 
         panel.AddSeparator();
         panel.AddLabel(L.Get("shop.colorless_note"), GrayColor);
@@ -114,15 +120,24 @@ public static class ShopPricePanel
     }
 
     private static void AddCategoryRow(GridContainer grid, string label, Color labelColor,
-        float multiplier, int[] basePrices, float jitter)
+        float multiplier, int[] basePrices, float jitter, int playerGold)
     {
         AddCell(grid, label, labelColor, LabelSize);
         for (int i = 0; i < basePrices.Length; i++)
         {
             int low  = (int)Math.Round(basePrices[i] * (1f - jitter) * multiplier);
             int high = (int)Math.Round(basePrices[i] * (1f + jitter) * multiplier);
-            AddCell(grid, low == high ? low.ToString() : $"{low}-{high}", CreamColor, ValueSize);
+            // Gray out when the player can't even afford the cheapest variant.
+            var cellColor = (playerGold >= 0 && playerGold < low) ? DimColor : labelColor;
+            AddCell(grid, low == high ? low.ToString() : $"{low}-{high}", cellColor, ValueSize);
         }
+    }
+
+    private static int TryGetGold(Player? player)
+    {
+        if (player == null) return -1;
+        try { return player.Gold; }
+        catch { return -1; }
     }
 
     private static void AddCell(GridContainer grid, string text, Color color, int fontSize)

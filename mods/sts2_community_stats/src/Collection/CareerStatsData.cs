@@ -21,11 +21,23 @@ public sealed class CareerStatsData
     /// </summary>
     public string? CharacterFilter { get; init; }
 
+    /// <summary>
+    /// Round 9 round 46: ascension floor used to filter the runs that produced
+    /// this snapshot. 0 = no filter (all runs).
+    /// </summary>
+    public int MinAscension { get; init; }
+
     /// <summary>How many runs were considered (after character filter).</summary>
     public int TotalRuns { get; init; }
 
     /// <summary>How many of those runs were victories.</summary>
     public int Wins { get; init; }
+
+    /// <summary>
+    /// Round 9 round 49: longest consecutive-win streak among the filtered
+    /// runs (chronological order). Computed at snapshot build time.
+    /// </summary>
+    public int MaxWinStreak { get; init; }
 
     /// <summary>
     /// Rolling win rates over the last N runs (chronologically reversed = newest first).
@@ -74,12 +86,20 @@ public sealed class CareerStatsData
     /// <summary>true when no usable history was found.</summary>
     public bool IsEmpty => TotalRuns == 0;
 
-    public static CareerStatsData Empty(string? characterFilter) => new()
+    public static CareerStatsData Empty(string? characterFilter, int minAscension = 0) => new()
     {
         CharacterFilter = characterFilter,
+        MinAscension = minAscension,
         TotalRuns = 0,
         Wins = 0,
     };
+}
+
+public enum DeathSource
+{
+    Combat,    // KilledByEncounter (combat room)
+    Event,     // KilledByEvent
+    Abandoned, // neither set, no resolved combat fallback
 }
 
 /// <summary>One row in the death-cause ranking.</summary>
@@ -89,6 +109,8 @@ public sealed class DeathEntry
     public int Count { get; init; }
     /// <summary>Count / total deaths in this Act (0..1).</summary>
     public float Share { get; init; }
+    /// <summary>Round 9 round 47: source room type for icon selection.</summary>
+    public DeathSource Source { get; init; }
 }
 
 /// <summary>Per-Act averaged path counts.</summary>
@@ -102,6 +124,7 @@ public sealed class ActPathStats
     public float MonsterRooms { get; init; }
     public float EliteRooms { get; init; }
     public float ShopRooms { get; init; }
+    public float CampfireRooms { get; init; }
     /// <summary>Number of runs that contributed to this Act average.</summary>
     public int SampleSize { get; init; }
 }

@@ -106,13 +106,18 @@ public static class RelicLibraryPatch
 
         // Resolve both data sources.
         var mine      = RunHistoryAnalyzer.Instance.LocalRelics;
+        // Round 9 round 34: lazy load if bundles are still empty (mirrors
+        // CardLibraryPatch). The disk-cached career stats don't include
+        // per-relic data so a fresh boot would otherwise show 0 samples.
+        if (mine.TotalRuns == 0) TriggerLazyLoad(screen);
         var mineRow   = mine.Get(relicId!);
         var community = StatsProvider.Instance.GetRelicStats(relicId!);
         float communityAvg = StatsProvider.Instance.GetGlobalAverageRelicWinRate();
 
-        // Sample size row
+        // Sample size row — Round 9 round 37: per-relic sample = # of runs
+        // whose final inventory contained this relic (mineRow?.RunsWith).
         AddCell(grid, L.Get("card_lib.samples"), CreamColor, LabelSize, false);
-        AddCell(grid, $"{mine.TotalRuns}", MineColor, LabelSize, true);
+        AddCell(grid, $"{mineRow?.RunsWith ?? 0}", MineColor, LabelSize, true);
         AddCell(grid, community != null ? $"{community.SampleSize}" : "—",
                 community != null ? CommunityColor : GrayColor, LabelSize, true);
 
@@ -156,5 +161,22 @@ public static class RelicLibraryPatch
             lbl.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         }
         grid.AddChild(lbl);
+    }
+
+    private static bool _loadInFlight;
+    private static void TriggerLazyLoad(NInspectRelicScreen screen)
+    {
+        if (_loadInFlight) return;
+        _loadInFlight = true;
+        Safe.RunAsync(async () =>
+        {
+            try
+            {
+                await RunHistoryAnalyzer.Instance.LoadAllAsync(null, force: true);
+                Safe.Run(() => InjectOrUpdate(screen));
+            }
+            catch (Exception ex) { Safe.Warn($"RelicLibrary lazy load failed: {ex.Message}"); }
+            finally { _loadInFlight = false; }
+        });
     }
 }

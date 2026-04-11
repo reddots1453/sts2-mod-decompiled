@@ -40,7 +40,17 @@ public static class CardLibraryPatch
     [HarmonyPostfix]
     public static void AfterUpdateCardDisplay(NInspectCardScreen __instance)
     {
-        if (!ModConfig.Toggles.CardLibraryStats) return;
+        if (!ModConfig.Toggles.CardLibraryStats)
+        {
+            // Round 9 round 33: actively remove any previously injected
+            // panel so toggling off mid-screen takes effect immediately.
+            Safe.Run(() =>
+            {
+                var stale = __instance.GetNodeOrNull<PanelContainer>(PanelName);
+                if (stale != null) stale.QueueFree();
+            });
+            return;
+        }
         Safe.Run(() => InjectOrUpdate(__instance));
     }
 
@@ -105,26 +115,43 @@ public static class CardLibraryPatch
 
         // Resolve both data sources.
         var mine     = RunHistoryAnalyzer.Instance.LocalCards;
+        // Round 9 round 34: if the bundle hasn't been built yet (e.g. mod
+        // just loaded and the user opened the library before the startup
+        // LoadAllAsync finished), kick off a load and reschedule the inject
+        // when it completes. The disk-cached career stats don't include
+        // per-card data, so without this we'd render "0 samples" forever.
+        if (mine.TotalRuns == 0) TriggerLazyLoad(screen);
         var mineRow  = mine.Get(cardId!);
         var community = StatsProvider.Instance.GetCardStats(cardId!);
 
-        // Sample size row
+        // Sample size row — Round 9 round 37: per-card sample = # of runs whose
+        // final deck contained this card (mineRow?.RunsWith), NOT the total
+        // run count of the bundle. This matches the user's "样本数 = 出现在
+        // 最终牌组的局数" semantics.
         AddCell(grid, L.Get("card_lib.samples"), CreamColor, LabelSize, false);
-        AddCell(grid, $"{mine.TotalRuns}", MineColor, LabelSize, true);
+        AddCell(grid, $"{mineRow?.RunsWith ?? 0}", MineColor, LabelSize, true);
         AddCell(grid, community != null ? $"{community.SampleSize}" : "—",
                 community != null ? CommunityColor : GrayColor, LabelSize, true);
 
         // Pick / Win / Upgrade / Removal / Buy
+        // Round 9 round 39: mine.{Upgrade,Removal,Buy}Rate now sourced from
+        // PlayerMapPointHistoryEntry.{UpgradedCards, CardsRemoved,
+        // BoughtColorless} + Shop-floor CardsGained — see ComputeLocalCardBundle.
         AddRatioRow(grid, "card_lib.pick_rate",
-            mineRow?.PickRate, community?.PickRate);
+            mineRow != null && mineRow.Offered > 0 ? mineRow.PickRate : (float?)null,
+            community?.PickRate);
         AddRatioRow(grid, "card_lib.win_rate",
-            mineRow?.WinRate, community?.WinRate);
+            mineRow != null && mineRow.RunsWith > 0 ? mineRow.WinRate : (float?)null,
+            community?.WinRate);
         AddRatioRow(grid, "card_lib.upgrade_rate",
-            null, community?.UpgradeRate);
+            mineRow != null && mineRow.RunsWith > 0 ? mineRow.UpgradeRate : (float?)null,
+            community?.UpgradeRate);
         AddRatioRow(grid, "card_lib.removal_rate",
-            null, community?.RemovalRate);
+            mineRow != null && mineRow.RunsWith > 0 ? mineRow.RemovalRate : (float?)null,
+            community?.RemovalRate);
         AddRatioRow(grid, "card_lib.buy_rate",
-            null, community?.ShopBuyRate);
+            mineRow != null && mineRow.RunsWith > 0 ? mineRow.BuyRate : (float?)null,
+            community?.ShopBuyRate);
     }
 
     private static void AddRatioRow(GridContainer grid, string labelKey, float? mine, float? community)
@@ -134,6 +161,24 @@ public static class CardLibraryPatch
                 mine.HasValue ? MineColor : GrayColor, LabelSize, true);
         AddCell(grid, community.HasValue ? $"{community.Value * 100f:F1}%" : "—",
                 community.HasValue ? CommunityColor : GrayColor, LabelSize, true);
+    }
+
+    private static bool _loadInFlight;
+    private static void TriggerLazyLoad(NInspectCardScreen screen)
+    {
+        if (_loadInFlight) return;
+        _loadInFlight = true;
+        Safe.RunAsync(async () =>
+        {
+            try
+            {
+                await RunHistoryAnalyzer.Instance.LoadAllAsync(null, force: true);
+                // Re-render in case the user is still on the same card.
+                Safe.Run(() => InjectOrUpdate(screen));
+            }
+            catch (Exception ex) { Safe.Warn($"CardLibrary lazy load failed: {ex.Message}"); }
+            finally { _loadInFlight = false; }
+        });
     }
 
     private static void AddCell(GridContainer grid, string text, Color color, int fontSize, bool rightAlign)

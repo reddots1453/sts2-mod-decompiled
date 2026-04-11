@@ -55,9 +55,14 @@ public static class DeckViewPatch
                 .GetValue<System.Collections.IEnumerable>();
             if (holders == null) return;
 
+            // Round 9 round 33: respect the CardLibraryStats toggle. When off,
+            // strip any leftover labels and bail.
+            bool enabled = CommunityStats.Config.ModConfig.Toggles.CardLibraryStats;
+
             foreach (var holderObj in holders)
             {
                 if (holderObj is not NGridCardHolder holder) continue;
+                if (!enabled) { RemoveExistingLabel(holder); continue; }
 
                 var cardModel = holder.CardModel;
                 var cardId = cardModel?.Id.Entry;
