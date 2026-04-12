@@ -112,6 +112,7 @@ public static class CareerStatsCache
         TotalRuns = d.TotalRuns,
         Wins = d.Wins,
         MaxWinStreak = d.MaxWinStreak,
+        CurrentWinStreak = d.CurrentWinStreak,
         WinRateByWindow = d.WinRateByWindow.ToDictionary(kv => kv.Key, kv => kv.Value),
         DeathCausesByAct = d.DeathCausesByAct.ToDictionary(
             kv => kv.Key,
@@ -178,6 +179,7 @@ public static class CareerStatsCache
         TotalRuns = d.TotalRuns,
         Wins = d.Wins,
         MaxWinStreak = d.MaxWinStreak,
+        CurrentWinStreak = d.CurrentWinStreak,
         WinRateByWindow = d.WinRateByWindow ?? new(),
         DeathCausesByAct = (d.DeathCausesByAct ?? new()).ToDictionary(
             kv => kv.Key,
@@ -246,6 +248,7 @@ public static class CareerStatsCache
         [JsonPropertyName("runs")]   public int TotalRuns { get; set; }
         [JsonPropertyName("wins")]   public int Wins { get; set; }
         [JsonPropertyName("mws")]    public int MaxWinStreak { get; set; }
+        [JsonPropertyName("cws")]    public int CurrentWinStreak { get; set; }
         [JsonPropertyName("wr")]     public Dictionary<int, float> WinRateByWindow { get; set; } = new();
         [JsonPropertyName("deaths")] public Dictionary<int, List<DeathEntryDto>> DeathCausesByAct { get; set; } = new();
         [JsonPropertyName("path")]   public Dictionary<int, ActPathStatsDto> PathStatsByAct { get; set; } = new();

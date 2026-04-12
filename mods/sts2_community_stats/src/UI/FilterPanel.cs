@@ -2,9 +2,16 @@ using CommunityStats.Api;
 using CommunityStats.Config;
 using CommunityStats.Util;
 using Godot;
+using MegaCrit.Sts2.Core.Models;
 
 namespace CommunityStats.UI;
 
+/// <summary>
+/// Round 9 round 52: rewrote in the style of the native 游戏设置 screen —
+/// large gold title, 2-column grid layout (label | control) with HSeparators,
+/// SectionPanel dark background, character dropdown with icons + Chinese
+/// names, and NO "应用" button (changes auto-apply when the panel is hidden).
+/// </summary>
 public partial class FilterPanel : PanelContainer
 {
     private static FilterPanel? _instance;
@@ -15,12 +22,21 @@ public partial class FilterPanel : PanelContainer
     private OptionButton? _versionDropdown;
     private SpinBox? _minWinRateSpinBox;
     private Label? _sampleSizeLabel;
-    private Button _applyButton = null!;
     private CheckBox? _uploadCheckbox;
     private CheckBox? _myDataCheckbox;
     private OptionButton? _langDropdown;
     private OptionButton? _characterDropdown;
     private readonly Dictionary<string, CheckBox> _toggleCheckboxes = new();
+
+    // Style constants matching CareerStatsSection / native settings tab.
+    private const int TitleSize    = 28;
+    private const int SectionSize  = 22;
+    private const int LabelSize    = 20;
+    private static readonly Color Gold   = new("#EFC851");
+    private static readonly Color Cream  = new("#FFF6E2");
+    private static readonly Color Gray   = new(0.6f, 0.6f, 0.65f);
+    private static readonly Color Border = new(0.55f, 0.70f, 0.95f, 0.75f);
+    private static readonly Color BgDark = new(0.13f, 0.16f, 0.23f, 0.96f);
 
     // PRD §3.18 — order matches the dropdown items: auto, all, then 5 characters.
     private static readonly string[] _characterModes = new[]
@@ -38,93 +54,126 @@ public partial class FilterPanel : PanelContainer
         panel.Name = "CommunityStatsFilter";
         panel.Visible = false;
 
+        // Outer panel: dark rounded card, blue border, matching SectionPanel.
         var style = new StyleBoxFlat
         {
-            BgColor = new Color(0.08f, 0.08f, 0.12f, 0.95f),
-            CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6,
-            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
-            ContentMarginLeft = 12, ContentMarginRight = 12,
-            ContentMarginTop = 10, ContentMarginBottom = 10,
-            BorderColor = new Color(0.4f, 0.4f, 0.6f, 0.5f),
-            BorderWidthBottom = 1, BorderWidthLeft = 1,
-            BorderWidthRight = 1, BorderWidthTop = 1
+            BgColor = BgDark,
+            BorderColor = Border,
+            BorderWidthBottom = 2, BorderWidthTop = 2,
+            BorderWidthLeft = 2, BorderWidthRight = 2,
+            CornerRadiusBottomLeft = 10, CornerRadiusBottomRight = 10,
+            CornerRadiusTopLeft = 10, CornerRadiusTopRight = 10,
+            ContentMarginLeft = 20, ContentMarginRight = 20,
+            ContentMarginTop = 16, ContentMarginBottom = 16,
+            ShadowColor = new Color(0f, 0f, 0f, 0.5f),
+            ShadowSize = 6,
         };
         panel.AddThemeStyleboxOverride("panel", style);
 
-        panel.CustomMinimumSize = new Vector2(360, 600);
+        panel.CustomMinimumSize = new Vector2(540, 720);
         panel.AnchorLeft = 0.5f;
         panel.AnchorRight = 0.5f;
-        panel.AnchorTop = 0.1f;
-        panel.OffsetLeft = -180;
-        panel.OffsetRight = 180;
+        panel.AnchorTop = 0.08f;
+        panel.OffsetLeft = -270;
+        panel.OffsetRight = 270;
 
         var vbox = new VBoxContainer();
-        vbox.AddThemeConstantOverride("separation", 8);
+        vbox.AddThemeConstantOverride("separation", 12);
+        vbox.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        vbox.SizeFlagsVertical = SizeFlags.ExpandFill;
         panel.AddChild(vbox);
 
-        // Header with close button
+        // ── Title bar ───────────────────────────────────────
         var header = new HBoxContainer();
+        header.AddThemeConstantOverride("separation", 12);
         vbox.AddChild(header);
-        var title = new Label { Text = L.Get("settings.title") };
-        title.AddThemeColorOverride("font_color", Colors.White);
-        title.AddThemeFontSizeOverride("font_size", 16);
+
+        var title = MakeLabel(L.Get("settings.title"), Gold, TitleSize);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(title);
-        var closeBtn = new Button { Text = "X", CustomMinimumSize = new Vector2(28, 28) };
+
+        var closeBtn = new Button
+        {
+            Text = "✕",
+            CustomMinimumSize = new Vector2(40, 40),
+            MouseFilter = MouseFilterEnum.Stop,
+        };
+        closeBtn.AddThemeFontSizeOverride("font_size", 22);
         closeBtn.Pressed += () => panel.Visible = false;
         header.AddChild(closeBtn);
 
-        // ── Data Upload Toggle ──────────────────────────────
-        panel._uploadCheckbox = new CheckBox { Text = L.Get("settings.upload") };
-        panel._uploadCheckbox.ButtonPressed = ModConfig.EnableUpload;
-        vbox.AddChild(panel._uploadCheckbox);
+        vbox.AddChild(NewSeparator());
 
-        // ── My-Data Filter (PRD §3.13) ──────────────────────
-        panel._myDataCheckbox = new CheckBox { Text = L.Get("settings.my_data") };
-        panel._myDataCheckbox.ButtonPressed = ModConfig.CurrentFilter.MyDataOnly;
-        vbox.AddChild(panel._myDataCheckbox);
-
-        // ── Character Filter (PRD §3.18) ────────────────────
-        var charRow = new HBoxContainer();
-        charRow.AddChild(new Label
+        // Scroll area for the rest of the settings (overflow-friendly).
+        var scroll = new ScrollContainer
         {
-            Text = L.Get("settings.character"),
-            CustomMinimumSize = new Vector2(130, 0),
-        });
-        panel._characterDropdown = new OptionButton();
-        panel._characterDropdown.AddItem(L.Get("settings.char_auto"), 0);
-        panel._characterDropdown.AddItem(L.Get("settings.char_all"), 1);
-        panel._characterDropdown.AddItem(L.Get("char.IRONCLAD"), 2);
-        panel._characterDropdown.AddItem(L.Get("char.SILENT"), 3);
-        panel._characterDropdown.AddItem(L.Get("char.DEFECT"), 4);
-        panel._characterDropdown.AddItem(L.Get("char.NECROBINDER"), 5);
-        panel._characterDropdown.AddItem(L.Get("char.REGENT"), 6);
-        panel._characterDropdown.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        // Restore saved selection from config (default "auto" → index 0)
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+        };
+        vbox.AddChild(scroll);
+
+        var body = new VBoxContainer();
+        body.AddThemeConstantOverride("separation", 14);
+        body.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        scroll.AddChild(body);
+
+        // ── Section: 数据来源 ────────────────────────────────
+        body.AddChild(MakeSectionHeader(L.Get("settings.title")));
+        var dataGrid = NewRowGrid();
+        body.AddChild(dataGrid);
+
+        // Upload toggle (label + checkbox)
+        panel._uploadCheckbox = NewCheckbox(L.Get("settings.upload"), ModConfig.EnableUpload);
+        AddToggleRow(dataGrid, L.Get("settings.upload"), panel._uploadCheckbox);
+
+        // My-data toggle
+        panel._myDataCheckbox = NewCheckbox(L.Get("settings.my_data"), ModConfig.CurrentFilter.MyDataOnly);
+        AddToggleRow(dataGrid, L.Get("settings.my_data"), panel._myDataCheckbox);
+
+        // Character dropdown — Round 9 round 52: icons + Chinese names.
+        panel._characterDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        PopulateCharacterDropdown(panel._characterDropdown);
         var savedMode = ModConfig.CurrentFilter.CharacterFilterMode ?? "auto";
         var savedIdx = Array.IndexOf(_characterModes, savedMode);
         panel._characterDropdown.Selected = savedIdx >= 0 ? savedIdx : 0;
-        charRow.AddChild(panel._characterDropdown);
-        vbox.AddChild(charRow);
+        AddLabeledControl(dataGrid, L.Get("settings.character"), panel._characterDropdown);
 
-        // ── Filter Settings ─────────────────────────────────
+        // Version dropdown
+        panel._versionDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        panel._versionDropdown.AddItem(L.Get("settings.ver_current"), 0);
+        panel._versionDropdown.AddItem(L.Get("settings.ver_all"), 1);
+        var savedVer = ModConfig.CurrentFilter.GameVersion == "all" ? 1 : 0;
+        panel._versionDropdown.Selected = savedVer;
+        AddLabeledControl(dataGrid, L.Get("settings.version"), panel._versionDropdown);
 
-        // Auto-match ascension
-        panel._autoMatchAscCheckbox = new CheckBox { Text = L.Get("settings.auto_asc") };
-        panel._autoMatchAscCheckbox.ButtonPressed = ModConfig.CurrentFilter.AutoMatchAscension;
-        vbox.AddChild(panel._autoMatchAscCheckbox);
+        // Language dropdown
+        panel._langDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        panel._langDropdown.AddItem("中文", 0);
+        panel._langDropdown.AddItem("English", 1);
+        panel._langDropdown.Selected = L.Current == L.Lang.EN ? 1 : 0;
+        AddLabeledControl(dataGrid, L.Get("settings.language"), panel._langDropdown);
 
-        // Min/Max Ascension. Round 9 round 49: capped at 10 (the game ladder
-        // top); values >10 caused data-load exceptions in the backend.
-        var minAscRow = CreateSpinRow(L.Get("settings.min_asc"), 0, 10,
-            Math.Clamp(ModConfig.CurrentFilter.MinAscension ?? 0, 0, 10), out panel._minAscSpinBox);
-        vbox.AddChild(minAscRow);
-        var maxAscRow = CreateSpinRow(L.Get("settings.max_asc"), 0, 10,
-            Math.Clamp(ModConfig.CurrentFilter.MaxAscension ?? 10, 0, 10), out panel._maxAscSpinBox);
-        vbox.AddChild(maxAscRow);
+        body.AddChild(NewSeparator());
 
-        // Round 9 round 49: enforce min ≤ max by clamping the other side
-        // whenever either box changes.
+        // ── Section: 进阶 / 胜率 筛选 ─────────────────────────
+        body.AddChild(MakeSectionHeader(L.Get("settings.filter_section")));
+        var filterGrid = NewRowGrid();
+        body.AddChild(filterGrid);
+
+        panel._autoMatchAscCheckbox = NewCheckbox(L.Get("settings.auto_asc"), ModConfig.CurrentFilter.AutoMatchAscension);
+        AddToggleRow(filterGrid, L.Get("settings.auto_asc"), panel._autoMatchAscCheckbox);
+
+        panel._minAscSpinBox = NewSpinBox(
+            0, 10, Math.Clamp(ModConfig.CurrentFilter.MinAscension ?? 0, 0, 10));
+        AddLabeledControl(filterGrid, L.Get("settings.min_asc"), panel._minAscSpinBox);
+
+        panel._maxAscSpinBox = NewSpinBox(
+            0, 10, Math.Clamp(ModConfig.CurrentFilter.MaxAscension ?? 10, 0, 10));
+        AddLabeledControl(filterGrid, L.Get("settings.max_asc"), panel._maxAscSpinBox);
+
+        // Round 9 round 49: enforce min ≤ max via cross-clamp.
         panel._minAscSpinBox.ValueChanged += v =>
         {
             if (panel._maxAscSpinBox != null && v > panel._maxAscSpinBox.Value)
@@ -136,97 +185,197 @@ public partial class FilterPanel : PanelContainer
                 panel._minAscSpinBox.Value = v;
         };
 
-        // Min Player Win Rate
-        var wrRow = CreateSpinRow(L.Get("settings.min_wr"), 0, 100,
-            (int)((ModConfig.CurrentFilter.MinPlayerWinRate ?? 0) * 100), out panel._minWinRateSpinBox);
+        panel._minWinRateSpinBox = NewSpinBox(
+            0, 100, (int)((ModConfig.CurrentFilter.MinPlayerWinRate ?? 0) * 100));
         panel._minWinRateSpinBox.Suffix = "%";
-        vbox.AddChild(wrRow);
+        AddLabeledControl(filterGrid, L.Get("settings.min_wr"), panel._minWinRateSpinBox);
 
-        // Game version dropdown
-        var verRow = new HBoxContainer();
-        verRow.AddChild(new Label { Text = L.Get("settings.version"), CustomMinimumSize = new Vector2(130, 0) });
-        panel._versionDropdown = new OptionButton();
-        panel._versionDropdown.AddItem(L.Get("settings.ver_current"), 0);
-        panel._versionDropdown.AddItem(L.Get("settings.ver_all"), 1);
-        panel._versionDropdown.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        verRow.AddChild(panel._versionDropdown);
-        vbox.AddChild(verRow);
-
-        // ── Language Switch ─────────────────────────────────
-        var langRow = new HBoxContainer();
-        langRow.AddChild(new Label { Text = L.Get("settings.language"), CustomMinimumSize = new Vector2(130, 0) });
-        panel._langDropdown = new OptionButton();
-        panel._langDropdown.AddItem("中文", 0);
-        panel._langDropdown.AddItem("English", 1);
-        panel._langDropdown.Selected = L.Current == L.Lang.EN ? 1 : 0;
-        panel._langDropdown.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        langRow.AddChild(panel._langDropdown);
-        vbox.AddChild(langRow);
-
-        // Sample size indicator
-        panel._sampleSizeLabel = new Label { Text = "" };
-        panel._sampleSizeLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.7f, 0.9f));
-        panel._sampleSizeLabel.AddThemeFontSizeOverride("font_size", 12);
-        vbox.AddChild(panel._sampleSizeLabel);
+        // Sample size status line.
+        panel._sampleSizeLabel = MakeLabel("", Gray, LabelSize - 2);
+        body.AddChild(panel._sampleSizeLabel);
         panel.UpdateSampleSizeLabel();
 
-        // ── Feature Toggles (PRD §3.14) ─────────────────────
-        var togglesHeader = new Label { Text = L.Get("settings.toggles_title") };
-        togglesHeader.AddThemeFontSizeOverride("font_size", 14);
-        togglesHeader.AddThemeColorOverride("font_color", new Color("#EFC851"));
-        vbox.AddChild(togglesHeader);
+        body.AddChild(NewSeparator());
 
-        var togglesScroll = new ScrollContainer
-        {
-            CustomMinimumSize = new Vector2(0, 180),
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-        };
-        vbox.AddChild(togglesScroll);
-
-        var togglesVbox = new VBoxContainer();
-        togglesVbox.AddThemeConstantOverride("separation", 2);
-        togglesVbox.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        togglesScroll.AddChild(togglesVbox);
+        // ── Section: 功能开关 ─────────────────────────────────
+        body.AddChild(MakeSectionHeader(L.Get("settings.toggles_title")));
+        var togglesGrid = NewRowGrid();
+        body.AddChild(togglesGrid);
 
         foreach (var (key, labelKey) in FeatureToggles.ToggleDefinitions)
         {
-            var cb = new CheckBox
-            {
-                Text = L.Get(labelKey),
-                ButtonPressed = ModConfig.Toggles.GetByName(key),
-            };
-            cb.AddThemeFontSizeOverride("font_size", 12);
-            togglesVbox.AddChild(cb);
+            var cb = NewCheckbox(L.Get(labelKey), ModConfig.Toggles.GetByName(key));
             panel._toggleCheckboxes[key] = cb;
+            AddToggleRow(togglesGrid, L.Get(labelKey), cb);
         }
 
-        // Apply button
-        panel._applyButton = new Button { Text = L.Get("settings.apply") };
-        panel._applyButton.Pressed += panel.OnApplyPressed;
-        vbox.AddChild(panel._applyButton);
+        // ── Hint: changes auto-apply on close ────────────────
+        var hint = MakeLabel(L.Get("settings.close_to_apply"), Gray, LabelSize - 4);
+        hint.HorizontalAlignment = HorizontalAlignment.Center;
+        vbox.AddChild(hint);
 
         return panel;
     }
 
-    private static HBoxContainer CreateSpinRow(string label, int min, int max, int value, out SpinBox spinBox)
+    // ── Layout helpers ──────────────────────────────────────
+
+    private static Label MakeLabel(string text, Color color, int size)
     {
-        var row = new HBoxContainer();
-        row.AddChild(new Label { Text = label, CustomMinimumSize = new Vector2(130, 0) });
-        spinBox = new SpinBox
-        {
-            MinValue = min, MaxValue = max, Value = value, Step = 1,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
-        };
-        row.AddChild(spinBox);
-        return row;
+        var l = new Label { Text = text };
+        l.AddThemeFontSizeOverride("font_size", size);
+        l.AddThemeColorOverride("font_color", color);
+        return l;
     }
+
+    private static Label MakeSectionHeader(string text)
+    {
+        var l = MakeLabel(text, Gold, SectionSize);
+        return l;
+    }
+
+    private static HSeparator NewSeparator()
+    {
+        var s = new HSeparator();
+        s.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        return s;
+    }
+
+    /// <summary>
+    /// 2-column grid: label (right-aligned, fixed width) | control (ExpandFill).
+    /// </summary>
+    private static GridContainer NewRowGrid()
+    {
+        var g = new GridContainer { Columns = 2 };
+        g.AddThemeConstantOverride("h_separation", 18);
+        g.AddThemeConstantOverride("v_separation", 10);
+        g.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        return g;
+    }
+
+    private static void AddLabeledControl(GridContainer grid, string labelText, Control control)
+    {
+        var lbl = MakeLabel(labelText, Cream, LabelSize);
+        lbl.HorizontalAlignment = HorizontalAlignment.Right;
+        lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        lbl.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        lbl.CustomMinimumSize = new Vector2(180, 0);
+        grid.AddChild(lbl);
+
+        control.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        control.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        grid.AddChild(control);
+    }
+
+    private static void AddToggleRow(GridContainer grid, string labelText, CheckBox cb)
+    {
+        var lbl = MakeLabel(labelText, Cream, LabelSize);
+        lbl.HorizontalAlignment = HorizontalAlignment.Right;
+        lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        lbl.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        lbl.CustomMinimumSize = new Vector2(180, 0);
+        grid.AddChild(lbl);
+
+        // CheckBox.Text is cleared — the left label is the single source of
+        // truth. This also makes the checkbox align with SpinBox/OptionButton
+        // on the same grid column.
+        cb.Text = "";
+        cb.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+        cb.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        grid.AddChild(cb);
+    }
+
+    private static CheckBox NewCheckbox(string text, bool initial)
+    {
+        var cb = new CheckBox { Text = text, ButtonPressed = initial };
+        cb.AddThemeFontSizeOverride("font_size", LabelSize);
+        return cb;
+    }
+
+    private static SpinBox NewSpinBox(int min, int max, int value)
+    {
+        var sb = new SpinBox
+        {
+            MinValue = min,
+            MaxValue = max,
+            Step = 1,
+            Value = value,
+        };
+        sb.AddThemeFontSizeOverride("font_size", LabelSize);
+        return sb;
+    }
+
+    /// <summary>
+    /// Round 9 round 52: populate the character dropdown with icons + Chinese
+    /// names via CharacterModel.Title.GetFormattedText(). "auto" has no icon
+    /// per user request; "all" uses RandomCharacter's icon.
+    /// </summary>
+    private static void PopulateCharacterDropdown(OptionButton dropdown)
+    {
+        // auto — no icon
+        dropdown.AddItem(L.Get("settings.char_auto"), 0);
+
+        // all — RandomCharacter icon
+        AddCharItem(dropdown, 1,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.RandomCharacter>(),
+            L.Get("settings.char_all"));
+        AddCharItem(dropdown, 2,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Ironclad>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Ironclad>("char.IRONCLAD"));
+        AddCharItem(dropdown, 3,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Silent>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Silent>("char.SILENT"));
+        AddCharItem(dropdown, 4,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Defect>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Defect>("char.DEFECT"));
+        AddCharItem(dropdown, 5,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Necrobinder>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Necrobinder>("char.NECROBINDER"));
+        AddCharItem(dropdown, 6,
+            TryGetCharIcon<MegaCrit.Sts2.Core.Models.Characters.Regent>(),
+            TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Regent>("char.REGENT"));
+    }
+
+    private static void AddCharItem(OptionButton dropdown, int id, Texture2D? icon, string label)
+    {
+        if (icon != null)
+            dropdown.AddIconItem(icon, label, id);
+        else
+            dropdown.AddItem(label, id);
+    }
+
+    private static Texture2D? TryGetCharIcon<T>() where T : CharacterModel
+    {
+        try { return ModelDb.Character<T>().IconTexture; }
+        catch { return null; }
+    }
+
+    private static string TryGetCharTitle<T>(string fallbackKey) where T : CharacterModel
+    {
+        try
+        {
+            var t = ModelDb.Character<T>().Title.GetFormattedText();
+            if (!string.IsNullOrEmpty(t)) return t!;
+        }
+        catch { }
+        return L.Get(fallbackKey);
+    }
+
+    // ── Show / hide lifecycle ───────────────────────────────
 
     public static void Toggle()
     {
         var panel = Instance;
-        panel.Visible = !panel.Visible;
         if (panel.Visible)
+        {
+            // Round 9 round 52: apply settings on hide instead of via an
+            // explicit "应用" button. User explicitly requested this.
+            panel.ApplyAndClose();
+        }
+        else
+        {
+            panel.Visible = true;
             panel.UpdateSampleSizeLabel();
+        }
     }
 
     public void UpdateSampleSizeLabel()
@@ -244,19 +393,16 @@ public partial class FilterPanel : PanelContainer
         }
     }
 
-    private void OnApplyPressed()
+    private void ApplyAndClose()
     {
         Safe.Run(() =>
         {
-            // Save upload preference
             ModConfig.EnableUpload = _uploadCheckbox?.ButtonPressed ?? true;
 
-            // Save language preference
             var langIdx = _langDropdown?.Selected ?? 0;
             L.Current = langIdx == 1 ? L.Lang.EN : L.Lang.CN;
             ModConfig.Language = langIdx == 1 ? "EN" : "CN";
 
-            // Save filter settings
             var filter = ModConfig.CurrentFilter;
             filter.AutoMatchAscension = _autoMatchAscCheckbox?.ButtonPressed ?? false;
             if (!filter.AutoMatchAscension)
@@ -270,34 +416,21 @@ public partial class FilterPanel : PanelContainer
             filter.GameVersion = verIdx == 1 ? "all" : null;
             filter.MyDataOnly = _myDataCheckbox?.ButtonPressed ?? false;
 
-            // PRD §3.18 — persist the user's character preference (mode), not
-            // the resolved character ID. The actual character used for queries
-            // is computed at request time via FilterSettings.ResolveCharacter().
             var charIdx = _characterDropdown?.Selected ?? 0;
             if (charIdx < 0 || charIdx >= _characterModes.Length) charIdx = 0;
             filter.CharacterFilterMode = _characterModes[charIdx];
 
             filter.Save();
 
-            // Persist feature toggle values
             foreach (var (key, cb) in _toggleCheckboxes)
             {
                 ModConfig.Toggles.SetByName(key, cb.ButtonPressed);
             }
 
-            // Save config overrides to disk
-            SaveConfigOverrides();
+            Safe.Run(() => ModConfig.SaveSettings());
 
             FilterApplied?.Invoke();
             Visible = false;
         });
-    }
-
-    private static void SaveConfigOverrides()
-    {
-        // ModConfig.SaveSettings() writes the canonical config including
-        // feature_toggles, language, upload prefs, panel position, etc.
-        // It must be called whenever any of those mutate from this panel.
-        Safe.Run(() => ModConfig.SaveSettings());
     }
 }

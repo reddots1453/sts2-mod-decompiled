@@ -44,6 +44,10 @@ public sealed class CombatTracker
     // H3: Deferred Osty death negative defense — only applied when enemy next attacks player
     private (string sourceId, string sourceType, int amount)? _pendingOstyDeathDefense;
 
+    // Forge tracking: each ForgeCmd.Forge call records (sourceId, sourceType, amount).
+    // When SovereignBlade plays, these are written as sub-bar entries under SOVEREIGN_BLADE.
+    private readonly List<(string sourceId, string sourceType, int amount)> _forgeLog = new();
+
     // Event fired after card play or potion use completes (for real-time UI refresh)
     public event Action? CombatDataUpdated;
 
@@ -164,6 +168,7 @@ public sealed class CombatTracker
         _pendingUpgradeDamageDelta = 0;
         _pendingUpgradeBlockDelta = 0;
         _processedDamageResults.Clear();
+        _forgeLog.Clear();
         ContributionMap.Instance.Clear();
     }
 
@@ -258,6 +263,19 @@ public sealed class CombatTracker
         _activePowerSourceType = null;
     }
 
+    /// <summary>Force-clear ALL context. Called between tests to prevent stale state.</summary>
+    public void ForceResetAllContext()
+    {
+        _activeCardId = null;
+        _activePotionId = null;
+        _activeRelicId = null;
+        _activePowerSourceId = null;
+        _activePowerSourceType = null;
+        _pendingDrawSourceId = null;
+        _pendingDrawSourceType = null;
+        ContributionMap.Instance.ClearActiveOrbContext();
+    }
+
     // ── Turn Tracking ───────────────────────────────────────
 
     public void OnTurnStart()
@@ -266,12 +284,18 @@ public sealed class CombatTracker
     }
 
     // ── Resolve Source ───────────────────────────────────────
-    // Fallback chain: cardSourceId → _activeCardId → _activePotionId → _activeRelicId → _activePowerSource → _activeOrbContext
+    // RESTORED original priority: card first (explicit cardSourceId or _activeCardId),
+    // then potion, then relic, then power, then orb.
+    // Orb context is checked via separate orb-aware methods, not the main fallback.
 
     private (string id, string type) ResolveSource(string? cardSourceId)
     {
         if (cardSourceId != null)
             return (cardSourceId, "card");
+        // Orb context takes priority over card when set (orb passive/evoke damage)
+        var orbCtx = ContributionMap.Instance.ActiveOrbContext;
+        if (orbCtx != null)
+            return (orbCtx.Value.sourceId, orbCtx.Value.sourceType);
         if (_activeCardId != null)
             return (_activeCardId, "card");
         if (_activePotionId != null)
@@ -280,11 +304,7 @@ public sealed class CombatTracker
             return (_activeRelicId, "relic");
         if (_activePowerSourceId != null)
             return (_activePowerSourceId, _activePowerSourceType ?? "card");
-        // Orb context fallback: attribute to the card that channeled the orb
-        var orbCtx = ContributionMap.Instance.ActiveOrbContext;
-        if (orbCtx != null)
-            return (orbCtx.Value.sourceId, orbCtx.Value.sourceType);
-        // No context found — use UNTRACKED sentinel so data is never silently lost
+        // No context found
         Godot.GD.Print($"[CommunityStats] WARN ResolveSource: no active context, using UNTRACKED");
         return ("UNTRACKED", "untracked");
     }
@@ -472,13 +492,15 @@ public sealed class CombatTracker
                 directDamage -= upgSplit;
             }
 
-            // Indirect damage (poison, thorns, orbs via power context) → AttributedDamage
+            // Indirect damage (poison, thorns, orbs) → AttributedDamage
             // Direct damage (cards, relics, potions) → DirectDamage
-            bool isIndirect = cardSourceId == null
+            // Orb context always means indirect (orb passive/evoke damage)
+            bool hasOrbContext = ContributionMap.Instance.ActiveOrbContext != null;
+            bool isIndirect = hasOrbContext || (cardSourceId == null
                 && _activeCardId == null
                 && _activePotionId == null
                 && _activeRelicId == null
-                && (_activePowerSourceId != null || ContributionMap.Instance.ActiveOrbContext != null);
+                && _activePowerSourceId != null);
 
             if (isIndirect)
                 GetOrCreate(sourceId2, sourceType2).AttributedDamage += directDamage;
@@ -621,12 +643,13 @@ public sealed class CombatTracker
 
         if (sourceId == null) return;
 
-        // Also record general power source
-        ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType);
+        // Record power source with amount for proportional multi-source attribution
+        int intAmount = (int)amount;
+        ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType, intAmount);
 
         if (isPlayerTarget)
         {
-            ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType);
+            ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType, intAmount);
         }
         else
         {
@@ -652,9 +675,37 @@ public sealed class CombatTracker
 
     // ── Card Draw ───────────────────────────────────────────
 
+    // Pending power/relic draw attribution: set by async power/relic hooks
+    // (like DarkEmbrace) whose Harmony postfix fires before the draw completes.
+    // The prefix records the intended source here; OnCardDrawn checks it first.
+    private string? _pendingDrawSourceId;
+    private string? _pendingDrawSourceType;
+
+    public void SetPendingDrawSource(string sourceId, string sourceType)
+    {
+        _pendingDrawSourceId = sourceId;
+        _pendingDrawSourceType = sourceType;
+    }
+
+    public void ClearPendingDrawSource()
+    {
+        _pendingDrawSourceId = null;
+        _pendingDrawSourceType = null;
+    }
+
     public void OnCardDrawn(bool fromHandDraw)
     {
         if (fromHandDraw) return; // Normal turn draw, not attributed
+
+        // Check pending power/relic draw source first (for async hooks like DarkEmbrace).
+        // Consumes the pending source after use.
+        if (_pendingDrawSourceId != null)
+        {
+            GetOrCreate(_pendingDrawSourceId, _pendingDrawSourceType ?? "card").CardsDrawn++;
+            _pendingDrawSourceId = null;
+            _pendingDrawSourceType = null;
+            return;
+        }
 
         var (sourceId, sourceType) = ResolveSource(null);
         if (sourceId != null)
@@ -909,6 +960,55 @@ public sealed class CombatTracker
         {
             accum.OriginSourceId = origin.Value.originId;
         }
+    }
+
+    // ── Forge Tracking ────────────────────────────────────────
+
+    /// <summary>
+    /// Called from ForgeCmd.Forge postfix. Records source and amount of each forge event.
+    /// </summary>
+    public void OnForge(string sourceId, string sourceType, int amount)
+    {
+        if (amount <= 0) return;
+        _forgeLog.Add((sourceId, sourceType, amount));
+    }
+
+    /// <summary>
+    /// Called from SovereignBlade.OnPlay prefix. Writes accumulated forge sources
+    /// as sub-bar entries under SOVEREIGN_BLADE so the chart shows breakdown.
+    /// Each forge source gets a ContributionAccum with OriginSourceId = "SOVEREIGN_BLADE"
+    /// and DirectDamage = total forged amount from that source.
+    /// </summary>
+    public void FlushForgeSubBars()
+    {
+        if (_forgeLog.Count == 0) return;
+
+        // Aggregate by sourceId
+        var aggregated = new Dictionary<string, (string sourceType, int count, int totalAmount)>();
+        foreach (var (srcId, srcType, amt) in _forgeLog)
+        {
+            if (aggregated.TryGetValue(srcId, out var existing))
+                aggregated[srcId] = (srcType, existing.count + 1, existing.totalAmount + amt);
+            else
+                aggregated[srcId] = (srcType, 1, amt);
+        }
+
+        // Write sub-bar entries: "FORGE:SOURCE_ID" with OriginSourceId = "SOVEREIGN_BLADE"
+        foreach (var (srcId, (srcType, count, totalAmt)) in aggregated)
+        {
+            string key = $"FORGE:{srcId}";
+            var accum = GetOrCreate(key, srcType);
+            accum.OriginSourceId = "SOVEREIGN_BLADE";
+            accum.DirectDamage += totalAmt;
+            accum.TimesPlayed += count;
+        }
+
+        // Also write base damage entry (SovereignBlade starts at 10)
+        const int baseDamage = 10;
+        var baseAccum = GetOrCreate("FORGE:BASE", "card");
+        baseAccum.OriginSourceId = "SOVEREIGN_BLADE";
+        baseAccum.DirectDamage = baseDamage; // fixed, not additive
+        baseAccum.TimesPlayed = 1;
     }
 
     // ── Healing ──────────────────────────────────────────────

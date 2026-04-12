@@ -27,7 +27,13 @@ public partial class ContributionChart : VBoxContainer
     private static readonly Color HealBarColor    = new(0.30f, 0.92f, 0.40f); // bright green
     private static readonly Color UpgradeBarColor = new(0.95f, 0.65f, 0.20f); // amber
     private static readonly Color SubBarColor     = new(0.42f, 0.62f, 0.82f, 0.65f); // dimmed blue
-    private static readonly Color HeaderColor     = new("#EFC851"); // gold accent
+    private static readonly Color HeaderColor     = new("#EFC851"); // gold accent (default, overridden per section)
+    // Per-section header colors
+    private static readonly Color DamageHeaderColor  = new("#FF4444"); // red
+    private static readonly Color DefenseHeaderColor = new("#44CC44"); // green
+    private static readonly Color DrawHeaderColor    = new("#4488FF"); // blue
+    private static readonly Color EnergyHeaderColor  = new("#FF8C00"); // orange
+    private static readonly Color StarsHeaderColor   = new("#FFD700"); // gold
     private static readonly Color SectionTextColor= new("#FFF6E2"); // cream
     private static readonly Color PlayCountColor  = new(0.62f, 0.62f, 0.72f);
     private static readonly Color RowAlt          = new(1f, 1f, 1f, 0.025f);
@@ -36,8 +42,8 @@ public partial class ContributionChart : VBoxContainer
 
     private const int MaxBarsPerSection = 10;
     private const float BarHeight = 22f;
-    // Round 9 round 51: 260 → 540 to match the new 760-wide panel.
-    private const float MaxBarWidth = 540f;
+    // Shrunk from 540 → 380 to fit the narrower 570-wide panel.
+    private const float MaxBarWidth = 380f;
     private const int BarCornerRadius = 4;
     private static int _rowCounter; // alternating background rows
 
@@ -63,34 +69,34 @@ public partial class ContributionChart : VBoxContainer
         chart.AddChild(titleLabel);
 
         chart.AddSeparator();
-        chart.BuildSection(L.Get("chart.damage"), data, Category.Damage);
+        chart.BuildSection(L.Get("chart.damage"), data, Category.Damage, DamageHeaderColor);
         chart.AddSeparator();
-        chart.BuildSection(L.Get("chart.defense"), data, Category.Defense);
+        chart.BuildSection(L.Get("chart.defense"), data, Category.Defense, DefenseHeaderColor);
         chart.AddSeparator();
-        chart.BuildSection(L.Get("chart.draw"), data, Category.Draw);
+        chart.BuildSection(L.Get("chart.draw"), data, Category.Draw, DrawHeaderColor);
         chart.AddSeparator();
-        chart.BuildSection(L.Get("chart.energy"), data, Category.Energy);
+        chart.BuildSection(L.Get("chart.energy"), data, Category.Energy, EnergyHeaderColor);
         chart.AddSeparator();
-        chart.BuildSection(L.Get("chart.stars"), data, Category.Stars);
+        chart.BuildSection(L.Get("chart.stars"), data, Category.Stars, StarsHeaderColor);
 
         // Healing section: only show in run-level summary
         if (isRunLevel)
         {
             chart.AddSeparator();
-            chart.BuildSection(L.Get("chart.healing"), data, Category.Healing);
+            chart.BuildSection(L.Get("chart.healing"), data, Category.Healing, HealBarColor);
         }
 
         return chart;
     }
 
-    private void BuildSection(string header, IReadOnlyDictionary<string, ContributionAccum> data, Category category)
+    private void BuildSection(string header, IReadOnlyDictionary<string, ContributionAccum> data, Category category, Color? sectionColor = null)
     {
-        // Gold underlined section header — visually distinct from row labels.
+        var color = sectionColor ?? HeaderColor;
         var headerWrap = new PanelContainer();
         var headerStyle = new StyleBoxFlat
         {
             BgColor = new Color(0.10f, 0.12f, 0.18f, 0.55f),
-            BorderColor = HeaderColor,
+            BorderColor = color,
             BorderWidthBottom = 2,
             CornerRadiusTopLeft = 4,
             CornerRadiusTopRight = 4,
@@ -101,7 +107,7 @@ public partial class ContributionChart : VBoxContainer
         };
         headerWrap.AddThemeStyleboxOverride("panel", headerStyle);
         var headerLabel = new Label { Text = header };
-        headerLabel.AddThemeColorOverride("font_color", HeaderColor);
+        headerLabel.AddThemeColorOverride("font_color", color);
         headerLabel.AddThemeFontSizeOverride("font_size", 13);
         headerWrap.AddChild(headerLabel);
         AddChild(headerWrap);

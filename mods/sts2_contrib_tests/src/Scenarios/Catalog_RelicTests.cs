@@ -158,15 +158,16 @@ public static class Catalog_RelicTests
             Akabeko? relic = null;
             try
             {
-                // Ensure clean Vigor baseline
+                // Ensure clean baseline
                 await PowerCmd.Remove<VigorPower>(ctx.PlayerCreature);
 
                 relic = await ctx.ObtainRelic<Akabeko>();
-                // RoundNumber <= 1 guard inside Akabeko: temporarily ignore by invoking the
-                // hook regardless of guard via manual PowerCmd.Apply with relic context set
-                // by the Harmony patch on AfterSideTurnStart.
+                // Akabeko guards on RoundNumber <= 1; temporarily set to 1.
+                int savedRound = ctx.CombatState.RoundNumber;
+                ctx.CombatState.RoundNumber = 1;
                 await ctx.TriggerRelicHook(() =>
                     relic.AfterSideTurnStart(ctx.PlayerCreature.Side, ctx.CombatState));
+                ctx.CombatState.RoundNumber = savedRound;
 
                 var enemy = ctx.GetFirstEnemy();
                 var strike = await ctx.CreateCardInHand<StrikeIronclad>();
@@ -202,6 +203,7 @@ public static class Catalog_RelicTests
             try
             {
                 await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
+                await ctx.ResetEnemyHp();
 
                 relic = await ctx.ObtainRelic<Vajra>();
                 // Vajra applies StrengthPower in AfterRoomEntered when room is CombatRoom.
@@ -291,8 +293,11 @@ public static class Catalog_RelicTests
             try
             {
                 relic = await ctx.ObtainRelic<Anchor>();
+                await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
                 ctx.TakeSnapshot();
                 await ctx.TriggerRelicHook(() => relic.BeforeCombatStart());
+                // Force damage so block gets consumed → EffectiveBlock tracked
+                await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("ANCHOR", out var d);
                 ctx.AssertEquals(result, "ANCHOR.EffectiveBlock", 10, d?.EffectiveBlock ?? 0);
@@ -360,6 +365,7 @@ public static class Catalog_RelicTests
             try
             {
                 await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
+                await ctx.ResetEnemyHp();
                 relic = await ctx.ObtainRelic<EmberTea>();
                 var room = ctx.GetCurrentRoom();
                 if (room is CombatRoom)
@@ -523,6 +529,7 @@ public static class Catalog_RelicTests
             try
             {
                 await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
+                await ctx.ResetEnemyHp();
 
                 relic = await ctx.ObtainRelic<Brimstone>();
                 await ctx.TriggerRelicHook(() =>

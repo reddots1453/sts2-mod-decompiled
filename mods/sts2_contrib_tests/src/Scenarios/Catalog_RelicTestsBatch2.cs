@@ -60,16 +60,7 @@ public static class Catalog_RelicTestsBatch2
 
     private static async Task ClearPlayerBlock(TestContext ctx)
     {
-        // Setting block to 0 via the public API: GainBlock with negative amount
-        // isn't supported, but the easiest path is to call the internal block
-        // clear via Hook. The runner already starts with 0; some prior tests
-        // may have left residual block. Most reliable: use SetBlock if exposed.
-        var c = ctx.PlayerCreature;
-        // Reflective bypass — Block has a private setter on Creature.
-        var prop = c.GetType().GetProperty("Block",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-        prop?.SetValue(c, 0);
-        await Task.Delay(20);
+        await ctx.ClearBlock();
     }
 
     // ── §14 BurningBlood AfterCombatVictory ────────────────
@@ -194,9 +185,9 @@ public static class Catalog_RelicTestsBatch2
 
                 var choiceCtx = new BlockingPlayerChoiceContext();
                 var side = ctx.PlayerCreature.Side;
-                // VeryEarly arms ShouldTrigger; BeforeTurnEnd actually grants block.
                 await ctx.TriggerRelicHook(() => relic.BeforeTurnEndVeryEarly(choiceCtx, side));
                 await ctx.TriggerRelicHook(() => relic.BeforeTurnEnd(choiceCtx, side));
+                await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("ORICHALCUM", out var d);
@@ -225,15 +216,15 @@ public static class Catalog_RelicTestsBatch2
             RippleBasin? relic = null;
             try
             {
+                await ClearPlayerBlock(ctx);
                 relic = await ctx.ObtainRelic<RippleBasin>();
                 ctx.TakeSnapshot();
                 var choiceCtx = new BlockingPlayerChoiceContext();
                 await ctx.TriggerRelicHook(() => relic.BeforeTurnEnd(choiceCtx, ctx.PlayerCreature.Side));
+                await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("RIPPLE_BASIN", out var d);
-                // RippleBasin grants 4 block flat in BeforeTurnEnd. Some variants
-                // gate on "had block" — assert ≥0 then check expected.
                 int got = d?.EffectiveBlock ?? 0;
                 if (got >= 1)
                     ctx.AssertEquals(result, "RIPPLE_BASIN.EffectiveBlock", 4, got);
@@ -268,11 +259,13 @@ public static class Catalog_RelicTestsBatch2
                 await ctx.CreateCardInHand<DefendIronclad>();
                 await ctx.CreateCardInHand<DefendIronclad>();
 
+                await ClearPlayerBlock(ctx);
                 int handSize = PileType.Hand.GetPile(ctx.Player).Cards.Count;
                 relic = await ctx.ObtainRelic<CloakClasp>();
                 ctx.TakeSnapshot();
                 await ctx.TriggerRelicHook(() =>
                     relic.BeforeTurnEnd(new BlockingPlayerChoiceContext(), ctx.PlayerCreature.Side));
+                await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("CLOAK_CLASP", out var d);
@@ -301,12 +294,14 @@ public static class Catalog_RelicTestsBatch2
             ToughBandages? relic = null;
             try
             {
+                await ClearPlayerBlock(ctx);
                 relic = await ctx.ObtainRelic<ToughBandages>();
                 var card = await ctx.CreateCardInHand<DefendIronclad>();
                 ctx.TakeSnapshot();
 
                 await CardCmd.Discard(new BlockingPlayerChoiceContext(), card);
                 await Task.Delay(150);
+                await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("TOUGH_BANDAGES", out var d);
@@ -337,9 +332,11 @@ public static class Catalog_RelicTestsBatch2
             try
             {
                 ctx.CombatState.RoundNumber = 3;
+                await ClearPlayerBlock(ctx);
                 relic = await ctx.ObtainRelic<CaptainsWheel>();
                 ctx.TakeSnapshot();
                 await ctx.TriggerRelicHook(() => relic.AfterBlockCleared(ctx.PlayerCreature));
+                await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("CAPTAINS_WHEEL", out var d);
@@ -371,9 +368,11 @@ public static class Catalog_RelicTestsBatch2
             try
             {
                 ctx.CombatState.RoundNumber = 2;
+                await ClearPlayerBlock(ctx);
                 relic = await ctx.ObtainRelic<HornCleat>();
                 ctx.TakeSnapshot();
                 await ctx.TriggerRelicHook(() => relic.AfterBlockCleared(ctx.PlayerCreature));
+                await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("HORN_CLEAT", out var d);

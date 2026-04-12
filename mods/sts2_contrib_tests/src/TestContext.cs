@@ -11,6 +11,7 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Rooms;
+using MegaCrit.Sts2.Core.TestSupport;
 using MegaCrit.Sts2.Core.ValueProps;
 
 namespace ContribTests;
@@ -139,10 +140,56 @@ public sealed class TestContext
         return card;
     }
 
+    /// <summary>
+    /// Remove all player block AND clear the FIFO block pool so fresh block
+    /// from the next card/relic is the only entry in the queue.
+    /// </summary>
+    public async Task ClearBlock()
+    {
+        await CreatureCmd.LoseBlock(PlayerCreature, PlayerCreature.Block);
+        ContributionMap.Instance.ClearBlockPool();
+    }
+
+    /// <summary>
+    /// Ensure the draw pile has at least `count` cards.
+    /// If not, creates Strike cards in draw pile so card-draw effects work.
+    /// </summary>
+    public async Task EnsureDrawPile(int count = 5)
+    {
+        var drawPile = PileType.Draw.GetPile(Player);
+        int needed = count - drawPile.Cards.Count;
+        for (int i = 0; i < needed; i++)
+        {
+            var card = CombatState.CreateCard<MegaCrit.Sts2.Core.Models.Cards.StrikeIronclad>(Player);
+            await CardPileCmd.Add(card, PileType.Draw, skipVisuals: true);
+        }
+    }
+
+    /// <summary>
+    /// Discard all cards from hand to prevent hand overflow (10-card limit).
+    /// Must be called between tests to ensure draw effects have room.
+    /// </summary>
+    public async Task ClearHand()
+    {
+        var hand = PileType.Hand.GetPile(Player);
+        var cards = hand.Cards.ToList();
+        foreach (var card in cards)
+        {
+            await CardPileCmd.Add(card, PileType.Discard, skipVisuals: true);
+        }
+    }
+
+    /// <summary>Clear all orbs from the player's orb queue to prevent accumulation.</summary>
+    public void ClearOrbs()
+    {
+        Player.PlayerCombatState?.OrbQueue?.Clear();
+    }
+
     /// <summary>Play a card against an optional target.</summary>
     public async Task PlayCard(CardModel card, Creature? target = null)
     {
-        await CardCmd.AutoPlay(new BlockingPlayerChoiceContext(), card, target);
+        await CardCmd.AutoPlay(new BlockingPlayerChoiceContext(), card, target,
+            skipCardPileVisuals: true);
         await Task.Delay(300); // Allow patches to fire + Godot scene tree to process
     }
 
@@ -200,6 +247,16 @@ public sealed class TestContext
         if (relic == null) return;
         await RelicCmd.Remove(relic);
         await Task.Delay(50);
+    }
+
+    /// <summary>
+    /// Reset all enemies to full HP. Call before tests that check exact damage values
+    /// to avoid overkill-cap from accumulated damage across tests.
+    /// </summary>
+    public async Task ResetEnemyHp()
+    {
+        foreach (var enemy in GetAllEnemies())
+            await CreatureCmd.Heal(enemy, 9999m, playAnim: false);
     }
 
     /// <summary>
@@ -283,22 +340,58 @@ public sealed class TestContext
     /// End turn and wait for enemy turn to fully resolve.
     /// Polls until it's the player's turn again (or timeout).
     /// </summary>
-    public async Task EndTurnAndWaitForPlayerTurn(int timeoutMs = 8000)
+    public async Task EndTurnAndWaitForPlayerTurn(int timeoutMs = 15000)
     {
-        PlayerCmd.EndTurn(Player, canBackOut: false);
-        await Task.Delay(500); // initial delay for turn transition
+        bool isReady = CombatManager.Instance.IsPlayerReadyToEndTurn(Player);
+        var currentAction = MegaCrit.Sts2.Core.Runs.RunManager.Instance.ActionExecutor.CurrentlyRunningAction;
+        Godot.GD.Print($"[ContribTest] EndTurn: before call, CurrentSide={CombatState.CurrentSide}, isReady={isReady}, runningAction={currentAction?.GetType().Name ?? "null"}");
 
-        // Wait until player can act again (enemy turn resolved)
+        // PHASE 1: Call EndTurn and wait for side to flip to Enemy
+        PlayerCmd.EndTurn(Player, canBackOut: false);
         var sw = System.Diagnostics.Stopwatch.StartNew();
+        bool sideFlipped = false;
         while (sw.ElapsedMilliseconds < timeoutMs)
         {
-            if (!CombatManager.Instance.IsInProgress) break; // combat ended
-            if (CombatState.CurrentSide == MegaCrit.Sts2.Core.Combat.CombatSide.Player) break;
             await Task.Delay(200);
+            if (!CombatManager.Instance.IsInProgress) break;
+            if (CombatState.CurrentSide != MegaCrit.Sts2.Core.Combat.CombatSide.Player)
+            {
+                sideFlipped = true;
+                break;
+            }
         }
-        // Critical: enemy attack animations and DamageReceived callbacks may still
-        // be processing after CurrentSide flips back to Player. Wait longer.
-        await Task.Delay(1500);
+        Godot.GD.Print($"[ContribTest] EndTurn: sideFlipped={sideFlipped} ({sw.ElapsedMilliseconds}ms)");
+        if (!sideFlipped)
+        {
+            bool readyNow = CombatManager.Instance.IsPlayerReadyToEndTurn(Player);
+            var action2 = MegaCrit.Sts2.Core.Runs.RunManager.Instance.ActionExecutor.CurrentlyRunningAction;
+            bool inProgress = CombatManager.Instance.IsInProgress;
+            Godot.GD.PrintErr($"[ContribTest] EndTurn: FAILED! ready={readyNow}, action={action2?.GetType().Name ?? "null"}, inProgress={inProgress}, side={CombatState.CurrentSide}");
+            return;
+        }
+
+        // PHASE 2: Wait for side to flip back to Player
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            await Task.Delay(200);
+            if (!CombatManager.Instance.IsInProgress) break;
+            if (CombatState.CurrentSide == MegaCrit.Sts2.Core.Combat.CombatSide.Player) break;
+        }
+
+        // PHASE 3: Wait for _playersReadyToEndTurn to be cleared by BeforeSideTurnStart.
+        // CurrentSide flips to Player BEFORE the clear happens, so we must explicitly wait.
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            if (!CombatManager.Instance.IsPlayerReadyToEndTurn(Player)) break;
+            await Task.Delay(100);
+        }
+        await Task.Delay(3000); // extra buffer for AfterPlayerTurnStart hooks (CrimsonMantle etc.)
+
+        // Heal player to prevent death from accumulated enemy attacks
+        if (CombatManager.Instance.IsInProgress)
+            await CreatureCmd.Heal(PlayerCreature, 9999m, playAnim: false);
+
+        Godot.GD.Print($"[ContribTest] EndTurn: done ({sw.ElapsedMilliseconds}ms), CurrentSide={CombatState.CurrentSide}, ready={CombatManager.Instance.IsPlayerReadyToEndTurn(Player)}");
     }
 
     /// <summary>Get the first hittable enemy.</summary>

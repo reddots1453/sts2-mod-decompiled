@@ -1,13 +1,13 @@
 # 第二轮迭代 — 进度与上下文
 
-> 最后更新：2026-04-12（**第二轮迭代完成**，发布 v0.12.0，已 git push）
+> 最后更新：2026-04-12（**Round 13 贡献归因深度调试 + UI 改进 + 全量回归测试**）
 > 此文件供跨设备会话使用，确保新会话能完整理解当前状态
 
 ---
 
 ## 当前位置
 
-**工作流阶段**：**Stage 6 — 已发布**。第二轮迭代全部 phase 完成 + 人工验收通过。
+**工作流阶段**：**Round 13 — 测试覆盖扩展 + 贡献归因系统重构**。全量回归 274/388 PASS，55 FAIL 待修（block FIFO + modifier 追踪），UI 面板改进已完成。
 
 **v0.12.0 发布产物**：
 - 仓库根 `./stats_the_spire/` — 可直接拷到游戏 `mods/` 目录的完整运行文件夹
@@ -15,9 +15,9 @@
 - 已 git push 到 origin/master
 
 **下次开机第一件事**：
-1. 读本文件顶部（确认仍是已发布状态）
-2. 等待用户提供第三轮迭代需求 / bug 反馈
-3. 如有新需求，按工作流先改 `PRD_04_ITERATION2.md`（升 v3.2）再写代码
+1. 读本文件 §"Round 13" + "跨设备交接快照" 了解当前状态
+2. 继续修复 55 个 FAIL（EffectiveBlock=0 / ModifierDamage=0 / Power hook 归因=0）
+3. 核心问题：恢复 ResolveSource 为 card-first 后，power/relic hook 的 SYNC 效果（FeelNoPain block、Juggernaut damage）在 Harmony postfix 清除 context 前应该完成，但全量回归中返回 0——需要调查根因
 
 **v0.12.0 验收完成的功能**（详见 [CHANGELOG.md](../CHANGELOG.md)）：
 1. 个人生涯统计（百科大全 → 角色数据）— 8 大区块全部对齐游戏原生 UI 风格
@@ -358,7 +358,7 @@ mods/sts2_contrib_tests/src/TestRunner.cs              v5: 注册 11 个 Catalog
 
 ---
 
-## 跨设备交接快照（2026-04-10 update 2）
+## 跨设备交接快照（2026-04-12 Round 13）
 
 ### 仓库根路径（**重要：两台设备必须对齐**）
 - 规范路径：`<游戏根>/Slay the Spire 2/Sts2-mod-decompiled/`
@@ -367,15 +367,14 @@ mods/sts2_contrib_tests/src/TestRunner.cs              v5: 注册 11 个 Catalog
 - csproj `HintPath="..\..\..\data_sts2_windows_x86_64\sts2.dll"` 从 `Sts2-mod-decompiled/mods/<mod>/` 上溯三层命中 game DLL 目录——只有规范路径下才能 build 通过
 
 ### 当前 git 状态
-- **HEAD**：`397c4f0` `wip: snapshot before repo root relocation to Sts2-mod-decompiled/`
-- **与 origin/master 关系**：本地 ahead 1 commit（commit 397c4f0 尚未 push）
-- **working tree**：clean，仅 `_decompiled/sts2/obj/*` 的 MSBuild cache 抖动（长期噪音）
-- **跨设备前必须 `git push`**：commit 397c4f0 包含 Round 9 §3.18 全部 + Ancient 拆池 + Round 8 残留未提交项
+- **HEAD**：Round 13 commit（测试覆盖扩展 + 贡献归因重构 + UI 改进）
+- **working tree**：Round 13 所有改动已提交
+- **已 push 到 origin/master**
 
 ### 当前 DLL 状态
-- `mods/sts2_community_stats/sts2_community_stats.dll`：**Apr 10 15:08, 390144 bytes**（Round 9 build）
-- 这是仓库重定位后的**首次真实 build 验证**：0 errors / 6 pre-existing nullable warnings
-- 用户需手动拷到游戏 dir：`d:\game_backup\steam\steamapps\common\Slay the Spire 2\mods\sts2_community_stats\`
+- `mods/sts2_community_stats/sts2_community_stats.dll`：Round 13 build（归因系统重构 + UI 改进）
+- `mods/sts2_contrib_tests/sts2_contrib_tests.dll`：388 个测试，PassedSkipList 为空（全量回归模式）
+- 已部署到游戏 mods 目录
 
 ### memory / project key 状态
 - 旧 project key：`~/.claude/projects/D--Games-steam-steamapps-common-Slay-the-Spire-2/`（对应本机历史 cwd `Slay the Spire 2/`）
@@ -384,10 +383,66 @@ mods/sts2_contrib_tests/src/TestRunner.cs              v5: 注册 11 个 Catalog
 - 用户本次选择仍从旧路径继续会话；切换到规范路径后 memory 无缝衔接，但会话历史（.jsonl）不会自动迁移
 
 ### 下次开机第一件事
-1. 读本文件 §"Round 9 会话" + "跨设备交接快照"
-2. 如另一台设备：确认仓库根在 `Sts2-mod-decompiled/`，`git pull` 拉到 397c4f0
-3. 把最新 DLL 拷到游戏 mods 目录、重启游戏、按 §3.18 AC1-AC8 实测
-4. 等待用户提供 Round 9 人工测试反馈
+1. 读本文件 §"Round 13" + "跨设备交接快照"
+2. 如另一台设备：确认仓库根在 `Sts2-mod-decompiled/`，`git pull`
+3. 继续修复 55 个 FAIL（详见 §Round 13 剩余问题）
+
+### Round 13 — 测试覆盖扩展 + 贡献归因系统深度调试（2026-04-12）
+
+#### 工作范围
+1. **测试脚本 spec v3 全面重写**：9 个测试文件，388 个测试实体（从 ~146 扩展）
+2. **EndTurn 链测试**：毒、辉星、下回合格挡/抽牌/能量、Thorns、Intangible、Buffer/Plating、orb passive
+3. **Mod 源码贡献归因系统重构**：发现并修复 15+ 个 tracking bug
+4. **UI 面板改进**：透明度、section 颜色、面板缩小、滚动条
+
+#### 核心技术发现：Harmony async postfix 问题
+**Harmony 对 async 方法的 postfix 在第一个 await 时就触发，不是方法完成后。** 这导致：
+- Power/Relic hook 的 `ClearActivePowerSource`/`ClearActiveRelic` 在效果（damage/block/draw）完成前就清除了 context
+- 同步效果（如 FeelNoPain 的 GainBlock）在第一个 await 前完成，不受影响
+- 异步效果（如 DarkEmbrace 的 CardPileCmd.Draw）在第一个 await 后完成，context 已被清除
+
+#### Mod 源码修改清单（CombatHistoryPatch.cs + CombatTracker.cs）
+1. **OrbChanneledPatch**：从 `Hook.AfterOrbChanneled`(async) 改为 `CombatHistory.OrbChanneled`(sync)，零参数 postfix，从 OrbQueue 读最后 channeled 的 orb
+2. **OrbPassivePatch.PatchOrbTurnEndTriggers**：直接 patch 各 orb 类型的 `BeforeTurnEndOrbTrigger` 实例方法（prefix only），替代不可靠的 `OrbCmd.Passive` static patch
+3. **OrbEvokePatch.PatchOrbEvokeMethods**：直接 patch 各 orb 类型的 `Evoke` 实例方法，替代 `OrbCmd.EvokeNext/EvokeLast` static async patch
+4. **Dualcast evoke PRD 规则**：第1次 evoke → channeling source（AttributedDamage），第2次+ → evoking card（DirectDamage）。通过 `OrbFirstTriggerUsed` flag 实现
+5. **isIndirect 判断**：`ActiveOrbContext != null` 时无条件视为 indirect（orb 伤害永远是间接的）
+6. **Pending Draw Source 机制**：解决 async power/relic hook 的 draw 归因。prefix 设置 `_pendingDrawSourceId`，OnCardDrawn 优先消费它
+7. **StormPower 加入 PowerHookContextPatcher**
+8. **ThornsPower.BeforeDamageReceived** patch 添加
+9. **BlockNextTurnPower/StarNextTurnPower/DrawCardsNextTurnPower** 新增 patch
+10. **FocusPower ID fallback**：尝试 "FOCUS_POWER" 和 "FOCUS" 两个 key
+11. **ForceResetAllContext()**：测试间清除所有 stale context
+12. **ResolveSource 优先级**：最终版 `cardSourceId → orbContext → card → potion → relic → power`
+13. **OrbChanneledPatch source 查找**：独立于 ResolveSource，使用 `power > relic > card` 顺序
+
+#### 测试基础设施修改
+- **ClearHand()**：每个测试间清空手牌（防 10 张手牌上限导致 CardsDrawn=0）
+- **ClearOrbs()**：每个测试间清空 orb queue（防 orb 累积导致 EndTurn 卡死）
+- **ForceResetAllContext()**：每个测试间清除所有 stale context
+- **EndTurnAndWaitForPlayerTurn**：3-phase wait + 15s timeout + 3s post-wait + heal after + poll IsPlayerReadyToEndTurn
+- 移除了 MultiplayerOnly 卡（Coordinate、BelieveInYou、Intercept、Lift）
+- 移除了 BagOfMarbles/RedMask（RoundNumber<=1 guard）
+- 修正了大量错误的 CardsDrawn/EnergyGained 断言（非抽牌卡、下回合效果卡）
+
+#### UI 面板改进（ContributionPanel.cs + ContributionChart.cs）
+- 透明度：alpha 0.92 → 0.82
+- Section 标题颜色：Damage=红(#FF4444), Defense=绿(#44CC44), Draw=蓝(#4488FF), Energy=橙(#FF8C00), Stars=金(#FFD700)
+- 面板尺寸：宽 760→570, 高度锚点 0.1/0.9→0.25/0.75（屏幕 50%）
+- Bar 宽度：540→380
+- 新增 ScrollContainer 垂直滚动
+- 帮助文本位置：`Localization.cs:138`(EN) / `408`(CN)
+
+#### 全量回归结果（最新）：274 PASS / 55 FAIL / 56 skip(combat ended) / 3 skip(EndTurn)
+PASS 的包括：所有角色的 DirectDamage 攻击测试、CardsDrawn、EnergyGained、StarsContribution、DarkEmbrace/CharonsAshes/ForgottenSoul（async power/relic draw）、全部 orb passive/evoke、Dualcast PRD 规则、EndTurn 链测试（毒/辉星/格挡/抽牌/能量）
+
+#### 剩余 55 FAIL 待修
+1. **EffectiveBlock=0**（~15个）：ALL block 测试。FIFO pool AddBlock 可能受 context 污染
+2. **ModifierDamage=0**（~10个）：Str/Dex modifier 通过 DistributeByPowerSources 归因失败
+3. **Power/Relic hook 归因=0**（~10个）：Juggernaut, Grapple, Inferno 等。Harmony postfix 清除 context 问题（但理论上 sync 效果应该不受影响）
+4. **数值偏差**（~5个）：Conflagration, Stardust, Finisher, ForgeSubBar
+
+**调查方向**：这些测试在之前的增量运行（带 PassedSkipList）中通过过。全量回归时 fail 说明是跨测试状态累积问题，或 Round 13 改动的副作用影响了 block FIFO / modifier 追踪链路。
 
 ### 关键技术备注（避免重复踩坑）
 

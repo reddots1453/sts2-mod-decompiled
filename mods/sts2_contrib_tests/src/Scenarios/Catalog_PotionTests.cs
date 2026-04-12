@@ -47,6 +47,7 @@ public static class Catalog_PotionTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await ctx.ResetEnemyHp();
             ctx.TakeSnapshot();
             await ctx.UsePotion<FirePotion>(target: ctx.GetFirstEnemy());
 
@@ -69,8 +70,11 @@ public static class Catalog_PotionTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
             ctx.TakeSnapshot();
             await ctx.UsePotion<BlockPotion>();
+            // Force damage so block gets consumed → EffectiveBlock tracked
+            await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
             var delta = ctx.GetDelta();
             delta.TryGetValue("BLOCK_POTION", out var d);
@@ -147,9 +151,11 @@ public static class Catalog_PotionTests
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
 
+            // Clean residual Strength from prior tests
+            await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
+            await ctx.ResetEnemyHp();
             await ctx.UsePotion<StrengthPotion>();
-            // Strength is now applied to player. Snapshot AFTER the potion so we
-            // only see the delta from the upcoming Strike's modifier path.
+            // Snapshot AFTER potion so we only see the delta from Strike's modifier path.
             ctx.TakeSnapshot();
 
             var strike = await ctx.CreateCardInHand<StrikeIronclad>();
@@ -158,6 +164,8 @@ public static class Catalog_PotionTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("STRENGTH_POTION", out var d);
             ctx.AssertEquals(result, "STRENGTH_POTION.ModifierDamage", 2, d?.ModifierDamage ?? 0);
+            // Cleanup
+            await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
             return result;
         }
     }
@@ -173,6 +181,9 @@ public static class Catalog_PotionTests
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
 
+            // Clean residual Strength from prior tests
+            await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
+            await ctx.ResetEnemyHp();
             await ctx.UsePotion<FlexPotion>();
             ctx.TakeSnapshot();
 
@@ -182,6 +193,8 @@ public static class Catalog_PotionTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("FLEX_POTION", out var d);
             ctx.AssertEquals(result, "FLEX_POTION.ModifierDamage", 5, d?.ModifierDamage ?? 0);
+            // Cleanup
+            await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
             return result;
         }
     }

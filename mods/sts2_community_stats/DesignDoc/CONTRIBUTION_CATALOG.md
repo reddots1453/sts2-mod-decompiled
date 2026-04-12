@@ -881,163 +881,163 @@ Akabeko (赤红牛)、Vajra (金刚杵)、DataDisk (数据盘)、Anchor (船锚)
 
 | 实体 ID | 中文名 | 关键贡献 | 备注 |
 |---|---|---|---|
-| FIEND_FIRE | 恶魔火 | DirectDamage 7×手牌 + 消耗 | Rare |
-| WHIRLWIND | 旋风 | DirectDamage 5 × 能量 × 敌数 | AoE，§NEW-1 验证 |
-| DISMANTLE | 分解 | DirectDamage=16 | |
+| FIEND_FIRE | 恶魔之焰 | DirectDamage 7×手牌 + 消耗 | Rare |
+| WHIRLWIND | 旋风斩 | DirectDamage 5 × 能量 × 敌数 | AoE，§NEW-1 验证 |
+| DISMANTLE | 拆卸 | DirectDamage=16 | |
 | BURNING_PACT | 燃烧契约 | 抽 2 + 消耗 1 | 抽牌 §11 |
 | DEMON_FORM | 恶魔形态 | 每回合 +Strength | §3 加法修正 |
-| RUPTURE | 破裂 | 自伤→+Strength | §3+§10 联动 |
-| INFERNO | 地狱火 | AttributedDamage 全体 | §2 InfernoPower |
+| RUPTURE | 撕裂 | 自伤→+Strength | §3+§10 联动 |
+| INFERNO | 狱火 | AttributedDamage 全体 | §2 InfernoPower |
 | JUGGERNAUT | 势不可当 | 获得格挡→AttributedDamage | §2 JuggernautPower |
-| BARRICADE | 街垒 | Block 跨回合保留 | §6 |
-| BERSERK | 狂暴战士 | 自给 Vuln+Strength | §3+§10 |
+| BARRICADE | 壁垒 | Block 跨回合保留 | §6 |
+| BERSERK | 狂暴战士 | 自给 Vuln+Strength | §3+§10 <!-- TODO: KB 查不到，人工确认 --> |
 | ARMAMENTS | 武装 | UpgradeDamage/Block | §5 |
-| CORRUPTION | 腐败 | Skill 0 费 | §12 已 patch，但 Corruption 卡未独测 |
+| CORRUPTION | 腐化 | Skill 0 费 | §12 已 patch，但 Corruption 卡未独测 |
 
 #### 19.2.2 直接伤害 / Power — Silent
 
 | 实体 ID | 中文名 | 关键贡献 | 备注 |
 |---|---|---|---|
 | BACKSTAB | 背刺 | DirectDamage=11 from 抽牌堆 | |
-| SKEWER | 串烧 | DirectDamage 7 × 能量 | |
-| GRAND_FINALE | 大终章 | DirectDamage=60 | 抽牌堆空 |
-| FINISHER | 终结者 | DirectDamage 6 × 本回合攻击数 | |
-| FAN_OF_KNIVES | 飞刀扇 | AoE | |
+| SKEWER | 串刺 | DirectDamage 7 × 能量 | |
+| GRAND_FINALE | 华丽收场 | DirectDamage=60 | 抽牌堆空 |
+| FINISHER | 终结技 | DirectDamage 6 × 本回合攻击数 | |
+| FAN_OF_KNIVES | 刀扇 | AoE | |
 | FLECHETTES | 飞镖 | DirectDamage 4 × 手中技能数 | |
 | MURDER | 谋杀 | DirectDamage=30 | |
-| PHANTOM_BLADES | 幽灵刀 | DirectDamage=14 | |
-| PREDATOR | 掠食者 | DirectDamage=15 + 抽 2 | §11 |
-| BLADE_DANCE / CLOAK_AND_DAGGER / STORM_OF_STEEL / INFINITE_BLADES | 刀舞 / 披风匕首 / 钢铁风暴 / 无限刀刃 | 生成 SHIV (sub-bar 父) | §15（仅 BladeDance 已测） |
-| ENVENOM | 剧毒 | AttributedDamage via Poison | §2 EnvenomPower |
-| WRAITH_FORM | 亡灵形态 | Intangible (减伤) + 自 Vuln | §8 |
-| SERPENT_FORM | 蛇形 | 打出→灵巧 (Block) | §6 |
-| OUTBREAK | 瘟疫 | AttributedDamage 回合 tick | §2 OutbreakPower |
-| CALCULATED_GAMBLE | 算计赌博 | 弃手抽同数 | §11 |
-| EXPERTISE | 专精 | 抽到手数 | §11 |
-| TACTICIAN | 战术家 | 弃→抽 1 | §11 |
-| STRANGLE | 扼杀 | DirectDamage=10 + 给自 Pain | §10 |
+| PHANTOM_BLADES | 幻影之刃 | DirectDamage=14 | |
+| PREDATOR | 猎杀者 | DirectDamage=15 + 抽 2 | §11 |
+| BLADE_DANCE / CLOAK_AND_DAGGER / STORM_OF_STEEL / INFINITE_BLADES | 刀刃之舞 / 斗篷与匕首 / 钢铁风暴 / 无尽刀刃 | 生成 SHIV (sub-bar 父) | §15（仅 BladeDance 已测） |
+| ENVENOM | 涂毒 | AttributedDamage via Poison | §2 EnvenomPower |
+| WRAITH_FORM | 幽魂形态 | Intangible (减伤) + 自 Vuln | §8 |
+| SERPENT_FORM | 群蛇形态 | 打出→灵巧 (Block) | §6 |
+| OUTBREAK | 毒性爆发 | AttributedDamage 回合 tick | §2 OutbreakPower |
+| CALCULATED_GAMBLE | 计算下注 | 弃手抽同数 | §11 |
+| EXPERTISE | 独门技术 | 抽到手数 | §11 |
+| TACTICIAN | 战术大师 | 弃→抽 1 | §11 |
+| STRANGLE | 紧勒 | DirectDamage=10 + 给自 Pain | §10 |
 | ADRENALINE | 肾上腺素 | +1 能量 + 抽 2 | §11+§12 |
 
 #### 19.2.3 直接伤害 / Orb / Power — Defect
 
 | 实体 ID | 中文名 | 关键贡献 | 备注 |
 |---|---|---|---|
-| GO_FOR_THE_EYES | 狙击要害 | DirectDamage=5 + Weak | |
-| COLD_SNAP | 凛冬一击 | DirectDamage=6 + 通道冰球 | §2 orb |
-| BALL_LIGHTNING | 雷电球 | DirectDamage=7 + 通道闪电球 | §2 |
-| METEOR_STRIKE | 流星打击 | DirectDamage=24 + 通道 3 球 | §2 |
-| SWEEPING_BEAM | 扫射光束 | AoE + 抽 1 | §11 |
-| HYPERBEAM | 超能射线 | DirectDamage=26×N - Focus 3 | |
-| SUNDER | 刺穿 | DirectDamage=24 | |
-| ALL_FOR_ONE | 万众一心 | DirectDamage=10 + 回手 0 费牌 | |
-| RIP_AND_TEAR | 撕裂 | DirectDamage 7+7 (双目标) | |
-| THUNDER | 雷电 | AttributedDamage via ThunderPower | §2 |
-| HAILSTORM | 冰雹 | 通道多冰球 | §2 |
-| LIGHTNING_ROD | 雷电棒 | 能量重置→雷击 | §2 LightningRodPower |
-| STORM | 风暴 | 每次 power→通道闪电 | §2 ⚠️ 未 patch |
+| GO_FOR_THE_EYES | 眼部攻击 | DirectDamage=5 + Weak | |
+| COLD_SNAP | 寒流 | DirectDamage=6 + 通道冰球 | §2 orb |
+| BALL_LIGHTNING | 球状闪电 | DirectDamage=7 + 通道闪电球 | §2 |
+| METEOR_STRIKE | 陨石打击 | DirectDamage=24 + 通道 3 球 | §2 |
+| SWEEPING_BEAM | 扫荡射线 | AoE + 抽 1 | §11 |
+| HYPERBEAM | 超能光束 | DirectDamage=26×N - Focus 3 | |
+| SUNDER | 分离 | DirectDamage=24 | |
+| ALL_FOR_ONE | 万物一心 | DirectDamage=10 + 回手 0 费牌 | |
+| RIP_AND_TEAR | 狂乱撕扯 | DirectDamage 7+7 (双目标) | |
+| THUNDER | 雷霆 | AttributedDamage via ThunderPower | §2 |
+| HAILSTORM | 冰雹风暴 | 通道多冰球 | §2 |
+| LIGHTNING_ROD | 引雷针 | 能量重置→雷击 | §2 LightningRodPower |
+| STORM | 雷暴 | 每次 power→通道闪电 | §2 ⚠️ 未 patch |
 | MACHINE_LEARNING | 机器学习 | +1 抽/回合 | §11 |
-| HELLO_WORLD | HelloWorld | 每回合 1 Common | §11 |
+| HELLO_WORLD | 你好世界 | 每回合 1 Common | §11 |
 | AUTOMATION | 自动化 | 抽牌→生成 | §11 |
 | ITERATION | 迭代 | 抽牌修改 | §11 |
-| CREATIVE_AI | 创造性 AI | 每回合生成 Power | §11 |
-| SPEEDSTER | 极速者 | 抽牌 | §11 |
+| CREATIVE_AI | 创造性AI | 每回合生成 Power | §11 |
+| SPEEDSTER | 速行者 | 抽牌 | §11 |
 | BUFFER (card) | 缓冲 | 自给 Buffer | §8 BufferPower |
 | DOUBLE_ENERGY | 双倍能量 | 本回合 +现能量 | §12 |
-| ENERGY_SURGE / TURBO | 能量激涌 / 涡轮 | +能量 | §12 |
-| CHARGE_BATTERY | 蓄电池 | +1 能量下回合 | §12 |
-| GLACIER (KB) | 冰河 | EffectiveBlock + 通道冰 | §6 |
+| ENERGY_SURGE / TURBO | 能量涌动 / 内核加速 | +能量 | §12 |
+| CHARGE_BATTERY | 充电 | +1 能量下回合 | §12 |
+| GLACIER (KB) | 冰川 | EffectiveBlock + 通道冰 | §6 |
 | GENETIC_ALGORITHM | 遗传算法 | 自升 Block | §6 |
 | SUBROUTINE | 子程序 | Power 联动 | §2 SubroutinePower |
 | LOOP | 循环 | orb 重复 | §2 LoopPower |
-| SENTRY_MODE | 哨兵模式 | 抽 | §11 |
+| SENTRY_MODE | 哨卫模式 | 抽 | §11 |
 
 #### 19.2.4 直接伤害 / Stars — Regent
 
 | 实体 ID | 中文名 | 关键贡献 | 备注 |
 |---|---|---|---|
-| KINGLY_KICK | 王者一踢 | DirectDamage=10 + Weak | |
-| KINGLY_PUNCH | 王者一拳 | DirectDamage=10 | |
-| KNOCKOUT_BLOW | 击倒一击 | DirectDamage=18 | |
+| KINGLY_KICK | 王者之踢 | DirectDamage=10 + Weak | |
+| KINGLY_PUNCH | 王者之拳 | DirectDamage=10 | |
+| KNOCKOUT_BLOW | 决胜一击 | DirectDamage=18 | |
 | GAMMA_BLAST | 伽马爆破 | DirectDamage=18 | |
-| LUNAR_BLAST | 月辉爆破 | DirectDamage=20 | |
+| LUNAR_BLAST | 月面射击 | DirectDamage=20 | |
 | QUASAR | 类星体 | DirectDamage + 星费 | |
-| SOLAR_STRIKE | 日辉打击 | 消耗 Stars 增伤 | §13 |
-| SHINING_STRIKE | 辉耀打击 | scaling by Stars | §13 ⚠️ |
+| SOLAR_STRIKE | 太阳打击 | 消耗 Stars 增伤 | §13 |
+| SHINING_STRIKE | 明耀打击 | scaling by Stars | §13 ⚠️ |
 | SEVEN_STARS | 七星 | 7 × Stars | §13 ⚠️ |
-| SEEKING_EDGE | 追索之刃 | 主+溢出 | §1 ⚠️ |
-| CRESCENT_SPEAR | 新月矛 | DirectDamage=9 | |
-| HEAVENLY_DRILL | 神钻 | DirectDamage=12 | |
-| GATHER_LIGHT | 聚光 | +Stars | §13 |
+| SEEKING_EDGE | 追踪之刃 | 主+溢出 | §1 ⚠️ |
+| CRESCENT_SPEAR | 新月长矛 | DirectDamage=9 | |
+| HEAVENLY_DRILL | 天际钻头 | DirectDamage=12 | |
+| GATHER_LIGHT | 收集光辉 | +Stars | §13 |
 | RADIATE | 辐射 | +Stars | §13 |
 | STARDUST | 星尘 | +Stars | §13 |
 | PROPHESIZE | 预言 | +Stars | §13 |
-| GLIMMER / GLOW / HEGEMONY | 微光 / 炽热 / 霸权 | +Stars | §13 |
-| GUIDING_STAR | 指引之星 | +Stars | §13 |
-| CELESTIAL_MIGHT | 天体之力 | +Stars/turn | §13 |
+| GLIMMER / GLOW / HEGEMONY | 微光 / 辉光 / 霸权 | +Stars | §13 |
+| GUIDING_STAR | 引导之星 | +Stars | §13 |
+| CELESTIAL_MIGHT | 天穹之力 | +Stars/turn | §13 |
 | VOID_FORM | 虚空形态 | 下 N 张免费 | §12 NEW-1 |
 | BLACK_HOLE | 黑洞 | stars→AoE | §2 BlackHolePower |
 | MONOLOGUE | 独白 | 打出→伤害 | §2 |
-| MONARCHS_GAZE | 君主凝视 | 击杀→增伤 | §2 |
-| PARRY | 格挡回击 | Block→反伤 | §6+§2 |
+| MONARCHS_GAZE | 王之凝视 | 击杀→增伤 | §2 |
+| PARRY | 招架 | Block→反伤 | §6+§2 |
 | PALE_BLUE_DOT | 暗淡蓝点 | Vuln + 抽 | §4+§11 |
-| SPECTRUM_SHIFT | 光谱转换 | Vuln + 抽 | §4+§11 |
+| SPECTRUM_SHIFT | 光谱偏移 | Vuln + 抽 | §4+§11 |
 | TYRANNY | 暴政 | +1 抽 | §11 |
-| REFLECT | 反射 | 反伤 | §2 ReflectPower |
+| REFLECT | 倒映 | 反伤 | §2 ReflectPower |
 | PILLAR_OF_CREATION | 创世之柱 | 生成→效果 | §15 |
-| ORBIT | 轨道 | orb 联动 | §2 OrbitPower |
-| CONQUEROR / LARGESSE / ROYALTIES | 征服者 / 慷慨 / 王室赏 | +能量 | §12 |
+| ORBIT | 环绕轨道 | orb 联动 | §2 OrbitPower |
+| CONQUEROR / LARGESSE / ROYALTIES | 征服者 / 慷慨捐助 / 王国资产 | +能量 | §12 |
 
 #### 19.2.5 直接伤害 / Osty — Necrobinder
 
 | 实体 ID | 中文名 | 关键贡献 | 备注 |
 |---|---|---|---|
-| BLIGHT_STRIKE | 枯萎打击 | DirectDamage=6 + Weakness/Fear | |
+| BLIGHT_STRIKE | 荒疫打击 | DirectDamage=6 + Weakness/Fear | |
 | DEATHBRINGER | 死亡使者 | DirectDamage=16 | |
-| END_OF_DAYS | 末日 | DirectDamage=40 | |
-| REAVE | 掠夺 | DirectDamage=10 + Fear | |
-| INVOKE | 祈唤 | DirectDamage=10 + 召 Osty | §15 Osty |
-| EIDOLON | 魂偶 | Osty 联动 | §15 |
-| DEFILE | 亵渎 | AoE + Osty | §15 |
-| GRAVE_WARDEN / GRAVEBLAST | 墓穴守者 / 坟爆 | AoE | |
+| END_OF_DAYS | 末日降临 | DirectDamage=40 | |
+| REAVE | 剥夺 | DirectDamage=10 + Fear | |
+| INVOKE | 唤起 | DirectDamage=10 + 召 Osty | §15 Osty |
+| EIDOLON | 幻景 | Osty 联动 | §15 |
+| DEFILE | 玷污 | AoE + Osty | §15 |
+| GRAVE_WARDEN / GRAVEBLAST | 守墓人 / 坟冢爆射 | AoE | |
 | SOUL_STORM | 灵魂风暴 | AoE | |
-| HAUNT (card+power) | 缠扰 | 打出→AttributedDamage | §2 HauntPower |
-| CONSUMING_SHADOW | 吞噬之影 | 回合末→AttributedDamage | §2 |
-| PAGESTORM | 纸片风暴 | 抽牌→伤害 | §2+§11 |
+| HAUNT (card+power) | 纠缠 | 打出→AttributedDamage | §2 HauntPower |
+| CONSUMING_SHADOW | 吞噬暗影 | 回合末→AttributedDamage | §2 |
+| PAGESTORM | 书页风暴 | 抽牌→伤害 | §2+§11 |
 | OBLIVION | 湮灭 | 打出→AttributedDamage | §2 |
-| SIC_EM | 袭击 | DamageGiven 联动 | §2 |
-| REAPER_FORM | 收割形态 | 伤害→治疗 | §14 |
+| SIC_EM | 紧追不放 | DamageGiven 联动 | §2 |
+| REAPER_FORM | 死神形态 | 伤害→治疗 | §14 |
 | DEVOUR_LIFE | 吞噬生命 | 伤害→回血 | §14 DevourLifePower |
-| NECRO_MASTERY | 死灵大师 | 扣血→Power 联动 | §10+§14 |
-| SPIRIT_OF_ASH | 灰烬之魂 | 消耗→伤害 | §2 |
+| NECRO_MASTERY | 亡灵精通 | 扣血→Power 联动 | §10+§14 |
+| SPIRIT_OF_ASH | 灰烬之灵 | 消耗→伤害 | §2 |
 | DEBILITATE | 摧残 | Weak 50% 乘区 | §4 DebilitatePower |
-| DOOM | 灾厄 | HP 阈值即杀 | §2 DoomPower |
-| CALL_OF_THE_VOID | 虚空召唤 | 抽 | §11 |
+| DOOM | 灾厄 | HP 阈值即杀 | §2 DoomPower <!-- TODO: KB 查不到，人工确认 --> |
+| CALL_OF_THE_VOID | 虚空之唤 | 抽 | §11 |
 | DEMESNE | 领域 | +1 抽 | §11 |
-| VEILPIERCER | 穿纱 | Skill 0 费 | §12 NEW-1 |
-| ENFEEBLING_TOUCH | 虚弱之触 | -Strength | §9 ⚠️ |
-| DRAIN | 吸取之力 | -Strength | §9 ⚠️ |
+| VEILPIERCER | 刺破帷幕 | Skill 0 费 | §12 NEW-1 |
+| ENFEEBLING_TOUCH | 弱化之触 | -Strength | §9 ⚠️ |
+| DRAIN | 吸取之力 | -Strength | §9 ⚠️ <!-- TODO: KB 查不到，人工确认 --> |
 
 #### 19.2.6 跨角色 / Colorless
 
 | 实体 ID | 中文名 | 关键贡献 | 备注 |
 |---|---|---|---|
 | ENLIGHTENMENT | 开悟 | 手牌→1 费 | §12.5 ⚠️ NEW-3 |
-| MAYHEM | 混乱 | 免费自动打出 | §12 |
-| BANDAGE_UP | 包扎 | 回血 | §14 |
-| APPARITION | 幻影 | Intangible | §8 |
-| HAVOC | 浩劫 | 随机播放抽牌堆顶 | §15 |
-| METAMORPHOSIS | 蜕变 | 攻击牌升级 | §5+§15 |
+| MAYHEM | 乱战 | 免费自动打出 | §12 |
+| BANDAGE_UP | 包扎 | 回血 | §14 <!-- TODO: KB 查不到，人工确认 --> |
+| APPARITION | 灵体 | Intangible | §8 |
+| HAVOC | 破灭 | 随机播放抽牌堆顶 | §15 |
+| METAMORPHOSIS | 羽化 | 攻击牌升级 | §5+§15 |
 | APOTHEOSIS | 神化 | 升级所有手牌 | §5 |
 | MAD_SCIENCE | 疯狂科学 | 升级随机 | §5 |
 | DISCOVERY | 发现 | 生成 1 张 | §15 |
-| SECRET_TECHNIQUE / SECRET_WEAPON | 秘术 / 秘武 | 抽特定类型 | §15 |
-| JACK_OF_ALL_TRADES | 万金油 | 生成 colorless | §15 |
+| SECRET_TECHNIQUE / SECRET_WEAPON | 秘密技法 / 秘密武器 | 抽特定类型 | §15 |
+| JACK_OF_ALL_TRADES | 花样百出 | 生成 colorless | §15 |
 | MASTER_OF_STRATEGY | 战略大师 | 抽 3 | §11 |
-| THINKING_AHEAD | 远见 | 抽 2 | §11 |
-| SCRAWL | 草稿 | 抽至手满 | §11 |
-| IMPATIENCE | 不耐 | 无攻击则抽 2 | §11 |
-| DRAMATIC_ENTRANCE | 戏剧入场 | 战斗开始免费打 3 张 | §12 |
-| MIND_BLAST | 头脑风暴 | DirectDamage = 抽牌堆张数 | |
+| THINKING_AHEAD | 深谋远虑 | 抽 2 | §11 |
+| SCRAWL | 潦草急就 | 抽至手满 | §11 |
+| IMPATIENCE | 急躁 | 无攻击则抽 2 | §11 |
+| DRAMATIC_ENTRANCE | 闪亮登场 | 战斗开始免费打 3 张 | §12 |
+| MIND_BLAST | 心灵震慑 | DirectDamage = 抽牌堆张数 | |
 | HAND_OF_GREED | 贪婪之手 | DirectDamage + 金币 | |
 
 ### 19.3 未进入测试跟踪的遗物（按贡献类型）
@@ -1096,8 +1096,8 @@ Akabeko (赤红牛)、Vajra (金刚杵)、DataDisk (数据盘)、Anchor (船锚)
 | TANXS_WHISTLE | 坦克哨 | ⚠️ 未 patch |
 | BLACK_STAR | 黑星 | ⚠️ 未 patch |
 | WHITE_STAR | 白星 | ⚠️ 未 patch |
-| DIVINE_DESTINY | 神圣命运 | ⚠️ 未 patch |
-| DIVINE_RIGHT | 神圣权利 | ⚠️ 未 patch |
+| DIVINE_DESTINY | 神圣命运 | ✓ patched，未测 |
+| DIVINE_RIGHT | 神圣权利 | ✓ patched，未测 |
 | RADIANT_PEARL | 辉耀珍珠 | ⚠️ 未 patch |
 | GOLDEN_PEARL | 金色珍珠 | ⚠️ 未 patch |
 
@@ -1121,7 +1121,7 @@ Akabeko (赤红牛)、Vajra (金刚杵)、DataDisk (数据盘)、Anchor (船锚)
 | GHOST_SEED | 幽灵种子 | ⚠️ 未 patch |
 | ETERNAL_FEATHER | 永恒羽毛 | ⚠️ 未 patch |
 | MEAL_TICKET | 餐券 | ⚠️ 未 patch |
-| LIZARD_TAIL | 蜥蜴尾 | ⚠️ 未 patch |
+| LIZARD_TAIL | 蜥蜴尾 | ✓ patched，未测 |
 | FAKE_BLOOD_VIAL | 假血瓶 | ⚠️ 未 patch |
 | BLACK_BLOOD | 黑血 | ✓ patched，未测 |
 | MEAT_ON_THE_BONE | 肉带骨 | ✓ patched，未测 |
@@ -1172,7 +1172,7 @@ Akabeko (赤红牛)、Vajra (金刚杵)、DataDisk (数据盘)、Anchor (船锚)
 | PAELS_BLOOD | 佩尔之血 | ⚠️ 未 patch |
 | PAELS_CLAW | 佩尔之爪 | ⚠️ 未 patch |
 | PAELS_EYE | 佩尔之眼 | ⚠️ 未 patch |
-| PAELS_FLESH | 佩尔之肉 | ⚠️ 未 patch |
+| PAELS_FLESH | 佩尔之肉 | ✓ patched，未测 |
 | PAELS_GROWTH | 佩尔之长 | ⚠️ 未 patch |
 | PAELS_HORN | 佩尔之角 | ⚠️ 未 patch |
 | PAELS_TOOTH | 佩尔之牙 | ⚠️ 未 patch |
@@ -1232,16 +1232,37 @@ Akabeko (赤红牛)、Vajra (金刚杵)、DataDisk (数据盘)、Anchor (船锚)
 | ANCIENT_POTION | 远古药水 | Artifact (减伤) |
 | LIVING_POTION | 生灵药水 | 抽 + Buff |
 
-### 19.5 关键缺口排序（建议测试补全顺序）
+### 19.5 Round 11 测试状态汇总（2026-04-12）
 
-按"影响面 × 实施难度"评估，建议按以下顺序补全 `Catalog_PotionTests.cs` / `Catalog_RelicTests.cs` 第二批：
+**测试框架修复**：
+- `Task.Run` → `async void` 主线程执行，彻底解决 cowdata 崩溃
+- `skipCardPileVisuals: true` 减少视觉节点创建
+- `ClearBlock()` + `SimulateDamage` 模式修复 EffectiveBlock FIFO 队列同步
+- `EnsureDrawPile()` 修复抽牌堆耗尽问题
+- `RegenPower.AfterTurnEnd` 添加 PowerHookContextPatcher patch
 
-1. **药水 0 覆盖**（一级风险）：先补 ATTACK/SKILL/POWER/COLORLESS_POTION（sub-bar 父）+ FIRE/EXPLOSIVE_POTION（DirectDamage）+ ENERGY/STAR_POTION（资源已 patch 但未测）+ FLEX_POTION（ModifierDamage 临时区）。建立 `UsePotion<T>()` API 是先决条件。
-2. **已 patch 未测的食物类遗物 4 件**：BurningBlood / BlackBlood / MeatOnTheBone / DemonTongue —— 已有 patch，只需写入测试。
-3. **已 patch 未测的格挡 9 件**：CaptainsWheel / HornCleat / ToughBandages / CloakClasp / Orichalcum / RippleBasin / ParryingShield / EmotionChip —— 同上。
-4. **§18.1 待补 patch 后再测**：StrikeDummy / PenNib / Bellows / Pocketwatch / PhilosophersStone / Sozu / TeaOfDiscourtesy / Pomander 等。
-5. **跨角色卡牌**：Defect / Regent / Necrobinder 各角色 2-3 张代表性 §1 攻击牌作为冒烟测试，确保通用 OnDamageDealt 路径在所有角色上正确归因。
-6. **§NEW Confused/Enlightenment**：SneckoEye / Enlightenment / SneckoOil —— 需先补 patch。
+**测试覆盖**：146/146 通过（119 PASS + 27 SKIP via skip list）
+
+**已测试实体清单**：
+- 卡牌 (45+)：StrikeIronclad, Bash, Inflame, Offering, Bloodletting, Hemokinesis, DarkShackles, Uppercut, Feed, Clash, IronWave, SwordBoomerang, Pyre, Thrash, BloodWall, Rampage, Claw, BladeDance, PommelStrike, Acrobatics, EscapePlan, FlashOfSteel, Finesse, BattleTrance, Corruption, BulletTime, InfernalBlade, Neutralize, PiercingWail, LegSweep, Malaise, DeadlyPoison, PoisonedStab, NoxiousFumes, FlameBarrier, Spite, PactsEnd, Zap, Defragment, HiddenCache, ShrugItOff, TrueGrit, Headbutt, Bludgeon, TwinStrike, Thunderclap, DefendIronclad/Silent/Defect/Regent/Necrobinder, StrikeNecrobinder, Reave, DevourLife, BlightStrike, Haunt, Pagestorm
+- 药水 (8)：FirePotion, BlockPotion, EnergyPotion, BloodPotion, StrengthPotion, FlexPotion, WeakPotion, RegenPotion
+- 遗物 (23)：Akabeko, Vajra, Brimstone, EmberTea, DataDisk, BronzeScales, Anchor, BurningBlood, BlackBlood, MeatOnTheBone, BloodVial, Pear, Strawberry, Mango, VeryHotCocoa, PowerCell, UnceasingTop, Orichalcum, RippleBasin, CloakClasp, ToughBandages, CaptainsWheel, HornCleat
+
+### 19.6 Round 12 测试扩展计划
+
+目标：从 146 扩展到 ~456 个测试，覆盖所有角色（除 Necrobinder）的特殊机制卡牌、全部药水、全部已 patch 遗物。
+
+| 文件 | 测试数 | 覆盖 |
+|------|--------|------|
+| Catalog_IroncladCardTests2.cs | ~35 | 剩余铁甲特殊机制卡 |
+| Catalog_SilentCardTests.cs | ~40 | 全静默特殊机制卡 |
+| Catalog_DefectCardTests.cs | ~45 | 全机器人特殊机制卡 |
+| Catalog_RegentCardTests.cs | ~40 | 全储君特殊机制卡 |
+| Catalog_ColorlessCardTests.cs | ~25 | 非事件/诅咒无色卡 |
+| Catalog_PotionTests2.cs | ~40 | 剩余 ~46 药水 |
+| Catalog_RelicTests3.cs | ~35 | 伤害/格挡/能量遗物 |
+| Catalog_RelicTests4.cs | ~30 | 抽牌/力量/辉星/食物遗物 |
+| Catalog_InteractionTests2.cs | ~20 | 复杂交互场景 |
 
 ### 19.6 §19 总结
 

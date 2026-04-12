@@ -72,6 +72,7 @@ public static class Catalog_DrawTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await ctx.EnsureDrawPile();
             var card = await ctx.CreateCardInHand<EscapePlan>();
             ctx.TakeSnapshot();
             await ctx.PlayCard(card);
@@ -92,6 +93,7 @@ public static class Catalog_DrawTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await ctx.EnsureDrawPile();
             var enemy = ctx.GetFirstEnemy();
             var card = await ctx.CreateCardInHand<FlashOfSteel>();
             ctx.TakeSnapshot();
@@ -112,6 +114,7 @@ public static class Catalog_DrawTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await ctx.EnsureDrawPile();
             await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
             var card = await ctx.CreateCardInHand<Finesse>();
             ctx.TakeSnapshot();
@@ -133,6 +136,7 @@ public static class Catalog_DrawTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await ctx.EnsureDrawPile();
             await PowerCmd.Remove<NoDrawPower>(ctx.PlayerCreature);
             var card = await ctx.CreateCardInHand<BattleTrance>();
             ctx.TakeSnapshot();

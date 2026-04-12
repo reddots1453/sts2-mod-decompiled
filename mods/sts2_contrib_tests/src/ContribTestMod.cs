@@ -56,7 +56,7 @@ public static class ContribTestMod
         catch { }
     }
 
-    private static void OnF10Pressed()
+    private static async void OnF10Pressed()
     {
         if (!CombatManager.Instance.IsInProgress)
         {
@@ -76,25 +76,26 @@ public static class ContribTestMod
         _runCts = new CancellationTokenSource();
         var ct = _runCts.Token;
 
-        Task.Run(async () =>
+        // Run on the main thread — Godot's GodotSynchronizationContext
+        // resumes all await continuations on the main thread, ensuring
+        // game code (CardPileCmd.Draw, Shuffle, etc.) never touches the
+        // scene tree from a background thread.
+        try
         {
-            try
-            {
-                var runner = new TestRunner();
-                await runner.RunAllAsync(ct);
-            }
-            catch (OperationCanceledException)
-            {
-                GD.Print("[ContribTest] Test run cancelled.");
-            }
-            catch (Exception ex)
-            {
-                GD.PrintErr($"[ContribTest] Test run failed: {ex}");
-            }
-            finally
-            {
-                _runCts = null;
-            }
-        });
+            var runner = new TestRunner();
+            await runner.RunAllAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            GD.Print("[ContribTest] Test run cancelled.");
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[ContribTest] Test run failed: {ex}");
+        }
+        finally
+        {
+            _runCts = null;
+        }
     }
 }

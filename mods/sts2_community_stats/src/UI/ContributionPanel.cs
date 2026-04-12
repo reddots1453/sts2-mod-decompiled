@@ -44,7 +44,7 @@ public partial class ContributionPanel : PanelContainer
 
         var style = new StyleBoxFlat
         {
-            BgColor = new Color(0.05f, 0.05f, 0.1f, 0.92f),
+            BgColor = new Color(0.05f, 0.05f, 0.1f, 0.82f),
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
             CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
             ContentMarginLeft = 16, ContentMarginRight = 16,
@@ -55,19 +55,15 @@ public partial class ContributionPanel : PanelContainer
         };
         panel.AddThemeStyleboxOverride("panel", style);
 
-        // Round 9 round 51: bumped width 460 → 760 so the bar charts fit
-        // without a horizontal scrollbar. The OffsetRight is widened to match.
-        panel.CustomMinimumSize = new Vector2(760, 460);
+        // Panel size: 570 wide (75% of 760), height anchored to 50% of screen
+        panel.CustomMinimumSize = new Vector2(570, 340);
 
-        // Manual feedback round 4: anchor LEFT side. The right side covered the
-        // post-combat 前进 button; the LEFT side leaves the central reward card
-        // selection area untouched (rewards are positioned center+right).
         panel.AnchorLeft = 0.0f;
         panel.AnchorRight = 0.0f;
-        panel.AnchorTop = 0.1f;
-        panel.AnchorBottom = 0.9f;
+        panel.AnchorTop = 0.25f;
+        panel.AnchorBottom = 0.75f;
         panel.OffsetLeft = 10;
-        panel.OffsetRight = 770;
+        panel.OffsetRight = 580;
 
         // Main layout
         var vbox = new VBoxContainer();
@@ -112,11 +108,19 @@ public partial class ContributionPanel : PanelContainer
         panel._dpsLabel.AddThemeFontSizeOverride("font_size", 12);
         dpsRow.AddChild(panel._dpsLabel);
 
-        // Tab container
+        // Scroll container wrapping tabs for vertical scrolling
+        var scroll = new ScrollContainer();
+        scroll.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+        scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        scroll.VerticalScrollMode = ScrollContainer.ScrollMode.Auto;
+        vbox.AddChild(scroll);
+
+        // Tab container inside scroll
         panel._tabs = new TabContainer();
         panel._tabs.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         panel._tabs.SizeFlagsVertical = SizeFlags.ExpandFill;
-        vbox.AddChild(panel._tabs);
+        scroll.AddChild(panel._tabs);
 
         // Enable drag via title bar (PRD 4.5)
         DraggablePanel.Attach(panel, header);

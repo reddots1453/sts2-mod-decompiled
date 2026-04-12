@@ -62,16 +62,18 @@ public class ContributionMap
 {
     public static ContributionMap Instance { get; } = new();
 
-    // PowerModel.Id.Entry → (sourceId, sourceType)
-    private readonly Dictionary<string, PowerSource> _powerSources = new();
+    // PowerModel.Id.Entry → list of (sourceId, sourceType, amount) contributions
+    // Multiple sources can contribute to the same power (e.g. Inflame+Vajra both give Str).
+    private readonly Dictionary<string, List<PowerSourceEntry>> _powerSources = new();
 
     public record PowerSource(string SourceId, string SourceType);
+    public record PowerSourceEntry(string SourceId, string SourceType, int Amount);
 
     // Per-creature debuff tracking: (creatureHash, powerId) → source
     private readonly Dictionary<(int, string), PowerSource> _creatureDebuffSources = new();
 
-    // Per-creature buff tracking (on player): (powerId) → source
-    private readonly Dictionary<string, PowerSource> _playerBuffSources = new();
+    // Per-creature buff tracking (on player): (powerId) → list of sources
+    private readonly Dictionary<string, List<PowerSourceEntry>> _playerBuffSources = new();
 
     // Block pool: FIFO queue of (sourceId, sourceType, remainingAmount)
     private readonly List<BlockEntry> _blockPool = new();
@@ -83,9 +85,23 @@ public class ContributionMap
         public int Remaining;
     }
 
-    public void RecordPowerSource(string powerId, string sourceId, string sourceType)
+    public void RecordPowerSource(string powerId, string sourceId, string sourceType, int amount = 0)
     {
-        _powerSources[powerId] = new PowerSource(sourceId, sourceType);
+        if (!_powerSources.TryGetValue(powerId, out var list))
+        {
+            list = new List<PowerSourceEntry>();
+            _powerSources[powerId] = list;
+        }
+        // If same source already recorded, update amount
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].SourceId == sourceId)
+            {
+                list[i] = new PowerSourceEntry(sourceId, sourceType, list[i].Amount + amount);
+                return;
+            }
+        }
+        list.Add(new PowerSourceEntry(sourceId, sourceType, amount));
     }
 
     public void RecordDebuffSource(int creatureHash, string powerId, string sourceId, string sourceType)
@@ -93,10 +109,26 @@ public class ContributionMap
         _creatureDebuffSources[(creatureHash, powerId)] = new PowerSource(sourceId, sourceType);
     }
 
-    public void RecordPlayerBuffSource(string powerId, string sourceId, string sourceType)
+    public void RecordPlayerBuffSource(string powerId, string sourceId, string sourceType, int amount = 0)
     {
-        _playerBuffSources[powerId] = new PowerSource(sourceId, sourceType);
+        if (!_playerBuffSources.TryGetValue(powerId, out var list))
+        {
+            list = new List<PowerSourceEntry>();
+            _playerBuffSources[powerId] = list;
+        }
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i].SourceId == sourceId)
+            {
+                list[i] = new PowerSourceEntry(sourceId, sourceType, list[i].Amount + amount);
+                return;
+            }
+        }
+        list.Add(new PowerSourceEntry(sourceId, sourceType, amount));
     }
+
+    /// <summary>Clear the block FIFO pool. Call after LoseBlock to sync pool with actual block.</summary>
+    public void ClearBlockPool() => _blockPool.Clear();
 
     public void AddBlock(string sourceId, string sourceType, int amount)
     {
@@ -128,17 +160,57 @@ public class ContributionMap
         return result;
     }
 
-    /// <summary>
-    /// Clear block pool (called at turn start when block resets).
-    /// </summary>
-    public void ClearBlockPool()
-    {
-        _blockPool.Clear();
-    }
-
-    public PowerSource? GetPowerSource(string powerId)
+    /// <summary>Get all sources for a power (multi-source support).</summary>
+    public IReadOnlyList<PowerSourceEntry>? GetPowerSources(string powerId)
     {
         return _powerSources.GetValueOrDefault(powerId);
+    }
+
+    /// <summary>Legacy single-source lookup (returns first source). Use GetPowerSources for multi-source.</summary>
+    public PowerSource? GetPowerSource(string powerId)
+    {
+        var list = _powerSources.GetValueOrDefault(powerId);
+        return list != null && list.Count > 0 ? new PowerSource(list[0].SourceId, list[0].SourceType) : null;
+    }
+
+    /// <summary>
+    /// Distribute a total modifier amount across all sources of a power proportionally.
+    /// Returns list of (sourceId, sourceType, allocatedAmount).
+    /// </summary>
+    public List<(string sourceId, string sourceType, int amount)> DistributeByPowerSources(
+        string powerId, int totalAmount)
+    {
+        var result = new List<(string, string, int)>();
+        var sources = _powerSources.GetValueOrDefault(powerId);
+        if (sources == null || sources.Count == 0)
+        {
+            // No known sources — attribute to power itself
+            result.Add((powerId, "power", totalAmount));
+            return result;
+        }
+        if (sources.Count == 1)
+        {
+            result.Add((sources[0].SourceId, sources[0].SourceType, totalAmount));
+            return result;
+        }
+
+        // Proportional distribution by recorded amount
+        int totalRecorded = 0;
+        foreach (var s in sources) totalRecorded += Math.Max(s.Amount, 1);
+
+        int allocated = 0;
+        for (int i = 0; i < sources.Count; i++)
+        {
+            int share;
+            if (i == sources.Count - 1)
+                share = totalAmount - allocated; // remainder to last
+            else
+                share = (int)((long)totalAmount * Math.Max(sources[i].Amount, 1) / totalRecorded);
+            if (share > 0)
+                result.Add((sources[i].SourceId, sources[i].SourceType, share));
+            allocated += share;
+        }
+        return result;
     }
 
     public PowerSource? GetDebuffSource(int creatureHash, string powerId)
@@ -218,7 +290,8 @@ public class ContributionMap
 
     public PowerSource? GetPlayerBuffSource(string powerId)
     {
-        return _playerBuffSources.GetValueOrDefault(powerId);
+        var list = _playerBuffSources.GetValueOrDefault(powerId);
+        return list != null && list.Count > 0 ? new PowerSource(list[0].SourceId, list[0].SourceType) : null;
     }
 
     // ── Damage Modifier Context ──────────────────────────────

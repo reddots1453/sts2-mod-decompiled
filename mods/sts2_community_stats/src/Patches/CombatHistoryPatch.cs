@@ -140,6 +140,17 @@ public static class CombatHistoryPatch
                 // Colossus mitigation is now tracked in EnemyDamageIntentPatch.AfterModifyDamage_Enemy
                 // (at ModifyDamage stage, before block consumption)
             }
+
+            // Round 9 round 53: fire real-time UI refresh when the player
+            // takes damage. Without this, out-of-turn enemy attacks (intent
+            // fires between turns or mid-action) updated the tracker's block
+            // / mitigation data but the F8 panel stayed stale until the next
+            // card play. Only fire on player receiver to avoid spamming the
+            // event for every enemy-damaged-enemy hit.
+            if (isPlayerReceiver)
+            {
+                CombatTracker.Instance.NotifyCombatDataUpdated();
+            }
         });
     }
 
@@ -224,12 +235,18 @@ public static class RelicHookContextPatcher
 {
     public static void SetRelicContext(RelicModel __instance)
     {
-        Safe.Run(() => CombatTracker.Instance.SetActiveRelic(__instance.Id.Entry));
+        Safe.Run(() =>
+        {
+            CombatTracker.Instance.SetActiveRelic(__instance.Id.Entry);
+            // Pending draw source for async relic hooks (CharonsAshes draws via GamePiece etc.)
+            CombatTracker.Instance.SetPendingDrawSource(__instance.Id.Entry, "relic");
+        });
     }
 
     public static void ClearRelicContext()
     {
         Safe.Run(() => CombatTracker.Instance.ClearActiveRelic());
+        // DON'T clear pending draw source — consumed by OnCardDrawn
     }
 
     public static void PatchAll(Harmony harmony)
@@ -355,6 +372,59 @@ public static class RelicHookContextPatcher
         TryPatch(harmony, typeof(PowerCell), "BeforeSideTurnStart", prefix, postfix);
         // Draw: free redraw whenever hand is emptied.
         TryPatch(harmony, typeof(UnceasingTop), "AfterHandEmptied", prefix, postfix);
+
+        // ── Round 10 batch: §19.3 unpatched relics (catalog audit) ──
+        // Stars: DivineDestiny grants stars on first side turn; DivineRight on room enter.
+        TryPatch(harmony, typeof(DivineDestiny), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(DivineRight), "AfterRoomEntered", prefix, postfix);
+        // Energy: PaelsFlesh grants energy starting round 3 (same shape as PaelsTears).
+        TryPatch(harmony, typeof(PaelsFlesh), "AfterSideTurnStart", prefix, postfix);
+        // Heal: LizardTail heals on prevent-death via CreatureCmd.Heal.
+        TryPatch(harmony, typeof(LizardTail), "AfterPreventingDeath", prefix, postfix);
+
+        // ── Round 11 batch: §19.3 remaining unpatched relics ──
+
+        // Draw: Pocketwatch draws extra cards if few played this turn.
+        TryPatch(harmony, typeof(Pocketwatch), "AfterSideTurnStart", prefix, postfix);
+        // Upgrade: Bellows upgrades hand cards on first player turn.
+        TryPatch(harmony, typeof(Bellows), "AfterPlayerTurnStart", prefix, postfix);
+        // Upgrade: BoneTea upgrades hand on first round (consumes charge).
+        TryPatch(harmony, typeof(BoneTea), "AfterSideTurnStart", prefix, postfix);
+        // Debuff: TeaOfDiscourtesy adds Dazed cards before combat.
+        TryPatch(harmony, typeof(TeaOfDiscourtesy), "BeforeCombatStart", prefix, postfix);
+        // Power: FencingManual applies Forge (dexterity) on first turn.
+        TryPatch(harmony, typeof(FencingManual), "AfterSideTurnStart", prefix, postfix);
+        // Energy: Bread adjusts energy on first turn.
+        TryPatch(harmony, typeof(Bread), "AfterSideTurnStart", prefix, postfix);
+        // Track: LavaLamp tracks unblocked damage for card upgrade rewards.
+        TryPatch(harmony, typeof(LavaLamp), "AfterDamageReceived", prefix, postfix);
+        TryPatch(harmony, typeof(LavaLamp), "AfterRoomEntered", prefix, postfix);
+        // Extra turn: PaelsEye grants extra turn if no cards played.
+        TryPatch(harmony, typeof(PaelsEye), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(PaelsEye), "BeforeTurnEndEarly", prefix, postfix);
+        TryPatch(harmony, typeof(PaelsEye), "AfterTakingExtraTurn", prefix, postfix);
+        TryPatch(harmony, typeof(PaelsEye), "BeforeCardPlayed", prefix, postfix);
+        // Post-combat: PaelsTooth grants stored upgraded card after combat.
+        TryPatch(harmony, typeof(PaelsTooth), "AfterCombatEnd", prefix, postfix);
+        // Damage: PenNib doubles damage of every 10th attack played.
+        TryPatch(harmony, typeof(PenNib), "BeforeCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(PenNib), "AfterCardPlayed", prefix, postfix);
+        // Card limit + energy: VelvetChoker restricts plays, adds max energy.
+        TryPatch(harmony, typeof(VelvetChoker), "BeforeSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(VelvetChoker), "AfterCardPlayed", prefix, postfix);
+        // Enemy buff: PhilosophersStone gives enemies Strength on enter.
+        TryPatch(harmony, typeof(PhilosophersStone), "AfterCreatureAddedToCombat", prefix, postfix);
+        TryPatch(harmony, typeof(PhilosophersStone), "AfterRoomEntered", prefix, postfix);
+        // Pickup: PaelsClaw enchants 3 cards with Goopy.
+        TryPatch(harmony, typeof(PaelsClaw), "AfterObtained", prefix, postfix);
+        // Pickup: PaelsGrowth enchants 1 card with Clone.
+        TryPatch(harmony, typeof(PaelsGrowth), "AfterObtained", prefix, postfix);
+        // Pickup: PaelsHorn adds 2 Relax cards to deck.
+        TryPatch(harmony, typeof(PaelsHorn), "AfterObtained", prefix, postfix);
+        // Sacrifice: PaelsWing sacrifice alternative for card rewards.
+        TryPatch(harmony, typeof(PaelsWing), "OnSacrifice", prefix, postfix);
+        // Pickup: PunchDagger enchants card with Momentum.
+        TryPatch(harmony, typeof(PunchDagger), "AfterObtained", prefix, postfix);
     }
 
     private static void TryPatch(Harmony harmony, Type type, string methodName,
@@ -387,12 +457,28 @@ public static class PowerHookContextPatcher
 {
     public static void SetPowerContext(PowerModel __instance)
     {
-        Safe.Run(() => CombatTracker.Instance.SetActivePowerSource(__instance.Id.Entry));
+        Safe.Run(() =>
+        {
+            CombatTracker.Instance.SetActivePowerSource(__instance.Id.Entry);
+            // Also set pending draw/block/damage source for async power hooks.
+            // These persist through async await (unlike _activePowerSourceId which
+            // is cleared by ClearPowerContext postfix at the first await).
+            // Consumed by OnCardDrawn/OnBlockGained after use.
+            var source = ContributionMap.Instance.GetPowerSource(__instance.Id.Entry);
+            if (source != null)
+                CombatTracker.Instance.SetPendingDrawSource(source.SourceId, source.SourceType);
+        });
     }
 
     public static void ClearPowerContext()
     {
-        Safe.Run(() => CombatTracker.Instance.ClearActivePowerSource());
+        Safe.Run(() =>
+        {
+            CombatTracker.Instance.ClearActivePowerSource();
+            // DON'T clear pending draw source — it persists through async and is
+            // consumed by OnCardDrawn. If no draw happens, ForceResetAllContext
+            // cleans it up between tests.
+        });
     }
 
     public static void PatchAll(Harmony harmony)
@@ -425,6 +511,7 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(InfiniteBladesPower), "BeforeHandDraw", prefix, postfix);
 
         // ── Defect ──
+        TryPatch(harmony, typeof(StormPower), "AfterCardPlayed", prefix, postfix);
         TryPatch(harmony, typeof(HailstormPower), "BeforeTurnEnd", prefix, postfix);
         TryPatch(harmony, typeof(AutomationPower), "AfterCardDrawn", prefix, postfix);
         TryPatch(harmony, typeof(IterationPower), "AfterCardDrawn", prefix, postfix);
@@ -470,6 +557,16 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(TheSealedThronePower), "BeforeCardPlayed", prefix, postfix);
         TryPatch(harmony, typeof(FurnacePower), "AfterSideTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(SentryModePower), "BeforeHandDraw", prefix, postfix);
+
+        // ── Next-turn powers ──
+        TryPatch(harmony, typeof(BlockNextTurnPower), "AfterBlockCleared", prefix, postfix);
+        TryPatch(harmony, typeof(StarNextTurnPower), "AfterEnergyReset", prefix, postfix);
+
+        // ── Thorns ──
+        TryPatch(harmony, typeof(ThornsPower), "BeforeDamageReceived", prefix, postfix);
+
+        // ── Healing powers ──
+        TryPatch(harmony, typeof(RegenPower), "AfterTurnEnd", prefix, postfix);
 
         // ── Shared / Colorless ──
         TryPatch(harmony, typeof(SmokestackPower), "AfterCardGeneratedForCombat", prefix, postfix);
@@ -564,11 +661,11 @@ public static class DamageModifierPatch
 
                     if (additive != 0)
                     {
-                        var source = ContributionMap.Instance.GetPowerSource(powerId);
-                        string srcId = source?.SourceId ?? powerId;
-                        string srcType = source?.SourceType ?? "power";
-                        modList.Add(new ContributionMap.ModifierContribution(
-                            srcId, srcType, Math.Abs((int)additive)));
+                        // Multi-source: distribute additive bonus proportionally
+                        int totalAdd = Math.Abs((int)additive);
+                        var distributed = ContributionMap.Instance.DistributeByPowerSources(powerId, totalAdd);
+                        foreach (var (srcId, srcType, share) in distributed)
+                            modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, share));
                         continue;
                     }
 
@@ -576,16 +673,22 @@ public static class DamageModifierPatch
                     decimal multiplicative = power.ModifyDamageMultiplicative(target, baseDmg + additive, props, dealer, cardSource);
                     if (multiplicative == 1m || multiplicative <= 0) continue;
 
-                    // H2-R: Decompose VulnerablePower/WeakPower internal modifiers
+                    // Round 9 round 53: skip multiplicative modifiers < 1.
+                    // This function runs on the player→enemy path only, so any
+                    // `multiplicative < 1` is a debuff on the PLAYER (e.g. Weak)
+                    // that REDUCES outgoing damage. Attributing the reduction as
+                    // a positive damage contribution (as DecomposeWeakContribution
+                    // used to) was turning enemy-applied Weak into a bogus
+                    // "+2 damage" row in the contribution panel. Defensive
+                    // mitigation tracking (MitigatedByDebuff) happens separately
+                    // via OnWeakMitigation on the enemy→player path.
+                    if (multiplicative < 1m) continue;
+
+                    // H2-R: Decompose VulnerablePower internal modifiers into
+                    // base / PaperPhrog / Cruelty / Debilitate sub-contributions.
                     if (powerId == "VULNERABLE_POWER")
                     {
                         DecomposeVulnerableContribution(power, target, dealer, props, cardSource,
-                            finalDmg, multiplicative, modList);
-                        continue;
-                    }
-                    if (powerId == "WEAK_POWER")
-                    {
-                        DecomposeWeakContribution(power, target, dealer, props, cardSource,
                             finalDmg, multiplicative, modList);
                         continue;
                     }
@@ -594,25 +697,34 @@ public static class DamageModifierPatch
                     int contribution = (int)(finalDmg - finalDmg / multiplicative);
                     if (contribution == 0) continue;
 
-                    var powerSource = ContributionMap.Instance.GetPowerSource(powerId);
-                    string psId = powerSource?.SourceId ?? powerId;
-                    string psType = powerSource?.SourceType ?? "power";
-                    modList.Add(new ContributionMap.ModifierContribution(
-                        psId, psType, Math.Abs(contribution)));
+                    // Multi-source: distribute multiplicative bonus proportionally
+                    var multDistributed = ContributionMap.Instance.DistributeByPowerSources(
+                        powerId, Math.Abs(contribution));
+                    foreach (var (psId, psType, share) in multDistributed)
+                        modList.Add(new ContributionMap.ModifierContribution(psId, psType, share));
                 }
                 else if (mod is RelicModel relic)
                 {
                     var relicId = relic.Id.Entry;
-                    if (!string.IsNullOrEmpty(relicId))
+                    if (string.IsNullOrEmpty(relicId)) continue;
+
+                    decimal additive = relic.ModifyDamageAdditive(target, baseDmg, props, dealer, cardSource);
+                    if (additive != 0)
                     {
-                        // Relic modifier contribution — approximate
-                        int contribution = modList.Count == 0 ? (int)totalBonus :
-                            (int)(totalBonus / (modList.Count + 1));
+                        modList.Add(new ContributionMap.ModifierContribution(
+                            relicId, "relic", Math.Abs((int)additive)));
+                        continue;
+                    }
+
+                    decimal multiplicative = relic.ModifyDamageMultiplicative(
+                        target, baseDmg + additive, props, dealer, cardSource);
+                    if (multiplicative != 1m && multiplicative > 0)
+                    {
+                        if (multiplicative < 1m) continue;
+                        int contribution = (int)(finalDmg - finalDmg / multiplicative);
                         if (contribution > 0)
-                        {
                             modList.Add(new ContributionMap.ModifierContribution(
                                 relicId, "relic", contribution));
-                        }
                     }
                 }
             }
@@ -922,7 +1034,7 @@ public static class BlockModifierPatch
             modList.Clear();
 
             // Each modifier's actual contribution is its ModifyBlockAdditive return value
-            // The game calls each power with a running block total, and each returns its additive delta
+            // Multi-source: distribute block modifier proportionally (e.g. Footwork + relic both give Dex)
             foreach (var mod in modifiers)
             {
                 if (mod is PowerModel power)
@@ -930,16 +1042,13 @@ public static class BlockModifierPatch
                     var powerId = power.Id.Entry;
                     if (string.IsNullOrEmpty(powerId)) continue;
 
-                    var source = ContributionMap.Instance.GetPowerSource(powerId);
-                    if (source == null) continue;
-
-                    // Use the power's actual additive contribution (Amount for most powers like Dexterity)
                     int contribution = Math.Abs(power.Amount);
-                    if (contribution > 0)
-                    {
-                        modList.Add(new ContributionMap.ModifierContribution(
-                            source.SourceId, source.SourceType, contribution));
-                    }
+                    if (contribution <= 0) continue;
+
+                    var distributed = ContributionMap.Instance.DistributeByPowerSources(
+                        powerId, contribution);
+                    foreach (var (srcId, srcType, share) in distributed)
+                        modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, share));
                 }
             }
         });
@@ -1320,6 +1429,29 @@ public static class KillingBlowPatcher
 // NOTE: RegentPowerHookContextPatch removed — consolidated into PowerHookContextPatcher.
 
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// Forge tracking: records each ForgeCmd.Forge call with its source
+// so SovereignBlade sub-bars can show per-source forge breakdown.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class ForgeCmdPatch
+{
+    [HarmonyPatch(typeof(ForgeCmd), nameof(ForgeCmd.Forge))]
+    [HarmonyPostfix]
+    public static void AfterForge(decimal amount, AbstractModel? source)
+    {
+        Safe.Run(() =>
+        {
+            if (amount <= 0 || source == null) return;
+            string sourceId = source.Id.Entry;
+            if (string.IsNullOrEmpty(sourceId)) return;
+            string sourceType = source is RelicModel ? "relic" : "card";
+            CombatTracker.Instance.OnForge(sourceId, sourceType, (int)amount);
+        });
+    }
+}
+
 // SovereignBlade + SeekingEdge damage split
 // When SeekingEdge is active, records the primary target (highest HP enemy)
 // so that non-primary damage is attributed to SeekingEdge's source card.
@@ -1334,6 +1466,9 @@ public static class SovereignBladeSeekingEdgePatch
     {
         Safe.Run(() =>
         {
+            // Flush forge contributions as sub-bars under SOVEREIGN_BLADE
+            CombatTracker.Instance.FlushForgeSubBars();
+
             if (!__instance.Owner.Creature.HasPower<SeekingEdgePower>()) return;
             var enemies = __instance.CombatState?.HittableEnemies;
             if (enemies == null || enemies.Count == 0) return;
@@ -1804,12 +1939,97 @@ public static class HandDrawBonusPatch
         });
     }
 
+    [HarmonyPatch(typeof(DrawCardsNextTurnPower), nameof(DrawCardsNextTurnPower.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterDrawCardsNextTurnDraw(decimal __result, DrawCardsNextTurnPower __instance,
+        Player player, decimal count)
+    {
+        Safe.Run(() =>
+        {
+            if (player != __instance.Owner.Player) return;
+            int extra = (int)(__result - count);
+            if (extra <= 0) return;
+            var source = ContributionMap.Instance.GetPowerSource(__instance.Id.Entry);
+            if (source != null)
+                ContributionMap.Instance.RecordHandDrawBonus(source.SourceId, source.SourceType, extra);
+        });
+    }
+
     // Flush pending hand draw bonuses after hand draw modifiers complete
     [HarmonyPatch(typeof(Hook), nameof(Hook.AfterModifyingHandDraw))]
     [HarmonyPostfix]
     public static void AfterModifyingHandDraw()
     {
         Safe.Run(() => CombatTracker.Instance.FlushPendingHandDrawBonus());
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Relic ModifyHandDraw extra draw tracking
+// Records extra draws from relics that modify hand draw count.
+// ═══════════════════════════════════════════════════════════
+
+[HarmonyPatch]
+public static class RelicHandDrawBonusPatch
+{
+    private static void RecordRelicDrawBonus(RelicModel relic, decimal result, decimal count)
+    {
+        Safe.Run(() =>
+        {
+            int extra = (int)(result - count);
+            if (extra <= 0) return;
+            var relicId = relic.Id.Entry;
+            if (!string.IsNullOrEmpty(relicId))
+                ContributionMap.Instance.RecordHandDrawBonus(relicId, "relic", extra);
+        });
+    }
+
+    [HarmonyPatch(typeof(BagOfPreparation), nameof(BagOfPreparation.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterBagOfPreparation(decimal __result, BagOfPreparation __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    [HarmonyPatch(typeof(Pocketwatch), nameof(Pocketwatch.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterPocketwatch(decimal __result, Pocketwatch __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    [HarmonyPatch(typeof(PaelsBlood), nameof(PaelsBlood.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterPaelsBlood(decimal __result, PaelsBlood __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    [HarmonyPatch(typeof(RingOfTheSnake), nameof(RingOfTheSnake.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterRingOfTheSnake(decimal __result, RingOfTheSnake __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    [HarmonyPatch(typeof(RingOfTheDrake), nameof(RingOfTheDrake.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterRingOfTheDrake(decimal __result, RingOfTheDrake __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    [HarmonyPatch(typeof(SneckoEye), nameof(SneckoEye.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterSneckoEye(decimal __result, SneckoEye __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
     }
 }
 
@@ -2084,22 +2304,41 @@ public static class OrbChanneledPatch
 {
     /// <summary>
     /// After an orb is channeled, record the source card/relic that channeled it.
+    /// Uses zero-parameter postfix to avoid Harmony parameter name mismatch issues.
+    /// Reads the last orb from OrbQueue directly.
     /// </summary>
-    [HarmonyPatch(typeof(Hook), nameof(Hook.AfterOrbChanneled))]
+    [HarmonyPatch(typeof(CombatHistory), nameof(CombatHistory.OrbChanneled))]
     [HarmonyPostfix]
-    public static void AfterOrbChanneled(CombatState combatState, Player player, OrbModel orb)
+    public static void AfterOrbChanneled()
     {
         Safe.Run(() =>
         {
-            string? sourceId = CombatTracker.Instance.ActiveCardId;
-            string sourceType = "card";
+            // Power/relic source takes priority (matches ResolveSource order).
+            // When Storm channels during another card's play, _activePowerSourceId = "STORM"
+            // must take priority over _activeCardId = "DEFRAGMENT".
+            string? sourceId = CombatTracker.Instance.ActivePowerSourceId;
+            string sourceType = CombatTracker.Instance.ActivePowerSourceType ?? "card";
 
             if (sourceId == null)
             {
-                sourceId = CombatTracker.Instance.ActivePowerSourceId;
-                sourceType = CombatTracker.Instance.ActivePowerSourceType ?? "card";
+                sourceId = CombatTracker.Instance.ActiveRelicId;
+                sourceType = "relic";
+            }
+            if (sourceId == null)
+            {
+                sourceId = CombatTracker.Instance.ActiveCardId;
+                sourceType = "card";
             }
             if (sourceId == null) return;
+
+            // Get the most recently channeled orb from the player's orb queue
+            var combatState = CombatManager.Instance.DebugOnlyGetState();
+            if (combatState == null) return;
+            var player = MegaCrit.Sts2.Core.Context.LocalContext.GetMe(combatState);
+            if (player == null) return;
+            var orbs = player.PlayerCombatState.OrbQueue.Orbs;
+            if (orbs.Count == 0) return;
+            var orb = orbs[orbs.Count - 1]; // last channeled
 
             string orbType = orb switch
             {
@@ -2111,6 +2350,7 @@ public static class OrbChanneledPatch
                 _ => "unknown"
             };
 
+            Godot.GD.Print($"[OrbTrack] Channel: hash={orb.GetHashCode()}, type={orbType}, source={sourceId}");
             ContributionMap.Instance.RecordOrbSource(
                 orb.GetHashCode(), sourceId, sourceType, orbType);
         });
@@ -2128,31 +2368,86 @@ public static class OrbPassivePatch
     /// </summary>
     [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.Passive))]
     [HarmonyPrefix]
-    public static void BeforeOrbPassive(OrbModel orb)
+    public static void BeforeOrbPassiveStatic(OrbModel orb)
     {
-        Safe.Run(() =>
+        Safe.Run(() => SetOrbContextForPassive(orb));
+    }
+
+    /// <summary>
+    /// Also patch each orb type's BeforeTurnEndOrbTrigger, because turn-end passives
+    /// call this.Passive() directly (instance method) instead of OrbCmd.Passive (static).
+    /// Uses __instance to get the orb reference.
+    /// </summary>
+    public static void PatchOrbTurnEndTriggers(Harmony harmony)
+    {
+        // PREFIX ONLY — no postfix, because async methods' Harmony postfix fires at first await,
+        // which clears orb context before the orb's damage/block effect completes.
+        // Each prefix overwrites the previous orb's context, which is correct since
+        // OrbQueue.BeforeTurnEnd processes orbs sequentially (await each one).
+        var prefix = new HarmonyMethod(AccessTools.Method(typeof(OrbPassivePatch), nameof(BeforeOrbTurnEnd)));
+
+        // Only patch orb types that ACTUALLY override BeforeTurnEndOrbTrigger.
+        var beforeTurnEndOrbs = new[] {
+            typeof(LightningOrb), typeof(FrostOrb), typeof(DarkOrb), typeof(GlassOrb)
+        };
+        foreach (var t in beforeTurnEndOrbs)
         {
-            var source = ContributionMap.Instance.GetOrbSource(orb.GetHashCode());
-            if (source == null) return;
-
-            // First-trigger logic: if a card is playing and first trigger already used,
-            // skip setting orb context so _activeCardId takes priority.
-            bool duringCardPlay = CombatTracker.Instance.ActiveCardId != null;
-            if (duringCardPlay && ContributionMap.Instance.OrbFirstTriggerUsed)
+            try
             {
-                // Don't set orb context — _activeCardId (evoke/trigger card) will be used
-                SetOrbFocusContrib(orb);
-                return;
+                var m = AccessTools.Method(t, "BeforeTurnEndOrbTrigger");
+                if (m != null && m.DeclaringType == t)
+                    harmony.Patch(m, prefix);
+                else
+                    Godot.GD.Print($"[OrbPatch] Skipped {t.Name}.BeforeTurnEndOrbTrigger (not overridden)");
             }
+            catch (System.Exception ex)
+            {
+                Safe.Warn($"[OrbPatch] Failed {t.Name}.BeforeTurnEndOrbTrigger: {ex.Message}");
+            }
+        }
 
-            ContributionMap.Instance.SetActiveOrbContext(
-                source.SourceId, source.SourceType, source.OrbType);
+        // PlasmaOrb uses AfterTurnStartOrbTrigger (fires at start of NEXT turn)
+        try
+        {
+            var m = AccessTools.Method(typeof(PlasmaOrb), "AfterTurnStartOrbTrigger");
+            if (m != null) harmony.Patch(m, prefix);
+        }
+        catch (System.Exception ex)
+        {
+            Safe.Warn($"[OrbPatch] Failed PlasmaOrb.AfterTurnStartOrbTrigger: {ex.Message}");
+        }
+    }
 
-            if (duringCardPlay)
-                ContributionMap.Instance.MarkOrbFirstTriggerUsed();
+    public static void BeforeOrbTurnEnd(OrbModel __instance)
+    {
+        Safe.Run(() => SetOrbContextForPassive(__instance));
+    }
 
+    // NO postfix — async methods' postfix fires at first await, clearing context too early.
+    // Orb context is cleared by the next BeforeOrbTurnEnd prefix (overwriting) or
+    // naturally when no orb context is needed.
+
+    private static void SetOrbContextForPassive(OrbModel orb)
+    {
+        var source = ContributionMap.Instance.GetOrbSource(orb.GetHashCode());
+        if (source == null) return;
+
+        // First-trigger logic: if a card is playing and first trigger already used,
+        // skip setting orb context so _activeCardId takes priority.
+        bool duringCardPlay = CombatTracker.Instance.ActiveCardId != null;
+        if (duringCardPlay && ContributionMap.Instance.OrbFirstTriggerUsed)
+        {
             SetOrbFocusContrib(orb);
-        });
+            return;
+        }
+
+        ContributionMap.Instance.SetActiveOrbContext(
+            source.SourceId, source.SourceType, source.OrbType);
+
+        if (duringCardPlay)
+            ContributionMap.Instance.MarkOrbFirstTriggerUsed();
+
+        SetOrbFocusContrib(orb);
     }
 
     [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.Passive))]
@@ -2166,7 +2461,9 @@ public static class OrbPassivePatch
     internal static void SetOrbFocusContrib(OrbModel orb)
     {
         if (orb is PlasmaOrb) return; // Plasma doesn't use ModifyOrbValue
-        var focusSource = ContributionMap.Instance.GetPowerSource("FOCUS_POWER");
+        // Try both possible power ID formats
+        var focusSource = ContributionMap.Instance.GetPowerSource("FOCUS_POWER")
+                       ?? ContributionMap.Instance.GetPowerSource("FOCUS");
         if (focusSource == null) return;
         var player = orb.Owner;
         if (player?.Creature == null) return;
@@ -2188,44 +2485,46 @@ public static class OrbEvokePatch
     /// We patch EvokeNext and EvokeLast since the private Evoke method isn't directly patchable.
     /// The orb to be evoked is the front (EvokeNext) or last (EvokeLast) of the queue.
     /// </summary>
-    [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.EvokeNext))]
-    [HarmonyPrefix]
-    public static void BeforeEvokeNext(Player player)
+    // EvokeNext/EvokeLast are static async methods — Harmony patches unreliable.
+    // Instead, patch each orb type's Evoke instance method directly via PatchOrbEvokeMethods.
+
+    public static void PatchOrbEvokeMethods(Harmony harmony)
     {
-        Safe.Run(() =>
+        var prefix = new HarmonyMethod(AccessTools.Method(typeof(OrbEvokePatch), nameof(BeforeOrbEvoke)));
+        var orbTypes = new System.Type[] {
+            typeof(LightningOrb), typeof(FrostOrb), typeof(DarkOrb),
+            typeof(PlasmaOrb), typeof(GlassOrb)
+        };
+        foreach (var t in orbTypes)
         {
-            var orbQueue = player.PlayerCombatState?.OrbQueue;
-            if (orbQueue == null || orbQueue.Orbs.Count == 0) return;
-            var orb = orbQueue.Orbs[0]; // front orb
-            SetOrbEvokeContext(orb);
-        });
+            try
+            {
+                // Evoke returns Task<IEnumerable<Creature>>, find it by name from all methods
+                var methods = t.GetMethods(System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.NonPublic
+                    | System.Reflection.BindingFlags.DeclaredOnly);
+                var m = System.Array.Find(methods, mi => mi.Name == "Evoke");
+                if (m != null)
+                {
+                    harmony.Patch(m, prefix);
+                    Godot.GD.Print($"[OrbEvokePatch] Patched {t.Name}.Evoke");
+                }
+                else
+                {
+                    Godot.GD.Print($"[OrbEvokePatch] {t.Name}.Evoke not found (declared methods: {string.Join(", ", methods.Select(mi => mi.Name))})");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Safe.Warn($"[OrbEvokePatch] Failed {t.Name}.Evoke: {ex.Message}");
+            }
+        }
     }
 
-    [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.EvokeNext))]
-    [HarmonyPostfix]
-    public static void AfterEvokeNext()
+    public static void BeforeOrbEvoke(OrbModel __instance)
     {
-        Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext());
-    }
-
-    [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.EvokeLast))]
-    [HarmonyPrefix]
-    public static void BeforeEvokeLast(Player player)
-    {
-        Safe.Run(() =>
-        {
-            var orbQueue = player.PlayerCombatState?.OrbQueue;
-            if (orbQueue == null || orbQueue.Orbs.Count == 0) return;
-            var orb = orbQueue.Orbs[orbQueue.Orbs.Count - 1]; // last orb
-            SetOrbEvokeContext(orb);
-        });
-    }
-
-    [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.EvokeLast))]
-    [HarmonyPostfix]
-    public static void AfterEvokeLast()
-    {
-        Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext());
+        Safe.Run(() => SetOrbEvokeContext(__instance));
     }
 
     private static void SetOrbEvokeContext(OrbModel orb)
@@ -2233,11 +2532,14 @@ public static class OrbEvokePatch
         var source = ContributionMap.Instance.GetOrbSource(orb.GetHashCode());
         if (source == null) return;
 
-        // First-trigger logic: same as OrbPassivePatch
+        // PRD rule: 1st evoke → channeling source, 2nd+ evoke → triggering card.
+        // During a card play, first evoke sets orb context (channeling source gets credit).
+        // Subsequent evokes CLEAR orb context so _activeCardId (the evoking card) takes over.
         bool duringCardPlay = CombatTracker.Instance.ActiveCardId != null;
         if (duringCardPlay && ContributionMap.Instance.OrbFirstTriggerUsed)
         {
-            // Don't set orb context — _activeCardId (evoke card) will be used
+            // 2nd+ evoke: clear orb context → falls through to _activeCardId in ResolveSource
+            ContributionMap.Instance.ClearActiveOrbContext();
             OrbPassivePatch.SetOrbFocusContrib(orb);
             return;
         }

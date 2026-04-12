@@ -40,6 +40,13 @@ public sealed class CareerStatsData
     public int MaxWinStreak { get; init; }
 
     /// <summary>
+    /// Round 9 round 52: the most recent consecutive-win streak. Counts wins
+    /// from the newest run backwards until hitting a loss. Shown alongside
+    /// MaxWinStreak as "current / max" on the summary card.
+    /// </summary>
+    public int CurrentWinStreak { get; init; }
+
+    /// <summary>
     /// Rolling win rates over the last N runs (chronologically reversed = newest first).
     /// Keys: 10, 50, int.MaxValue (= "all"). Values: 0..1.
     /// </summary>

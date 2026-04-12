@@ -129,38 +129,22 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private Control BuildWinRateSummaryCard()
     {
+        // Round 9 round 52: min-ascension selector moved to BuildHeader so
+        // it sits next to the character dropdown. This panel now contains
+        // only the NStat summary cards + window cells.
         var panel = SectionPanel(L.Get("career.win_summary_card"));
         var v = (VBoxContainer)panel.GetChild(0);
 
-        // Row 1: min-ascension selector (moved from BuildWinRateTrend).
-        var ascRow = new HBoxContainer();
-        ascRow.AddThemeConstantOverride("separation", 8);
-        ascRow.AddChild(MakeLabel(L.Get("career.min_ascension"), Cream, LabelSize));
-        var ascSpin = new SpinBox
-        {
-            MinValue = 0,
-            // Round 9 round 49: cap at 10 — the game's ascension ladder tops
-            // out at 10, and values >10 caused data-load exceptions when the
-            // backend tried to filter on impossible levels.
-            MaxValue = 10,
-            Step = 1,
-            Value = _minAscension,
-            SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
-            CustomMinimumSize = new Vector2(100, 0),
-        };
-        ascSpin.AddThemeFontSizeOverride("font_size", LabelSize);
-        ascSpin.ValueChanged += d => OnAscensionChanged((int)d);
-        ascRow.AddChild(ascSpin);
-        v.AddChild(ascRow);
-
-        // Row 2: NStat summary cards (range / W-L / win rate / best streak).
+        // Row 1: NStat summary cards (range / W-L / win rate / streak).
         v.AddChild(BuildSummaryNStatGrid());
 
-        // Row 3: rolling-window cells (10 / 50 / 100 / all).
+        // Row 2: rolling-window cells (10 / 50 / 100 / all).
+        // Round 9 round 52: horizontal separation bumped 24 → 72 (3×) so the
+        // four window cells aren't bunched up against each other.
         if (_data != null)
         {
             var grid = new HBoxContainer();
-            grid.AddThemeConstantOverride("separation", 24);
+            grid.AddThemeConstantOverride("separation", 72);
             v.AddChild(grid);
 
             AppendWindowCell(grid, 10, _data.WinRateByWindow);
@@ -215,19 +199,21 @@ public sealed partial class CareerStatsSection : VBoxContainer
             ? string.Format(L.Get("career.ascension_n"), _minAscension)
             : L.Get("career.ascension_all");
 
-        // Round 9 round 49: user requested top/bottom swap so the descriptive
-        // label sits above the numeric value on cards 2 and 3.
+        // Round 9 round 49/52: descriptive label on top, right-aligned
+        // numeric value on bottom (BBCode [right]...[/right] since the
+        // NStatEntry bottom label is a MegaRichTextLabel).
         AddSummaryCard(grid, IconSwords,
             string.Format(L.Get("career.asc_winloss"), ascLabel),
-            $"{wins} W / {losses} L");
+            $"[right]{wins} W / {losses} L[/right]");
         AddSummaryCard(grid, IconChain,
             string.Format(L.Get("career.asc_winrate"), ascLabel),
-            $"{overall * 100:F1}%");
-        // Round 9 round 49: best win streak among filtered runs.
+            $"[right]{overall * 100:F1}%[/right]");
+        // Round 9 round 52: best win streak card now shows "current / max".
         int bestStreak = _data?.MaxWinStreak ?? 0;
+        int curStreak = _data?.CurrentWinStreak ?? 0;
         AddSummaryCard(grid, IconAchievements,
             string.Format(L.Get("career.asc_max_streak"), ascLabel),
-            bestStreak.ToString());
+            $"[right]{curStreak}  /  {bestStreak}[/right]");
 
         return grid;
     }
@@ -294,27 +280,49 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private Control BuildHeader()
     {
-        // Round 9 round 42: header is now wrapped in the same SectionPanel as
-        // the rest of the career-stats blocks, with title + character filter
-        // inside. The "X runs · Y wins · Z%" subtitle is removed per user
-        // request — that info is in the summary cards below.
+        // Round 9 round 52: header now contains both the character filter
+        // dropdown AND the min-ascension selector, laid out in a 2-column
+        // GridContainer so both rows share identical label/control widths.
+        // The min-ascension row used to live inside BuildWinRateSummaryCard.
         var panel = SectionPanel(L.Get("career.title"));
         var v = (VBoxContainer)panel.GetChild(0);
 
-        // Character filter row.
-        var charRow = new HBoxContainer();
-        charRow.AddThemeConstantOverride("separation", 8);
-        charRow.AddChild(MakeLabel(L.Get("settings.character"), Cream, LabelSize));
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddThemeConstantOverride("h_separation", 18);
+        grid.AddThemeConstantOverride("v_separation", 10);
+        grid.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        v.AddChild(grid);
+
+        // Row 1: character source dropdown.
+        var charLbl = MakeLabel(L.Get("settings.character"), Cream, LabelSize);
+        charLbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        charLbl.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        grid.AddChild(charLbl);
 
         var charDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        // Use AddIconItem so each dropdown row shows the character's
-        // top-bar icon next to its proper localized name.
         PopulateCharacterDropdown(charDropdown);
         var currentIdx = Array.IndexOf(_careerCharacters, _characterFilter);
         charDropdown.Selected = currentIdx >= 0 ? currentIdx : 0;
         charDropdown.ItemSelected += i => OnCharacterDropdownChanged((int)i);
-        charRow.AddChild(charDropdown);
-        v.AddChild(charRow);
+        grid.AddChild(charDropdown);
+
+        // Row 2: min-ascension spin box (moved here from win-rate summary).
+        var ascLbl = MakeLabel(L.Get("career.min_ascension"), Cream, LabelSize);
+        ascLbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        ascLbl.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        grid.AddChild(ascLbl);
+
+        var ascSpin = new SpinBox
+        {
+            MinValue = 0,
+            MaxValue = 10,
+            Step = 1,
+            Value = _minAscension,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        ascSpin.AddThemeFontSizeOverride("font_size", LabelSize);
+        ascSpin.ValueChanged += d => OnAscensionChanged((int)d);
+        grid.AddChild(ascSpin);
 
         return panel;
     }

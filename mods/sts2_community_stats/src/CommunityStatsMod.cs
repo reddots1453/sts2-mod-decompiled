@@ -87,6 +87,8 @@ public static class CommunityStatsMod
         // Apply manual hook context patches (individual try/catch per method)
         RelicHookContextPatcher.PatchAll(_harmony);
         PowerHookContextPatcher.PatchAll(_harmony);
+        OrbPassivePatch.PatchOrbTurnEndTriggers(_harmony);
+        OrbEvokePatch.PatchOrbEvokeMethods(_harmony);
         KillingBlowPatcher.PatchAll(_harmony);
 
         // Register ModManager.OnMetricsUpload hook for run data upload

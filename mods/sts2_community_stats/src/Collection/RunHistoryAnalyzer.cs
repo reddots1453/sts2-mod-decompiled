@@ -237,6 +237,7 @@ public sealed class RunHistoryAnalyzer
             TotalRuns = loaded.Count,
             Wins = loaded.Count(r => r.Win),
             MaxWinStreak = ComputeMaxWinStreak(loaded),
+            CurrentWinStreak = ComputeCurrentWinStreak(loaded),
             WinRateByWindow = ComputeWinRateWindows(loaded),
             DeathCausesByAct = ComputeDeathCauses(loaded),
             PathStatsByAct = ComputePathStats(loaded),
@@ -300,6 +301,22 @@ public sealed class RunHistoryAnalyzer
             }
         }
         return best;
+    }
+
+    /// <summary>
+    /// Round 9 round 52: count consecutive wins starting from the newest run
+    /// backwards. Returns 0 as soon as a loss is encountered. Under filter
+    /// constraints this is "your current active streak".
+    /// </summary>
+    private static int ComputeCurrentWinStreak(List<RunHistory> sortedNewestFirst)
+    {
+        int cur = 0;
+        foreach (var run in sortedNewestFirst)
+        {
+            if (run.Win) cur++;
+            else break;
+        }
+        return cur;
     }
 
     private static IReadOnlyDictionary<int, float> ComputeWinRateWindows(List<RunHistory> sortedNewestFirst)

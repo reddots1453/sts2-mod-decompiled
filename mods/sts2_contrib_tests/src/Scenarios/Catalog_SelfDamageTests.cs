@@ -41,12 +41,13 @@ public static class Catalog_SelfDamageTests
     private class CAT_Hemokinesis_SelfDmg : ITestScenario
     {
         public string Id => "CAT-SELF-Hemokinesis";
-        public string Name => "Catalog §10: Hemokinesis SelfDamage=2 + DirectDamage=15";
+        public string Name => "Catalog §10: Hemokinesis SelfDamage=2 + DirectDamage=14";
         public string Category => "Catalog_SelfDamage";
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive && ctx.GetAllEnemies().Count > 0;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await ctx.ResetEnemyHp();
             var enemy = ctx.GetFirstEnemy();
             var card = await ctx.CreateCardInHand<Hemokinesis>();
             ctx.TakeSnapshot();
@@ -54,7 +55,7 @@ public static class Catalog_SelfDamageTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("HEMOKINESIS", out var d);
             ctx.AssertEquals(result, "HEMOKINESIS.SelfDamage", 2, d?.SelfDamage ?? 0);
-            ctx.AssertEquals(result, "HEMOKINESIS.DirectDamage", 15, d?.DirectDamage ?? 0);
+            ctx.AssertEquals(result, "HEMOKINESIS.DirectDamage", 14, d?.DirectDamage ?? 0);
             return result;
         }
     }

@@ -107,15 +107,17 @@ public static class RunHistoryPatch
             button.SetMeta(ButtonMeta, true);
             button.AddThemeFontSizeOverride("font_size", 22);
 
-            button.AnchorLeft   = 1.0f;
-            button.AnchorRight  = 1.0f;
+            // Round 9 round 52: moved from top-right to below the player
+            // icon container (top-left area). Anchors top-left with fixed
+            // offsets that match the layout of the native player icon row.
+            button.AnchorLeft   = 0.0f;
+            button.AnchorRight  = 0.0f;
             button.AnchorTop    = 0.0f;
             button.AnchorBottom = 0.0f;
-            button.OffsetLeft   = -280f;
-            button.OffsetRight  = -20f;
-            button.OffsetTop    = 90f;
-            button.OffsetBottom = 140f;
-            button.GrowHorizontal = Control.GrowDirection.Begin;
+            button.OffsetLeft   = 30f;
+            button.OffsetRight  = 290f;
+            button.OffsetTop    = 210f;
+            button.OffsetBottom = 260f;
 
             screen.AddChild(button);
         }

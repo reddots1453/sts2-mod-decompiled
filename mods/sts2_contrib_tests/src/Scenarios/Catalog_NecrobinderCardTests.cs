@@ -69,9 +69,15 @@ public static class Catalog_NecrobinderCardTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            // Clean residual Dexterity/Frail from prior tests
+            await PowerCmd.Remove<DexterityPower>(ctx.PlayerCreature);
+            await PowerCmd.Remove<FrailPower>(ctx.PlayerCreature);
+            await ctx.ClearBlock();
             var card = await ctx.CreateCardInHand<DefendNecrobinder>();
             ctx.TakeSnapshot();
             await ctx.PlayCard(card);
+            // Force damage so block gets consumed → EffectiveBlock tracked
+            await ctx.SimulateDamage(ctx.PlayerCreature, 99, ctx.GetFirstEnemy());
 
             var delta = ctx.GetDelta();
             delta.TryGetValue("DEFEND_NECROBINDER", out var d);
