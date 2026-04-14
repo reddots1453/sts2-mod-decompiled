@@ -91,6 +91,19 @@ public static class CommunityStatsMod
         OrbEvokePatch.PatchOrbEvokeMethods(_harmony);
         KillingBlowPatcher.PatchAll(_harmony);
 
+        // PRD §3.13: subscribe label-rendering patches to StatsProvider.DataRefreshed
+        // so that F9 filter Apply re-renders stats in place without reopening.
+        Patches.ShopPatch.SubscribeRefresh();
+        Patches.CardRewardScreenPatch.SubscribeRefresh();
+        Patches.DeckViewPatch.SubscribeRefresh();
+        Patches.CardLibraryPatch.SubscribeRefresh();
+        Patches.RelicLibraryPatch.SubscribeRefresh();
+        Patches.RelicCollectionPatch.SubscribeRefresh();
+        Patches.EventOptionPatch.SubscribeRefresh();
+        Patches.CardUpgradePatch.SubscribeRefresh();
+        Patches.CardRemovalPatch.SubscribeRefresh();
+        Patches.RelicHoverPatch.SubscribeRefresh();
+
         // Register ModManager.OnMetricsUpload hook for run data upload
         RunLifecyclePatch.RegisterMetricsHook();
 
@@ -103,17 +116,30 @@ public static class CommunityStatsMod
         // Cleanup stale disk cache
         StatsCache.Instance.CleanupDisk();
 
+        // PRD §3.19: one-time import of local run history files
+        HistoryImporter.TryImportAsync();
+
+        // Drain any pending offline uploads from previous sessions. Without
+        // this, runs queued before a server outage would only retry on the
+        // next successful real-time upload — i.e. never if the player
+        // doesn't finish another run after restart.
+        Safe.RunAsync(() => Util.OfflineQueue.DrainAsync(
+            json => Api.ApiClient.Instance.PostJsonWithStatusAsync("runs", json)));
+
         Safe.Info("Stats the Spire initialized successfully");
     }
 
     private static void OnFilterApplied()
     {
+        Safe.Info("[DIAG:OnFilterApplied] Event handler entered");
         Safe.RunAsync(async () =>
         {
             // PRD §3.18 — re-resolve the character from the new filter mode so
             // changing the F9 character dropdown takes effect immediately.
             var filter = ModConfig.CurrentFilter;
             var resolvedChar = filter.ResolveCharacter();
+            var ver = VersionManager.GetEffectiveVersion(filter);
+            Safe.Info($"[DIAG:OnFilterApplied] resolvedChar={resolvedChar}, GameVersion={filter.GameVersion}, effectiveVer={ver}, qs={filter.ToQueryString()}");
             await StatsProvider.Instance.OnFilterChangedAsync(resolvedChar, filter);
             FilterPanel.Instance.UpdateSampleSizeLabel();
 

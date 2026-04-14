@@ -17,12 +17,47 @@ namespace CommunityStats.Patches;
 [HarmonyPatch]
 public static class CardRemovalPatch
 {
+    // PRD §3.13: live removal screens for DataRefreshed re-render.
+    private static readonly List<WeakReference<NDeckCardSelectScreen>> _liveScreens = new();
+
+    public static void SubscribeRefresh()
+    {
+        StatsProvider.DataRefreshed += OnDataRefreshed;
+    }
+
+    private static void OnDataRefreshed()
+    {
+        Safe.Run(() =>
+        {
+            for (int i = _liveScreens.Count - 1; i >= 0; i--)
+            {
+                if (_liveScreens[i].TryGetTarget(out var screen) &&
+                    GodotObject.IsInstanceValid(screen) && screen.IsInsideTree())
+                    AfterScreenReady(screen);
+                else
+                    _liveScreens.RemoveAt(i);
+            }
+        });
+    }
+
+    private static void TrackScreen(NDeckCardSelectScreen screen)
+    {
+        for (int i = _liveScreens.Count - 1; i >= 0; i--)
+        {
+            if (!_liveScreens[i].TryGetTarget(out var t) || !GodotObject.IsInstanceValid(t))
+                _liveScreens.RemoveAt(i);
+            else if (t == screen) return;
+        }
+        _liveScreens.Add(new WeakReference<NDeckCardSelectScreen>(screen));
+    }
+
     // ── Display removal rate when screen shows cards ────────
 
     [HarmonyPatch(typeof(NDeckCardSelectScreen), nameof(NDeckCardSelectScreen._Ready))]
     [HarmonyPostfix]
     public static void AfterScreenReady(NDeckCardSelectScreen __instance)
     {
+        TrackScreen(__instance);
         Safe.Run(() =>
         {
             // Access card grid to attach labels

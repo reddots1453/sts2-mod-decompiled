@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CommunityStats.Collection;
 using CommunityStats.Config;
 using CommunityStats.Util;
 
@@ -17,8 +18,33 @@ public sealed class StatsProvider
     private volatile bool _isPreloading;
 
     public bool IsPreloading => _isPreloading;
-    public bool HasBundle => _bundle != null;
-    public int TotalRunCount => _bundle?.TotalRuns ?? 0;
+    public bool HasBundle => _bundle != null || ModConfig.CurrentFilter.MyDataOnly;
+    public int TotalRunCount => ModConfig.CurrentFilter.MyDataOnly
+        ? RunHistoryAnalyzer.Instance.LocalCards.TotalRuns
+        : (_bundle?.TotalRuns ?? 0);
+
+    /// <summary>
+    /// PRD §3.13: fires after bundle data changes (filter apply, preload
+    /// complete, MyDataOnly toggle). Subscribers re-render their currently
+    /// visible stats labels. Always dispatched via scene-tree CallDeferred
+    /// so handlers run on the Godot main thread.
+    /// </summary>
+    public static event Action? DataRefreshed;
+
+    /// <summary>
+    /// Invoke DataRefreshed on the Godot main thread. Safe to call from
+    /// any thread — marshals via Callable.CallDeferred.
+    /// </summary>
+    public static void FireDataRefreshed()
+    {
+        var handlers = DataRefreshed;
+        if (handlers == null) return;
+
+        Godot.Callable.From(() =>
+        {
+            Safe.Run(() => handlers.Invoke());
+        }).CallDeferred();
+    }
 
     /// <summary>
     /// Load bundled test data immediately so stats are available before any async preload.
@@ -97,17 +123,30 @@ public sealed class StatsProvider
     }
 
     /// <summary>
-    /// Clears bundle and re-preloads when filter changes.
+    /// Clears bundle and re-preloads when filter changes. PRD §3.13:
+    /// fires DataRefreshed at the end so currently visible stats labels
+    /// can auto-refresh with the new bundle (or with local-only data
+    /// when MyDataOnly is on).
     /// </summary>
     public async Task OnFilterChangedAsync(string? character, FilterSettings newFilter)
     {
         _bundle = null;
         StatsCache.Instance.InvalidateAll();
 
+        // Short-circuit when MyDataOnly is on — no server fetch needed.
+        if (newFilter.MyDataOnly)
+        {
+            EnsureTestDataLoaded(); // fallback for non-MyDataOnly lookups outside runs
+            FireDataRefreshed();
+            return;
+        }
+
         if (character != null)
             await PreloadForRunAsync(character, newFilter);
         else
-            EnsureTestDataLoaded(); // Restore test data so UI doesn't show "loading"
+            EnsureTestDataLoaded();
+
+        FireDataRefreshed();
     }
 
     /// <summary>
@@ -124,6 +163,22 @@ public sealed class StatsProvider
 
     public CardStats? GetCardStats(string cardId)
     {
+        // PRD §3.13 — MyDataOnly: bypass community bundle, read local aggregations.
+        if (ModConfig.CurrentFilter.MyDataOnly)
+        {
+            var local = RunHistoryAnalyzer.Instance.LocalCards.Get(cardId);
+            if (local == null || local.RunsWith == 0) return null;
+            return new CardStats
+            {
+                PickRate = local.PickRate,
+                WinRate = local.WinRate,
+                UpgradeRate = local.UpgradeRate,
+                RemovalRate = local.RemovalRate,
+                ShopBuyRate = local.BuyRate,
+                SampleSize = local.RunsWith,
+            };
+        }
+
         if (_bundle?.Cards.TryGetValue(cardId, out var stats) == true)
             return stats;
         return null;
@@ -175,6 +230,20 @@ public sealed class StatsProvider
 
     public RelicStats? GetRelicStats(string relicId)
     {
+        // PRD §3.13 — MyDataOnly: bypass community bundle, read local aggregations.
+        if (ModConfig.CurrentFilter.MyDataOnly)
+        {
+            var local = RunHistoryAnalyzer.Instance.LocalRelics.Get(relicId);
+            if (local == null || local.RunsWith == 0) return null;
+            return new RelicStats
+            {
+                WinRate = local.WinRate,
+                PickRate = 0f,      // Local data doesn't track pick rate
+                ShopBuyRate = 0f,   // Local data doesn't track shop buy rate
+                SampleSize = local.RunsWith,
+            };
+        }
+
         if (_bundle?.Relics.TryGetValue(relicId, out var stats) == true)
             return stats;
         return null;

@@ -2,6 +2,7 @@ using System.Linq;
 using CommunityStats.Api;
 using CommunityStats.Config;
 using CommunityStats.Util;
+using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Runs;
 
@@ -19,10 +20,25 @@ public static class RunDataCollector
     private static readonly List<CardChoiceUpload> _cardChoices = new();
     private static readonly List<EventChoiceUpload> _eventChoices = new();
     private static readonly List<ShopPurchaseUpload> _shopPurchases = new();
+    private static readonly List<ShopCardOfferingUpload> _shopCardOfferings = new();
     private static readonly List<CardRemovalUpload> _cardRemovals = new();
     private static readonly List<CardUpgradeUpload> _cardUpgrades = new();
 
-    public static int CurrentFloor { get; set; }
+    /// <summary>
+    /// Live floor count derived from the run state's MapPointHistory. The
+    /// game defines TotalFloor as the sum of visited points across all
+    /// acts (RunState.TotalFloor); delegating to it keeps every per-event
+    /// Floor field consistent with the engine. Returns 0 when no run is
+    /// active.
+    /// </summary>
+    public static int CurrentFloor
+    {
+        get
+        {
+            try { return RunManager.Instance?.DebugOnlyGetState()?.TotalFloor ?? 0; }
+            catch { return 0; }
+        }
+    }
 
     // ── Recording methods (called by patches) ───────────────
 
@@ -36,7 +52,7 @@ public static class RunDataCollector
             _cardChoices.Add(new CardChoiceUpload
             {
                 CardId = cardId,
-                UpgradeLevel = upgradeLevel,
+                UpgradeLevel = Math.Clamp(upgradeLevel, 0, 10),
                 WasPicked = cardId == pickedCardId,
                 Floor = floor
             });
@@ -45,11 +61,14 @@ public static class RunDataCollector
 
     public static void RecordEventChoice(string eventId, int optionIndex, int totalOptions)
     {
+        // Server bounds: option_index ∈ [-1, 20], total_options ∈ [0, 20].
+        // Clamp at the boundary so an unexpected modded event with many
+        // options can't poison the entire run upload.
         _eventChoices.Add(new EventChoiceUpload
         {
             EventId = eventId,
-            OptionIndex = optionIndex,
-            TotalOptions = totalOptions
+            OptionIndex = Math.Clamp(optionIndex, -1, 20),
+            TotalOptions = Math.Clamp(totalOptions, 0, 20)
         });
     }
 
@@ -59,7 +78,7 @@ public static class RunDataCollector
         {
             ItemId = itemId,
             ItemType = itemType,
-            Cost = cost,
+            Cost = Math.Clamp(cost, 0, 9999),
             Floor = floor
         });
     }
@@ -83,6 +102,15 @@ public static class RunDataCollector
         });
     }
 
+    public static void RecordShopCardOffering(string cardId, int floor)
+    {
+        _shopCardOfferings.Add(new ShopCardOfferingUpload
+        {
+            CardId = cardId,
+            Floor = floor
+        });
+    }
+
     // ── Run lifecycle ───────────────────────────────────────
 
     public static void OnRunStart()
@@ -90,9 +118,9 @@ public static class RunDataCollector
         _cardChoices.Clear();
         _eventChoices.Clear();
         _shopPurchases.Clear();
+        _shopCardOfferings.Clear();
         _cardRemovals.Clear();
         _cardUpgrades.Clear();
-        CurrentFloor = 0;
         RunContributionAggregator.Instance.Reset();
     }
 
@@ -157,6 +185,7 @@ public static class RunDataCollector
             CardChoices = new List<CardChoiceUpload>(_cardChoices),
             EventChoices = new List<EventChoiceUpload>(_eventChoices),
             ShopPurchases = new List<ShopPurchaseUpload>(_shopPurchases),
+            ShopCardOfferings = new List<ShopCardOfferingUpload>(_shopCardOfferings),
             CardRemovals = new List<CardRemovalUpload>(_cardRemovals),
             CardUpgrades = new List<CardUpgradeUpload>(_cardUpgrades),
             Encounters = RunContributionAggregator.Instance.BuildEncounterUploads(),
@@ -169,7 +198,7 @@ public static class RunDataCollector
             payload.FinalDeck = player.Deck.Select(c => new DeckCardUpload
             {
                 CardId = c.Id?.Entry ?? "unknown",
-                UpgradeLevel = c.CurrentUpgradeLevel
+                UpgradeLevel = Math.Clamp(c.CurrentUpgradeLevel, 0, 10)
             }).ToList();
         }
 

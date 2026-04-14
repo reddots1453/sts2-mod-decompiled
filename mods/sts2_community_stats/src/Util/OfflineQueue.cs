@@ -78,10 +78,20 @@ public static class OfflineQueue
         }
     }
 
+    // Server rate limit is 10 uploads/minute per IP (nginx + slowapi).
+    // Pace sustained uploads at ~6.5 s each so we stay under the rate
+    // even across multiple drains. First upload in each drain fires
+    // immediately (the burst=5 allowance absorbs it).
+    private const int UploadPacingMs = 6500;
+
     /// <summary>
-    /// Attempts to upload all pending payloads. Called at mod init and after successful uploads.
+    /// Attempts to upload all pending payloads. Called at mod init and
+    /// after successful uploads. Paces requests to respect the server's
+    /// 10/min rate limit, and aborts early on HTTP 429 so the remaining
+    /// files get retried on the next drain cycle instead of being
+    /// hammered against a throttled endpoint.
     /// </summary>
-    public static async Task DrainAsync(Func<string, Task<bool>> uploadFunc)
+    public static async Task DrainAsync(Func<string, Task<int>> uploadFunc)
     {
         if (!Directory.Exists(ModConfig.PendingDir)) return;
 
@@ -95,25 +105,41 @@ public static class OfflineQueue
         if (files.Count == 0) return;
         Safe.Info($"Draining offline queue: {files.Count} pending uploads");
 
+        bool first = true;
         foreach (var file in files)
         {
+            if (!first) await Task.Delay(UploadPacingMs);
+            first = false;
+
             var json = await File.ReadAllTextAsync(file);
-            var success = false;
-            var delay = 1000; // exponential backoff: 1s, 2s, 4s
+            int status = 0;
+            var backoff = 1000; // exponential backoff on transient errors
 
             for (var attempt = 0; attempt < 3; attempt++)
             {
-                try
-                {
-                    success = await uploadFunc(json);
-                    if (success) break;
-                }
-                catch { /* retry */ }
+                try { status = await uploadFunc(json); }
+                catch { status = 0; }
 
-                await Task.Delay(delay);
-                delay *= 2;
+                if (status >= 200 && status < 300) break;
+
+                // Permanent client errors (4xx except 429) won't succeed on retry.
+                // Keep the file queued and move on so one poison payload
+                // doesn't block the rest of the queue.
+                if (status >= 400 && status < 500 && status != 429) break;
+
+                // Rate-limited: abort the drain. Coming back later is the
+                // only thing that actually helps here.
+                if (status == 429)
+                {
+                    Safe.Warn("Offline drain hit rate limit (429); stopping until next cycle");
+                    return;
+                }
+
+                await Task.Delay(backoff);
+                backoff *= 2;
             }
 
+            bool success = status >= 200 && status < 300;
             if (success)
             {
                 File.Delete(file);
@@ -121,8 +147,9 @@ public static class OfflineQueue
             }
             else
             {
-                Safe.Warn($"Offline upload still failing: {Path.GetFileName(file)}, will retry next time");
-                break; // stop draining on failure to avoid hammering server
+                Safe.Warn($"Offline upload still failing ({status}): {Path.GetFileName(file)}, will retry next time");
+                // Keep draining: a 4xx on one payload shouldn't block newer
+                // runs behind it. The pacing above still applies.
             }
         }
     }

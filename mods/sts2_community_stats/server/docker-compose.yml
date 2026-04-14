@@ -1,19 +1,18 @@
-version: "3.8"
-
 services:
   # ── API Server ────────────────────────────────────────────
   api:
     build: .
     container_name: sts2stats-api
     ports:
-      - "8080:8080"
+      - "5080:8080"
     environment:
       DATABASE_URL: "postgresql://sts2stats:${DB_PASSWORD:-changeme}@db:5432/sts2stats"
       REDIS_URL: "redis://redis:6379/0"
       LOG_LEVEL: "info"
       PRECOMPUTE_INTERVAL_MINUTES: "10"
-      RATE_LIMIT_UPLOAD: "10/minute"
-      RATE_LIMIT_QUERY: "60/minute"
+      RATE_LIMIT_UPLOAD: "${RATE_LIMIT_UPLOAD:-10/minute}"
+      RATE_LIMIT_QUERY: "${RATE_LIMIT_QUERY:-60/minute}"
+      BLOCKED_MOD_VERSIONS: "${BLOCKED_MOD_VERSIONS:-}"
     depends_on:
       db:
         condition: service_healthy
@@ -37,6 +36,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ./sql/002_run_hash.sql:/docker-entrypoint-initdb.d/002_run_hash.sql:ro
     ports:
       - "127.0.0.1:5432:5432"   # Only expose to localhost
     healthcheck:

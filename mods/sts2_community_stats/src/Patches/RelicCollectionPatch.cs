@@ -22,6 +22,14 @@ public static class RelicCollectionPatch
 {
     private const string StatsLabelMeta = "sts_relic_collection_stats";
 
+    // PRD §3.13: no-op — this patch is legacy/disabled (see class summary),
+    // so there are no persistent labels to refresh. Kept for API symmetry
+    // with the other SubscribeRefresh wire-ups in CommunityStatsMod.
+    public static void SubscribeRefresh()
+    {
+        // intentionally empty
+    }
+
     // Hover injection deliberately disabled — see class summary.
     public static void AfterOnFocus(NRelicCollectionEntry __instance)
     {

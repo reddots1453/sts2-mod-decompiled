@@ -27,6 +27,40 @@ public static class RelicLibraryPatch
 {
     private const string PanelName = "StatsTheSpireRelicStats";
 
+    // PRD §3.13: live inspect screens for DataRefreshed re-render.
+    private static readonly List<WeakReference<NInspectRelicScreen>> _liveScreens = new();
+
+    public static void SubscribeRefresh()
+    {
+        StatsProvider.DataRefreshed += OnDataRefreshed;
+    }
+
+    private static void OnDataRefreshed()
+    {
+        Safe.Run(() =>
+        {
+            for (int i = _liveScreens.Count - 1; i >= 0; i--)
+            {
+                if (_liveScreens[i].TryGetTarget(out var screen) &&
+                    GodotObject.IsInstanceValid(screen) && screen.IsInsideTree())
+                    AfterUpdateRelicDisplay(screen);
+                else
+                    _liveScreens.RemoveAt(i);
+            }
+        });
+    }
+
+    private static void TrackScreen(NInspectRelicScreen screen)
+    {
+        for (int i = _liveScreens.Count - 1; i >= 0; i--)
+        {
+            if (!_liveScreens[i].TryGetTarget(out var t) || !GodotObject.IsInstanceValid(t))
+                _liveScreens.RemoveAt(i);
+            else if (t == screen) return;
+        }
+        _liveScreens.Add(new WeakReference<NInspectRelicScreen>(screen));
+    }
+
     private static readonly Color HeaderColor    = new("#EFC851");
     private static readonly Color CreamColor     = new("#FFF6E2");
     private static readonly Color GrayColor      = new(0.62f, 0.62f, 0.72f);
@@ -41,6 +75,7 @@ public static class RelicLibraryPatch
     [HarmonyPostfix]
     public static void AfterUpdateRelicDisplay(NInspectRelicScreen __instance)
     {
+        TrackScreen(__instance);
         if (!ModConfig.Toggles.RelicStats) return;
         Safe.Run(() => InjectOrUpdate(__instance));
     }

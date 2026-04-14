@@ -25,7 +25,7 @@ CACHE_TTL_SECONDS: int = int(os.getenv("CACHE_TTL_SECONDS", "900"))  # 15 minute
 PRECOMPUTE_INTERVAL_MINUTES: int = int(os.getenv("PRECOMPUTE_INTERVAL_MINUTES", "10"))
 
 CHARACTERS: list[str] = [
-    "IRONCLAD", "SILENT", "DEFECT", "WATCHER", "VAGABOND", "NECROMANCER",
+    "IRONCLAD", "SILENT", "DEFECT", "NECROBINDER", "REGENT",
 ]
 ASC_RANGES: list[tuple[int, int]] = [
     (0, 4), (5, 9), (10, 14), (15, 19), (20, 20),

@@ -572,6 +572,50 @@ Boss 战损:
 | AC7 | 个人生涯统计页面内有独立角色下拉，与 F9 设置互不影响；切换后页面立即刷新 |
 | AC8 | 个人生涯统计的角色下拉每次打开默认"所有角色"，不持久化 |
 
+### 3.19 历史 Run 数据导入
+
+#### 需求
+
+用户安装 Mod 前已经积累了大量本地 run history 数据（`.run` 文件）。Mod 应在首次安装时自动检测并导入这些历史数据到服务器，以快速充实社区数据库。
+
+#### 3.19.1 自动导入行为
+
+- Mod 首次初始化时，自动扫描本地 run history 目录（含 normal 和 modded 两个 profile）
+- 在后台线程逐条将历史 run 转换为 `RunUploadPayload` 并上传到服务器
+- 导入过程**不阻塞游戏主线程**，不影响正常游戏体验
+- 导入完成后在 settings.json 中记录 `history_import_completed: true`，后续启动不再重复导入
+- 跳过以下 run：已放弃（abandoned）、多人游戏（num_players > 1）、非标准模式（非 standard）
+
+#### 3.19.2 数据转换规则
+
+从 `.run` 文件的 `RunHistory` 对象中提取以下数据：
+- **card_choices**：从 `MapPointHistory` 各节点的 `PlayerStats.CardChoices` 提取
+- **event_choices**：从 `PlayerStats.EventChoices` 提取事件 ID 和选项索引
+- **encounters**：从 `Rooms` 中 Monster/Elite/Boss 类型房间提取遭遇 ID、伤害、回合数
+- **final_deck / final_relics**：从 `Players[0].Deck` 和 `Players[0].Relics` 提取
+- **shop_purchases**：从 `PlayerStats.BoughtRelics/BoughtPotions/BoughtColorless` 提取
+- **card_removals / card_upgrades**：从 `PlayerStats.CardsRemoved` 和 `PlayerStats.UpgradedCards` 提取
+- **mod_version** 标记为 `"history_import"` 以区分历史导入数据
+
+#### 3.19.3 服务端去重
+
+- 服务端在 `runs` 表新增 `run_hash` 字段（VARCHAR(64)，可选，唯一约束）
+- `run_hash` 由 `game_version + character + ascension + seed + start_time` 拼接后生成
+- 上传时若 `run_hash` 冲突则返回 `200`（静默忽略重复），不返回错误
+- 客户端上传 payload 新增可选字段 `run_hash`
+
+#### 3.19.4 验收标准
+
+| # | 验收点 |
+|---|---|
+| AC1 | 首次安装 Mod → 启动游戏 → 日志显示 "History import: found N files, converting..." |
+| AC2 | 导入过程中游戏可正常操作（不卡顿、不闪退） |
+| AC3 | 导入完成后 settings.json 包含 `history_import_completed: true` |
+| AC4 | 再次启动游戏 → 日志显示 "History import: already completed, skipping" |
+| AC5 | 已导入的数据在社区统计面板（卡牌选取率、遗物胜率等）中正常显示 |
+| AC6 | 同一台电脑重复导入同一批 run → 服务端不产生重复记录（run_hash 去重） |
+| AC7 | 不同电脑的不同用户导入各自的历史数据 → 服务端正常累积不同用户的数据 |
+
 ### 3.14 功能开关
 
 - F9 设置面板中为每个子功能提供独立开关（原生勾选框样式）：

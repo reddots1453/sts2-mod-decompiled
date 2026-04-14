@@ -16,8 +16,10 @@ class CardChoiceUpload(BaseModel):
 
 class EventChoiceUpload(BaseModel):
     event_id: str = Field(..., max_length=64)
-    option_index: int = Field(..., ge=0, le=20)
-    total_options: int = Field(..., ge=1, le=20)
+    option_index: int = Field(..., ge=-1, le=20)
+    total_options: int = Field(..., ge=0, le=20)
+    combo_key: str | None = Field(None, max_length=256)
+    chosen_option_id: str | None = Field(None, max_length=64)
 
 
 class DeckCardUpload(BaseModel):
@@ -41,6 +43,11 @@ class CardRemovalUpload(BaseModel):
 class CardUpgradeUpload(BaseModel):
     card_id: str = Field(..., max_length=64)
     source: str = Field(..., pattern=r"^(campfire|event|other)$")
+
+
+class ShopCardOfferingUpload(BaseModel):
+    card_id: str = Field(..., max_length=64)
+    floor: int = Field(0, ge=0, le=200)
 
 
 class EncounterUpload(BaseModel):
@@ -86,8 +93,12 @@ class RunUploadPayload(BaseModel):
     shop_purchases: list[ShopPurchaseUpload] = Field(default_factory=list, max_length=100)
     card_removals: list[CardRemovalUpload] = Field(default_factory=list, max_length=100)
     card_upgrades: list[CardUpgradeUpload] = Field(default_factory=list, max_length=100)
+    shop_card_offerings: list[ShopCardOfferingUpload] = Field(default_factory=list, max_length=100)
     encounters: list[EncounterUpload] = Field(default_factory=list, max_length=100)
     contributions: list[ContributionUpload] = Field(default_factory=list, max_length=5000)
+
+    # Optional dedup hash for history import (PRD §3.19.3)
+    run_hash: str | None = Field(None, max_length=64)
 
     @field_validator("character")
     @classmethod
@@ -122,8 +133,17 @@ class EventOptionStats(BaseModel):
     n: int = 0
 
 
+class ComboOptionStats(BaseModel):
+    id: str
+    sel: float = 0.0
+    win: float = 0.0
+    n: int = 0
+
+
 class EventStats(BaseModel):
     options: list[EventOptionStats] = []
+    combos: dict[str, list[ComboOptionStats]] | None = None
+    flat_options: list[ComboOptionStats] | None = None
 
 
 class EncounterStats(BaseModel):

@@ -13,11 +13,53 @@ namespace CommunityStats.Patches;
 [HarmonyPatch]
 public static class CardRewardScreenPatch
 {
+    // PRD §3.13: track live reward screens so we can refresh their labels
+    // when StatsProvider.DataRefreshed fires (e.g. after F9 apply).
+    private static readonly List<WeakReference<NCardRewardSelectionScreen>> _liveScreens = new();
+
+    public static void SubscribeRefresh()
+    {
+        StatsProvider.DataRefreshed += OnDataRefreshed;
+    }
+
+    private static void OnDataRefreshed()
+    {
+        Safe.Run(() =>
+        {
+            for (int i = _liveScreens.Count - 1; i >= 0; i--)
+            {
+                if (_liveScreens[i].TryGetTarget(out var screen) &&
+                    GodotObject.IsInstanceValid(screen) && screen.IsInsideTree())
+                {
+                    var opts = Traverse.Create(screen).Field("_options")
+                        .GetValue<IReadOnlyList<CardCreationResult>>();
+                    if (opts != null) AfterRefreshOptions(screen, opts);
+                }
+                else
+                {
+                    _liveScreens.RemoveAt(i);
+                }
+            }
+        });
+    }
+
+    private static void TrackScreen(NCardRewardSelectionScreen screen)
+    {
+        for (int i = _liveScreens.Count - 1; i >= 0; i--)
+        {
+            if (!_liveScreens[i].TryGetTarget(out var t) || !GodotObject.IsInstanceValid(t))
+                _liveScreens.RemoveAt(i);
+            else if (t == screen) return;
+        }
+        _liveScreens.Add(new WeakReference<NCardRewardSelectionScreen>(screen));
+    }
+
     [HarmonyPatch(typeof(NCardRewardSelectionScreen), nameof(NCardRewardSelectionScreen.RefreshOptions))]
     [HarmonyPostfix]
     public static void AfterRefreshOptions(NCardRewardSelectionScreen __instance,
         IReadOnlyList<CardCreationResult> options)
     {
+        TrackScreen(__instance);
         Safe.Run(() =>
         {
             var cardRow = Traverse.Create(__instance).Field("_cardRow").GetValue<Control>();

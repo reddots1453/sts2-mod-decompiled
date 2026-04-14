@@ -68,7 +68,7 @@ public static class L
         ["stats.encounter"] = "Death {0}% | Avg DMG {1}",
         ["stats.upgrade"] = "Upgrade {0}% | Win {1}%",
         ["stats.remove"] = "Remove {0}% | Win {1}%",
-        ["stats.buy"] = "Buy {0}% | Win {1}%",
+        ["stats.buy"] = "Buy {0}%",
         ["stats.loading"] = "Loading...",
         ["stats.no_data"] = "No data",
 
@@ -289,6 +289,17 @@ public static class L
         // Filter panel additions (§3.13)
         ["settings.my_data"] = "Show my data only",
         ["settings.toggles_title"] = "Feature Toggles",
+
+        // History import dialog (§3.19)
+        ["import.dialog_title"] = "Upload Historical Runs",
+        ["import.dialog_desc"] = "Would you like to upload your local run history to the community stats server? This helps build better community data.\n\nThis only happens once and runs in the background.",
+        ["import.confirm"] = "Upload",
+        ["import.skip"] = "Skip",
+        ["import.progress"] = "Uploading data... ({0}/{1})",
+        ["import.progress_done"] = "Upload complete ({0} runs)",
+        ["upload.run_success"] = "Run uploaded ✓",
+        ["upload.run_queued"] = "Upload queued (offline)",
+        ["upload.run_rejected"] = "Upload rejected (server validation)",
     };
 
     // ── 中文 ────────────────────────────────────────────────
@@ -344,7 +355,7 @@ public static class L
         ["stats.encounter"] = "死亡 {0}% | 平均伤害 {1}",
         ["stats.upgrade"] = "升级 {0}% | 胜率 {1}%",
         ["stats.remove"] = "移除 {0}% | 胜率 {1}%",
-        ["stats.buy"] = "购买 {0}% | 胜率 {1}%",
+        ["stats.buy"] = "购买 {0}%",
         ["stats.loading"] = "加载中...",
         ["stats.no_data"] = "无数据",
 
@@ -565,5 +576,16 @@ public static class L
         // Filter panel additions (§3.13)
         ["settings.my_data"] = "仅显示我的数据",
         ["settings.toggles_title"] = "功能开关",
+
+        // History import dialog (§3.19)
+        ["import.dialog_title"] = "上传历史记录",
+        ["import.dialog_desc"] = "是否将你的本地历史对局数据上传至社区统计服务器？这有助于丰富社区数据。\n\n此操作仅执行一次，且在后台完成。",
+        ["import.confirm"] = "确认上传",
+        ["import.skip"] = "跳过",
+        ["import.progress"] = "上传数据中... ({0}/{1})",
+        ["import.progress_done"] = "上传完成 ({0} 局)",
+        ["upload.run_success"] = "本局数据已上传 ✓",
+        ["upload.run_queued"] = "上传已排队（离线）",
+        ["upload.run_rejected"] = "上传被拒绝（服务器校验失败）",
     };
 }

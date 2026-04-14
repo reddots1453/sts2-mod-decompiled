@@ -25,7 +25,17 @@ public static class CombatLifecyclePatch
         {
             var encounter = state?.Encounter;
             var encounterId = encounter?.Id.Entry ?? "unknown";
-            var encounterType = encounter?.RoomType.ToString().ToLowerInvariant() ?? "normal";
+            var rawType = encounter?.RoomType.ToString().ToLowerInvariant() ?? "normal";
+            // Server enum is strict: normal|elite|boss only. Map Monster→normal
+            // and clamp anything unexpected (Event combat, modded room types,
+            // etc.) to "normal" so the run doesn't 422 on upload.
+            var encounterType = rawType switch
+            {
+                "monster" => "normal",
+                "elite" => "elite",
+                "boss" => "boss",
+                _ => "normal"
+            };
             var floor = RunDataCollector.CurrentFloor;
 
             CombatTracker.Instance.OnCombatStart(encounterId, encounterType, floor);

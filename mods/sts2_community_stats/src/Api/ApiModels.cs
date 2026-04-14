@@ -24,8 +24,14 @@ public class RunUploadPayload
     [JsonPropertyName("shop_purchases")]     public List<ShopPurchaseUpload> ShopPurchases { get; set; } = [];
     [JsonPropertyName("card_removals")]      public List<CardRemovalUpload> CardRemovals { get; set; } = [];
     [JsonPropertyName("card_upgrades")]      public List<CardUpgradeUpload> CardUpgrades { get; set; } = [];
+    [JsonPropertyName("shop_card_offerings")]public List<ShopCardOfferingUpload> ShopCardOfferings { get; set; } = [];
     [JsonPropertyName("encounters")]         public List<EncounterUpload> Encounters { get; set; } = [];
     [JsonPropertyName("contributions")]      public List<ContributionUpload> Contributions { get; set; } = [];
+
+    /// <summary>Optional dedup hash for history import (PRD §3.19.3).</summary>
+    [JsonPropertyName("run_hash")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RunHash { get; set; }
 }
 
 public class CardChoiceUpload
@@ -41,6 +47,16 @@ public class EventChoiceUpload
     [JsonPropertyName("event_id")]       public string EventId { get; set; } = "";
     [JsonPropertyName("option_index")]   public int OptionIndex { get; set; }
     [JsonPropertyName("total_options")]  public int TotalOptions { get; set; }
+
+    /// <summary>Sorted option IDs joined by '|' for combo-based events (ancients).</summary>
+    [JsonPropertyName("combo_key")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ComboKey { get; set; }
+
+    /// <summary>The specific option chosen, for combo/dynamic events.</summary>
+    [JsonPropertyName("chosen_option_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ChosenOptionId { get; set; }
 }
 
 public class DeckCardUpload
@@ -68,6 +84,12 @@ public class CardUpgradeUpload
 {
     [JsonPropertyName("card_id")]        public string CardId { get; set; } = "";
     [JsonPropertyName("source")]         public string Source { get; set; } = "";  // "campfire"|"event"|"other"
+}
+
+public class ShopCardOfferingUpload
+{
+    [JsonPropertyName("card_id")]        public string CardId { get; set; } = "";
+    [JsonPropertyName("floor")]          public int Floor { get; set; }
 }
 
 public class EncounterUpload
@@ -139,11 +161,27 @@ public class RelicStats
 public class EventStats
 {
     [JsonPropertyName("options")]        public List<EventOptionStats> Options { get; set; } = [];
+    /// <summary>Per-combo stats for ancient/dynamic events. Key = combo_key.</summary>
+    [JsonPropertyName("combos")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, List<ComboOptionStats>>? Combos { get; set; }
+    /// <summary>Flat per-option stats (COLORFUL_PHILOSOPHERS). Sum != 100%.</summary>
+    [JsonPropertyName("flat_options")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ComboOptionStats>? FlatOptions { get; set; }
 }
 
 public class EventOptionStats
 {
     [JsonPropertyName("idx")]            public int OptionIndex { get; set; }
+    [JsonPropertyName("sel")]            public float SelectionRate { get; set; }
+    [JsonPropertyName("win")]            public float WinRate { get; set; }
+    [JsonPropertyName("n")]              public int SampleSize { get; set; }
+}
+
+public class ComboOptionStats
+{
+    [JsonPropertyName("id")]             public string OptionId { get; set; } = "";
     [JsonPropertyName("sel")]            public float SelectionRate { get; set; }
     [JsonPropertyName("win")]            public float WinRate { get; set; }
     [JsonPropertyName("n")]              public int SampleSize { get; set; }

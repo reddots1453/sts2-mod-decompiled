@@ -28,6 +28,9 @@ public static class ModConfig
     // "My Data" filter
     public static bool UseMyDataOnly { get; set; }
 
+    // History import (PRD §3.19)
+    public static bool HistoryImportCompleted { get; set; }
+
     // Offline queue limits
     public static int MaxPendingCount { get; set; } = 10;
     public static int MaxPendingAgeDays { get; set; } = 7;
@@ -111,6 +114,10 @@ public static class ModConfig
             // My data only filter
             if (root.TryGetProperty("use_my_data_only", out var myData))
                 UseMyDataOnly = myData.GetBoolean();
+
+            // History import flag (PRD §3.19)
+            if (root.TryGetProperty("history_import_completed", out var hic))
+                HistoryImportCompleted = hic.GetBoolean();
         }
         catch { /* ignore malformed config */ }
     }
@@ -131,6 +138,7 @@ public static class ModConfig
                 ["language"] = Language,
                 ["feature_toggles"] = Toggles,
                 ["use_my_data_only"] = UseMyDataOnly,
+                ["history_import_completed"] = HistoryImportCompleted,
             };
 
             if (PanelPositionX.HasValue && PanelPositionY.HasValue)

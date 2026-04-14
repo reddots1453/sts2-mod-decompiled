@@ -21,6 +21,40 @@ public static class DeckViewPatch
     /// </summary>
     public const string StatsLabelMeta = "community_stats_label";
 
+    // PRD §3.13: track live deck view screens for DataRefreshed re-render.
+    private static readonly List<WeakReference<NDeckViewScreen>> _liveScreens = new();
+
+    public static void SubscribeRefresh()
+    {
+        StatsProvider.DataRefreshed += OnDataRefreshed;
+    }
+
+    private static void OnDataRefreshed()
+    {
+        Safe.Run(() =>
+        {
+            for (int i = _liveScreens.Count - 1; i >= 0; i--)
+            {
+                if (_liveScreens[i].TryGetTarget(out var screen) &&
+                    GodotObject.IsInstanceValid(screen) && screen.IsInsideTree())
+                    AfterDisplayCards(screen);
+                else
+                    _liveScreens.RemoveAt(i);
+            }
+        });
+    }
+
+    private static void TrackScreen(NDeckViewScreen screen)
+    {
+        for (int i = _liveScreens.Count - 1; i >= 0; i--)
+        {
+            if (!_liveScreens[i].TryGetTarget(out var t) || !GodotObject.IsInstanceValid(t))
+                _liveScreens.RemoveAt(i);
+            else if (t == screen) return;
+        }
+        _liveScreens.Add(new WeakReference<NDeckViewScreen>(screen));
+    }
+
     /// <summary>
     /// Removes all stats labels from a parent node immediately (RemoveChild + QueueFree).
     /// Shared across patches to ensure no label duplication.
@@ -44,6 +78,7 @@ public static class DeckViewPatch
     [HarmonyPostfix]
     public static void AfterDisplayCards(NDeckViewScreen __instance)
     {
+        TrackScreen(__instance);
         Safe.Run(() =>
         {
             // Access the _grid (NCardGrid) which contains NGridCardHolder children
