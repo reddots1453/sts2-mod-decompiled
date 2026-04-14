@@ -308,9 +308,17 @@ public partial class FilterPanel : PanelContainer
     /// Round 9 round 52: populate the character dropdown with icons + Chinese
     /// names via CharacterModel.Title.GetFormattedText(). "auto" has no icon
     /// per user request; "all" uses RandomCharacter's icon.
+    ///
+    /// Round 14 v5: clears existing items before re-populating so callers
+    /// can refresh the dropdown when icons become available later (e.g. the
+    /// user opens F9 before any run, when PreloadManager hasn't cached the
+    /// character textures yet — subsequent opens after entering a character
+    /// select screen will then have the icons available).
     /// </summary>
     private static void PopulateCharacterDropdown(OptionButton dropdown)
     {
+        dropdown.Clear();
+
         // auto — no icon
         dropdown.AddItem(L.Get("settings.char_auto"), 0);
 
@@ -343,10 +351,35 @@ public partial class FilterPanel : PanelContainer
             dropdown.AddItem(label, id);
     }
 
+    /// <summary>
+    /// Round 14 v5: robust icon lookup. Tries the game's PreloadManager cache
+    /// first (which may be empty if the user opens F9 before any run starts),
+    /// then falls back to ResourceLoader.Load to fetch the texture directly
+    /// from the resource pack. This guarantees the dropdown shows character
+    /// icons consistently regardless of game state.
+    /// </summary>
     private static Texture2D? TryGetCharIcon<T>() where T : CharacterModel
     {
-        try { return ModelDb.Character<T>().IconTexture; }
-        catch { return null; }
+        try
+        {
+            var charModel = ModelDb.Character<T>();
+            // Path 1: PreloadManager cache (used by character select / top bar)
+            var cached = charModel.IconTexture;
+            if (cached != null) return cached;
+
+            // Path 2: direct ResourceLoader from the same path PreloadManager uses.
+            // Path constructed identically to CharacterModel.IconTexturePath:
+            //   res://images/ui/top_panel/character_icon_<id-lower>.png
+            var idLower = charModel.Id.Entry.ToLowerInvariant();
+            var path = $"res://images/ui/top_panel/character_icon_{idLower}.png";
+            var loaded = Godot.ResourceLoader.Load<Texture2D>(path);
+            if (loaded != null) return loaded;
+        }
+        catch (Exception ex)
+        {
+            Util.Safe.Warn($"[FilterPanel] TryGetCharIcon<{typeof(T).Name}> failed: {ex.Message}");
+        }
+        return null;
     }
 
     private static string TryGetCharTitle<T>(string fallbackKey) where T : CharacterModel
@@ -373,6 +406,19 @@ public partial class FilterPanel : PanelContainer
         }
         else
         {
+            // Round 14 v5: refresh the character dropdown each time the panel
+            // is shown. PreloadManager may have cached character textures since
+            // the panel was first created (e.g. user entered character select),
+            // so a re-populate gives the icons a chance to appear even if they
+            // were missing on first build.
+            if (panel._characterDropdown != null)
+            {
+                var savedMode = ModConfig.CurrentFilter.CharacterFilterMode ?? "auto";
+                var savedIdx = Array.IndexOf(_characterModes, savedMode);
+                PopulateCharacterDropdown(panel._characterDropdown);
+                panel._characterDropdown.Selected = savedIdx >= 0 ? savedIdx : 0;
+            }
+
             panel.Visible = true;
             panel.UpdateSampleSizeLabel();
         }

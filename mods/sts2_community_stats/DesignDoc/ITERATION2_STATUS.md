@@ -1,23 +1,35 @@
 # 第二轮迭代 — 进度与上下文
 
-> 最后更新：2026-04-12（**Round 13 贡献归因深度调试 + UI 改进 + 全量回归测试**）
+> 最后更新：2026-04-14（**Round 14 v5 — 贡献归因深度修复 + 服务端部署上线 + 跨客户端测试包发布**）
 > 此文件供跨设备会话使用，确保新会话能完整理解当前状态
 
 ---
 
 ## 当前位置
 
-**工作流阶段**：**Round 13 — 测试覆盖扩展 + 贡献归因系统重构**。全量回归 274/388 PASS，55 FAIL 待修（block FIFO + modifier 追踪），UI 面板改进已完成。
+**工作流阶段**：**Round 14 v5 — 服务端部署完成 + 客户端归因系统对齐**。VPS 已上线（statsthespire.duckdns.org），68 个历史 run 已成功导入 + 203 条贡献条目入库；客户端打包送测；当前正在调试 client 端"主菜单看不到社区数据"的最后一公里 UX 漏洞。
 
-**v0.12.0 发布产物**：
-- 仓库根 `./stats_the_spire/` — 可直接拷到游戏 `mods/` 目录的完整运行文件夹
-- 包含：manifest.json / config.json / sts2_community_stats.dll / README.md / test/test_data.json
-- 已 git push 到 origin/master
+**v0.12.0 测试包**：
+- `Sts2-mod-decompiled/dist/stats-the-spire-v0.12.0-test-20260414.zip`（322 KB）
+- 包含：manifest.json / config.json（指向生产 API）/ sts2_community_stats.dll / pdb / README.md / CHANGELOG.md
+- config.json 默认指向 `https://statsthespire.duckdns.org/v1`
+- 已发送给测试小组
+
+**服务端**：
+- VPS：Vultr Ubuntu 24.04（IP `64.176.85.164`）
+- 域名：`statsthespire.duckdns.org`（DuckDNS 免费）
+- HTTPS：Let's Encrypt（standalone）
+- 部署目录：`/opt/sts2stats/`
+- 5 个 Docker 容器全部 healthy（api / db / redis / nginx / certbot）
+- DB schema 已 apply 完整 migration 链（001/002/003_combo/003_defense/004/005）
 
 **下次开机第一件事**：
-1. 读本文件 §"Round 13" + "跨设备交接快照" 了解当前状态
-2. 继续修复 55 个 FAIL（EffectiveBlock=0 / ModifierDamage=0 / Power hook 归因=0）
-3. 核心问题：恢复 ResolveSource 为 card-first 后，power/relic hook 的 SYNC 效果（FeelNoPain block、Juggernaut damage）在 Harmony postfix 清除 context 前应该完成，但全量回归中返回 0——需要调查根因
+1. 读本文件 §"Round 14 v5"（本节最末）了解服务端部署 + 客户端 fix 全貌
+2. 核对未完成项：
+   - 客户端"主菜单 F9 看不到数据"——`OnFilterChangedAsync` 在 `resolvedChar=null` 时回退到 `EnsureTestDataLoaded()` 而不是用 `"all"` 走 API（待修）
+   - UI 重叠：`HistoryImporter._progressLabel` 和 `UploadNotice._label` 共占右上角同一坐标（待修）
+   - `contributions` 表只有 `card/relic/potion`，无 `power`——历史数据是用旧 DLL 上传的，新打的 run 应当包含 power（未验证）
+3. 服务端运维快查：`ssh root@64.176.85.164 → cd /opt/sts2stats → docker compose ps / logs -f api`
 
 **v0.12.0 验收完成的功能**（详见 [CHANGELOG.md](../CHANGELOG.md)）：
 1. 个人生涯统计（百科大全 → 角色数据）— 8 大区块全部对齐游戏原生 UI 风格
@@ -469,3 +481,209 @@ PASS 的包括：所有角色的 DirectDamage 攻击测试、CardsDrawn、Energy
   6. 报告变更总览
 - 用户重启游戏 → 测试 → 下一轮反馈
 - 文档跨设备衔接：本文件 + PRD_04_ITERATION2.md + memory/MEMORY.md
+
+---
+
+## Round 14 v5 — 贡献归因深度修复 + 服务端部署上线（2026-04-13 ~ 2026-04-14）
+
+本轮跨度极长，覆盖三大块工作：(A) 测试驱动的归因系统全面修复，(B) 服务端 VPS 上线 + Schema 对齐，(C) 客户端测试包发布 + 端到端验证。
+
+### A. 测试驱动的归因系统修复（Round 14 v1-v5）
+
+#### 起点：伪 PASS 审计
+
+第三轮 F10 回归 433/316 PASS / 39 FAIL / 78 skip 后，用户提醒"PASS 数字可能虚高"。
+启动**伪 PASS 审计**，扫描 4 类（角色机制 / Power 施加类 / debuff 施加类 / 复杂交互）共 ~230 个 PASS 测试，按以下 3 类标准筛查：
+- **A 类硬伪 PASS**：断言完全不读 `delta[X].Field`，只检查 `power.Amount` / `Passed=true` / 游戏状态
+- **B 类触发链断裂**：断言 `delta[X].Field` 但下游事件未触发（典型：Doom 致死路径从未被任何测试触发过！）
+- **C 类弱断言**：能精确算出却用 `>0`，或 spec-waiver 应升级
+
+**结果**：发现 **66 条伪 PASS**（49 A + 6 B + 11 C），账面 PASS 数应从 330 降到 281（真实覆盖 ~76%）。
+审计报告：`mods/sts2_contrib_tests/AUDIT_PSEUDO_PASS_R14.md`
+
+最严重集中区：
+1. `Catalog_NecrobinderDoomTests.cs` 9 条中 6 条 A 类（67%）
+2. `Catalog_NecrobinderCardTests2.cs` 26 条中 15 条 A 类（58%）
+3. `Catalog_PowerContribTests.cs` 22 条 PASS 中 14 条 A 类
+4. `Catalog_NecrobinderCardTests.cs` 7 条中 3 条 A 类
+5. `Catalog_SilentCardTests.cs` 27 条中 4 条 A 类
+6. `Catalog_IroncladCardTests2.cs` 21 条中 2 条 A 类（Rupture / Barricade）
+
+**跨设备关键点**：Doom 致死归因链路（`OnDoomKillsCompleted → AttributedDamage`）从未被任何测试覆盖过，是个真正的盲区。
+
+#### 重写 46 条伪 PASS（3 个并行 agent）
+
+- **Necrobinder 25 条**：Doom 系 9 条全重写（新增 `LowerEnemyHp` helper 用 `CreatureCmd.SetCurrentHp` 直接降 HP），非 Osty 16 条按下游触发链重写
+- **PowerContribTests 14 条 smoke 段**：CAT-PWR-032 ~ -052 全部从 `Power.Amount==N` 换成真断言或 SPEC-WAIVER + TimesPlayed
+- **Silent/Ironclad 7 条**：GrandFinale / WraithForm / Burst / Rupture 走真断言，InfiniteBlades / WellLaidPlans / Barricade SPEC-WAIVER
+
+**TestRunner 重排**：`Catalog_NecrobinderDoomTests.All` 移到 `BuildScenarioList()` **末尾 tail 组**——Doom 测试故意致死敌人，放最后避免污染其他测试的战斗环境。
+
+#### 6 个产品代码核心 fix
+
+| Fix | 位置 | 内容 |
+|---|---|---|
+| **Fix 1** | `CombatTracker.ForceResetAllContext` | 测试间状态污染：除 `_active*` 外，新增清 `ContributionMap.Instance.Clear()` + 所有 `_pending*` |
+| **Fix 2** | `CombatTracker.OnBlockGained` | Footwork/Dex 双记修复：pool 只加 `amount - modifierTotal`，与伤害路径对称 |
+| **Fix 3** | `CombatTracker.ResolveSource` 优先级 | `power > card`（首次）：FeelNoPain/Juggernaut/Grapple 等 7 个 power-hook-during-card-play 立即转绿 |
+| **Fix 3.6** | 同上 + 4 处分散调用点 | 扩展为 `power > relic > potion > card`：CharonsAshes/ForgottenSoul/Kusarigama/Nunchaku 等 18+ 遗物受益 |
+| **Fix 4** | `ContributionMap.BlockEntry` + `ConsumeBlockDetailed` | Block pool 携带 modifier 列表，按累积比例分配 EffectiveBlock/ModifierBlock，**只在消耗时累计**（修 Footwork/Dex 药水显示时机问题）|
+| **Fix 5a** | `OnPowerApplied` | `isPlayerTarget && intAmount > 0` 才写全局 `_powerSources`（防 Friendship -2 Str 污染 Str 分配）|
+| **Fix 5b** | 新 patch `Hook.AfterEnergyReset` | Demesne/Friendship 能量归因：不再 patch `ModifyMaxEnergy`（属性 getter，每次读都触发被放大数倍），改为每回合一次性遍历 `player.Powers` |
+| **Fix 6** | 新增 `_pendingUpgrade*` AsyncLocal 字段 + 调整 `OnDamageDealt`/`OnBlockGained` 写入 | Armaments 升级贡献归因：原本 `UpgradeDamage` 写到了被升级的卡（STRIKE_IRONCLAD），现在正确写到升级源（ARMAMENTS）|
+
+#### 新增/补缺的 Power hook patch（共 14 个）
+
+之前缺失：DemonForm.AfterSideTurnStart / Rupture.AfterDamageReceived + AfterCardPlayed / RollingBoulder.DoDamage（私有方法绕过 Godot 信号 EC 边界）
+
+P0 §2 review 补齐：Enrage / Galvanic / Juggling / PrepTime / Mayhem / Stratagem / Radiance / EnergyNextTurn / Burst / EchoForm / MasterPlanner
+
+#### Round 14 v5 review 审计后追加修复
+
+| § | 文件 | 改动 |
+|---|---|---|
+| **§1** | `LocalCostModifierSourceTagPatch` / `EnergyCostSetterTagPatch` | 改为 `power > relic > potion > card` 优先级，对齐 Fix 3.6 |
+| **§5** | `Hook.AfterEnergyReset` patch | 加 `PyrePower` 分支（之前只识别 Demesne / Friendship）|
+| **§7** | `RecordPowerSource` / `RecordPlayerBuffSource` | 内部 `if (amount < 0) return` 纵深防御 |
+| **§8** | `_pendingUpgrade*` 4 字段 → AsyncLocal | 防御 EchoForm/Mayhem 嵌套播放 |
+| **§9** | `OnCardPlayFinished` | 显式清 `_pendingUpgrade*`（最小惊讶原则）|
+| **§11** | 死代码删除 | `DecomposeWeakContribution`（~60 行）+ `ContributionMap.ConsumeBlock` legacy API |
+| **§12** | `MergeFrom` | 补 `OriginSourceId` 传递 |
+| **§12** | `HardenedShellPower.ModifyHpLostBeforeOstyLate` | 新 patch（同 Buffer/Intangible 模式），新 helper `OnHardenedShellMitigation` |
+
+### B. 服务端部署上线
+
+#### 部署流程踩坑回顾（按发生顺序）
+
+1. **scp 失败**：`scp -r "D:/game_backup/..."` 被解释为 `host=D, path=...`。Windows 盘符 `:` 与 scp 语法冲突。**正确方式**：Git Bash 用 `/d/` 路径，或直接用 git clone（推荐）
+2. **GitHub 不再支持密码登录**：HTTPS clone 必须用 Personal Access Token（PAT）。修复后 `git clone https://github.com/reddots1453/sts2-mod-decompiled.git`
+3. **`apt: docker-compose-plugin not found`**：Ubuntu 24.04 默认源没这包，必须先添加 Docker 官方 APT 源。**已修 setup_server.sh**：先装前置依赖 + 清理 legacy docker → 添加官方 GPG key + sources.list.d → install `docker-ce` 全套
+4. **UFW 拦 80/443**：默认只开 22。`ufw allow 80/tcp 443/tcp` 解决
+5. **DuckDNS CAA 查询 SERVFAIL**：DuckDNS 的 NS 间歇性故障，Let's Encrypt 拒绝签发。重试几次后自愈，证书 OK（90 天有效）
+6. **`cannot load certificate`**：宿主机 certbot 写入 `/etc/letsencrypt`，但 Docker nginx 容器挂载的是 named volume `sts2stats_certbot-certs`，两者完全不通。修复：`cp -a /etc/letsencrypt/. $VOL_PATH/`（**长期 fix 待办**：改 docker-compose.yml 的 nginx volume 为 bind mount + renewal hook）
+7. **502 Bad Gateway**：nginx `default.conf` 写的是 `server 127.0.0.1:8080`（容器自己 loopback），应该是 `server api:8080`（Compose 服务名 + 容器内部端口）。**已修 nginx/default.conf** 并提交
+8. **DB schema 缺失**：docker-compose.yml 只挂载了 `001_init.sql` + `002_run_hash.sql`，缺 `003_combo_events / 003_defense_fields / 004_final_deck_and_shop_offerings / 005_contribution_v5_fields`。`/docker-entrypoint-initdb.d/*` 只在 pgdata 空时跑——已初始化的 DB 必须手动 apply。**已修 docker-compose.yml** 挂载完整 migration 集
+9. **客户端/服务端 schema 严重不对齐**：客户端 `ContributionUpload` 有 6 个新字段（`modifier_damage` / `modifier_block` / `self_damage` / `upgrade_damage` / `upgrade_block` / `origin_source_id`），服务端完全没有；服务端 `source_type` 正则 `^(card|relic|potion)$` 拒绝客户端实际产生的 `power` / `untracked` 等。**新建 `005_contribution_v5_fields.sql`**：扩 `source_type → VARCHAR(16)` + 加 6 列；**修 models.py**：放宽正则改用 `clamp_source_type` validator；**修 ingest.py**：INSERT 加 6 列；**修客户端 `IsUploadableSourceType`**：去白名单只拒空字符串
+
+#### Schema migration 应用结果（VPS 上手动 apply）
+
+| Migration | 结果 |
+|---|---|
+| 003_combo_events.sql | ALTER TABLE + 2× CREATE INDEX ✓ |
+| 003_defense_fields.sql | 3 列 already exists（幂等）+ 1 个良性 ERROR（`block_gained does not exist` 是数据回填路径，新 schema 无此列）|
+| 004_final_deck_and_shop_offerings.sql | BEGIN / 2× CREATE TABLE / 2× CREATE INDEX / COMMIT ✓ |
+| **005_contribution_v5_fields.sql** | 2× ALTER TABLE（source_type 扩宽 + 加 6 列）✓ |
+
+最终 DB 13 张表，contributions 列齐全：source_type(16) + 原 14 列 + 新 6 列。
+
+#### VPS 端到端验证
+
+- `curl https://statsthespire.duckdns.org/health` → `{"status":"healthy","db":"ok","redis":"ok"}` ✅
+- 历史导入：68 个 run 全部 `POST /v1/runs HTTP/1.1 200 OK` ingested（IRONCLAD 54 + SILENT 9 + REGENT 3 + NECROBINDER 2）
+- contributions 表：179 card + 21 relic + 3 potion = 203 条
+- ⚠️ **没有 power source_type 条目**——因为历史 run 是用**旧 DLL** 收集的 contributions，那时 `IsUploadableSourceType` 还在过滤 power。新打的 run 应当包含 power（未验证）
+
+### C. 客户端 UI 改进 + 测试包发布
+
+#### UI 改动
+
+| 文件 | 改动 |
+|---|---|
+| `ContributionPanel.cs` | BgColor alpha `0.82 → 0.70`（更透明）|
+| `ContributionChart.cs:GetLocalizedName` | 新增 `FORGE:*` 前缀识别：`FORGE:BASE` → "基础锻造"，`FORGE:FURNACE` → "熔炉加成"，`FORGE:BULWARK` → "铸墙加成"，未知 variant 兜底用 `<variant>_POWER.title` 走游戏 LocString |
+| `Localization.cs` | 新增 `source.forge_*` 4 键 + `settings.section_basic` 1 键 |
+| `FilterPanel.cs:123` | F9 第二行 section header 从 `settings.title`（"Stats the Spire — 设置"）改为 `settings.section_basic`（"基础设置"）|
+| **`FilterPanel.cs:PopulateCharacterDropdown`** | 加 `dropdown.Clear()` 使方法可重复调用 |
+| **`FilterPanel.cs:TryGetCharIcon`** | 双层加载：PreloadManager 缓存 → ResourceLoader.Load 兜底（直接从 `res://images/ui/top_panel/character_icon_*.png`），解决 F9 在主菜单打开时角色图标不显示的问题 |
+| **`FilterPanel.cs:Toggle`** | 每次显示面板时调用 `PopulateCharacterDropdown` 重建 dropdown，让 PreloadManager 后续缓存的图标也能显示 |
+
+#### 测试包构建
+
+- 路径：`Sts2-mod-decompiled/dist/stats-the-spire-v0.12.0-test-20260414.zip`（322 KB）
+- 内含：`sts2_community_stats/` 目录，包含 manifest.json / config.json（指向生产 API）/ DLL / pdb / README.md / CHANGELOG.md
+- `config.json` 关键预设：`api_base_url=https://statsthespire.duckdns.org/v1`、`enable_upload=true`、`history_import_completed=false`（让测试者首次启动看到导入对话框）、所有 8 个 feature_toggles=true
+- `.gitignore` 加 `dist/`
+- 已发送测试小组
+
+### D. 客户端数据加载诊断（未完待续）
+
+**症状**：测试者反馈"客户端看不到任何服务端发送的数据"——卡牌库悬浮显示"加载中..."、F9 设置面板显示"未加载数据"，但服务端日志显示 `GET /v1/stats/bulk` 200 OK。
+
+**Game log 诊断**（`%APPDATA%\SlayTheSpire2\logs\godot*.log`）：
+
+```
+[INFO] [DIAG:StatsProvider] Loaded bundled test data at init: 37 cards, 16 relics, 7 events
+[INFO] [DIAG:Preload] Starting preload for character=IRONCLAD, ApiBaseUrl=https://statsthespire.duckdns.org/v1
+[INFO] [DIAG:Preload] GetBulkStatsAsync returned: non-null
+[INFO] Preloaded bulk stats for IRONCLAD (0 cards, 0 relics, 0 events, 0 encounters)  ← 空 bundle!
+[WARN] Asset not cached: res://images/ui/top_panel/character_icon_ironclad.png  ← 图标缓存确实不存在
+[INFO] [DIAG:OnFilterApplied] resolvedChar=, GameVersion=, effectiveVer=v0.99.1  ← 主菜单 resolvedChar 为空!
+```
+
+**两个并行根因**：
+
+1. **历史 preload 返回空 bundle**：5 次都是 `(0 cards, 0 relics, 0 events, 0 encounters)`。这些 preload 都发生在 migrations apply 之前，服务端 `aggregation.py:132 FROM final_deck` 表不存在 → SQL UndefinedTable 错 → 聚合函数返回空 dict → bundle 空。**已修服务端 schema**，待客户端开新 run 触发新 preload 验证。
+
+2. **主菜单 `resolvedChar=null` 走 fallback 分支**：`OnFilterChangedAsync(character, ...)` 当 `character==null` 时调 `EnsureTestDataLoaded()`（只读本地 test_data.json 37 cards）而非走 API。这是个 **UX 漏洞**——用户在主菜单 F9 选了"所有角色"应该立即调 API，不应该退化到测试数据。**待修**：
+
+   ```csharp
+   var charForApi = character ?? (newFilter.CharacterFilterMode == "all" ? "all" : null);
+   if (charForApi != null) await PreloadForRunAsync(charForApi, newFilter);
+   else EnsureTestDataLoaded();
+   ```
+
+#### 服务端 API 日志直接验证
+
+```bash
+ssh root@64.176.85.164
+cd /opt/sts2stats
+docker compose logs -f api          # 实时观察上传/查询
+docker compose exec -T db psql -U sts2stats -d sts2stats -c "\dt"
+docker compose exec -T db psql -U sts2stats -d sts2stats -c "SELECT character, COUNT(*) FROM runs GROUP BY character;"
+docker compose exec -T db psql -U sts2stats -d sts2stats -c "SELECT source_type, COUNT(*) FROM contributions GROUP BY source_type;"
+```
+
+### E. SSH 工作流踩坑
+
+- **TUN 模式拦截 SSH**：用户用 Clash Verge 开 TUN，所有 TCP 经过 TUN 用户态栈，DIRECT 规则也无效（Clash TUN 对 SSH 协议有 bug）。Bash tool 发起的 SSH 也被同样拦截
+- **临时方案**：用户在 PowerShell 关 TUN 后执行 `ssh-copy-id` 等价命令安装 SSH key，然后 TUN 关闭情况下做诊断；TUN 开启时**已建立**的 SSH 会话仍可用
+- **Bash tool 通过 SSH 直连**：通过 `ssh-copy-id` 后 Bash tool 可以无密码 SSH，但 TUN 开启时仍会被拦——所以对话期间用户开 TUN 时仍走"复制粘贴"模式
+
+### F. Round 14 v5 已提交 commit 列表（按时间倒序）
+
+```
+4fbadff  Round 14 v5 修复: 贡献上传 schema 客户端/服务端对齐 + F9 设置重命名 + 生产 API URL
+633fe07  nginx upstream 修复: 127.0.0.1:8080 → api:8080
+ee047b8  服务端部署修复: Docker 官方 APT 源 + VPS 工作流澄清
+b25f075  Merge remote-tracking branch 'origin/服务端部署'
+cf61230  Round 14 v5: 贡献归因系统全面修复 + 测试扩展 + 伪PASS审计重写
+```
+
+### Round 14 v5 未完成 / 待办清单
+
+| # | 项目 | 优先级 | 备注 |
+|---|---|---|---|
+| 1 | **客户端"主菜单 F9 看不到数据"UX 漏洞** | P0 | 见 §D.2 修复方案 |
+| 2 | **UI 重叠**：HistoryImporter `_progressLabel` 和 UploadNotice `_label` 占同一坐标 | P0 | 推荐方案：历史导入期间静默 UploadNotice，且把 UploadNotice 错开 25px |
+| 3 | **新打 run 是否包含 power source_type 验证** | P0 | 进一局新 run 后 `SELECT source_type, COUNT(*) FROM contributions` |
+| 4 | **图标修复实测验证** | P1 | 重启游戏 → F9 → dropdown 应有头像 |
+| 5 | **重新打包测试 dll** | P1 | 等 §1 / §2 修完后 |
+| 6 | **VPS 长期 fix**：docker-compose.yml nginx 卷挂载改为 bind mount + 加 certbot deploy hook 自动 reload nginx | P2 | 60-90 天证书续期前修，否则证书续期后容器还在用旧证书 |
+| 7 | **DuckDNS → 真域名**（Cloudflare `.xyz` ¥10/年） | P2 | 长期稳定性 |
+| 8 | **fail2ban 把本机 IP 加白名单** | P3 | 防止 Bash tool 多次 SSH 探测被误封 |
+
+### 服务端运维快查表
+
+| 操作 | 命令 |
+|---|---|
+| SSH 进 VPS | `ssh root@64.176.85.164` |
+| 切到部署目录 | `cd /opt/sts2stats` |
+| 查所有容器状态 | `docker compose ps` |
+| 看 API 实时日志 | `docker compose logs -f api` |
+| 看 nginx 日志 | `docker compose logs --tail 50 nginx` |
+| 进数据库 shell | `docker compose exec -T db psql -U sts2stats -d sts2stats` |
+| Flush Redis 缓存 | `docker compose exec -T redis redis-cli FLUSHALL` |
+| 重启 API 容器 | `docker compose restart api` |
+| 拉最新代码 + 同步 server/ | `cd ~/sts2-mod-decompiled && git pull && cp -r mods/sts2_community_stats/server/. /opt/sts2stats/` |
+| Apply 新 SQL migration | `docker compose exec -T db psql -U sts2stats -d sts2stats < /opt/sts2stats/sql/<file>.sql` |
+| 续证书（手动） | `docker compose stop nginx && certbot certonly --standalone -d statsthespire.duckdns.org --non-interactive --agree-tos -m 你@qq.com && docker compose up -d nginx` |
