@@ -135,13 +135,21 @@ public sealed class RunContributionAggregator
         }).ToList();
     }
 
-    // Server-side ContributionUpload only accepts source_type ∈
-    // {card, relic, potion}. Local tracking also uses event/rest/merchant/
-    // floor_regen as fallbacks for non-card heal/block sources, but those
-    // are only meaningful in the local Run History view — uploading them
-    // would 422 the entire run. Filter at the upload boundary.
+    // Round 14 v5: server-side ContributionUpload now accepts the full set
+    // of source_types emitted by CombatTracker.ResolveSource. Previously this
+    // filter dropped all "power" entries (Round 14 v5 DemonForm / FeelNoPain /
+    // Juggernaut / Enrage / ... hook attributions), causing massive data loss.
+    // Server migration 005 widened the column to VARCHAR(16) and Pydantic
+    // clamps unknown types to "untracked" rather than rejecting the payload.
+    //
+    // Whitelisted types (matches server models.py clamp_source_type):
+    //   card / relic / potion / power / untracked / orb / event / rest /
+    //   merchant / floor_regen
+    //
+    // Kept as a client-side sanity guard so obviously bogus entries don't
+    // hit the network.
     private static bool IsUploadableSourceType(string t)
-        => t == "card" || t == "relic" || t == "potion";
+        => !string.IsNullOrEmpty(t);
 
     public List<ContributionUpload> BuildContributionUploads()
     {

@@ -38,6 +38,7 @@ public static class L
 
         // FilterPanel / Settings
         ["settings.title"] = "Stats the Spire — Settings",
+        ["settings.section_basic"] = "Basic Settings",
         ["settings.auto_asc"] = "Auto-match my Ascension",
         ["settings.min_asc"] = "Min Ascension:",
         ["settings.max_asc"] = "Max Ascension:",
@@ -325,6 +326,7 @@ public static class L
 
         // FilterPanel / Settings
         ["settings.title"] = "Stats the Spire — 设置",
+        ["settings.section_basic"] = "基础设置",
         ["settings.auto_asc"] = "自动匹配我的进阶",
         ["settings.min_asc"] = "最低进阶:",
         ["settings.max_asc"] = "最高进阶:",

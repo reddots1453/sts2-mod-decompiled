@@ -105,7 +105,10 @@ public class EncounterUpload
 public class ContributionUpload
 {
     [JsonPropertyName("source_id")]          public string SourceId { get; set; } = "";
-    [JsonPropertyName("source_type")]        public string SourceType { get; set; } = "";  // "card"|"relic"
+    // Round 14 v5: full set of source_type values emitted by CombatTracker.ResolveSource.
+    // Accepted by server migration 005 + models.py clamp_source_type.
+    //   card | relic | potion | power | untracked | orb | event | rest | merchant | floor_regen
+    [JsonPropertyName("source_type")]        public string SourceType { get; set; } = "";
     [JsonPropertyName("encounter_id")]       public string? EncounterId { get; set; }       // null = run aggregate
     [JsonPropertyName("times_played")]       public int TimesPlayed { get; set; }
     [JsonPropertyName("direct_damage")]      public int DirectDamage { get; set; }

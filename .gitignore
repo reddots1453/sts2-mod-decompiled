@@ -59,3 +59,4 @@ mods/**/test/uploaded_runs.json
 
 # ── Godot ignores ───────────────────────────────────────────
 .godot/
+dist/

@@ -35,8 +35,16 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD:-changeme}"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Schema + migrations (alphabetical order = apply order on first init).
+      # NOTE: /docker-entrypoint-initdb.d/* only runs when pgdata is empty.
+      # For existing DBs, apply new migrations manually:
+      #   docker compose exec -T db psql -U sts2stats -d sts2stats -f /docker-entrypoint-initdb.d/<file>.sql
       - ./sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
       - ./sql/002_run_hash.sql:/docker-entrypoint-initdb.d/002_run_hash.sql:ro
+      - ./sql/003_combo_events.sql:/docker-entrypoint-initdb.d/003_combo_events.sql:ro
+      - ./sql/003_defense_fields.sql:/docker-entrypoint-initdb.d/003_defense_fields.sql:ro
+      - ./sql/004_final_deck_and_shop_offerings.sql:/docker-entrypoint-initdb.d/004_final_deck_and_shop_offerings.sql:ro
+      - ./sql/005_contribution_v5_fields.sql:/docker-entrypoint-initdb.d/005_contribution_v5_fields.sql:ro
     ports:
       - "127.0.0.1:5432:5432"   # Only expose to localhost
     healthcheck:

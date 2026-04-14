@@ -165,6 +165,8 @@ async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
                 )
 
             # ── Contributions ────────────────────────────────
+            # Round 14 v5: added modifier_damage/modifier_block/self_damage/
+            # upgrade_damage/upgrade_block/origin_source_id columns (migration 005).
             if payload.contributions:
                 await conn.executemany(
                     """INSERT INTO contributions
@@ -173,8 +175,10 @@ async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
                         times_played, direct_damage, attributed_damage,
                         effective_block, mitigated_by_debuff, mitigated_by_buff,
                         cards_drawn, energy_gained, hp_healed,
-                        stars_contribution, mitigated_by_str)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)""",
+                        stars_contribution, mitigated_by_str,
+                        modifier_damage, modifier_block, self_damage,
+                        upgrade_damage, upgrade_block, origin_source_id)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)""",
                     [
                         (run_id, payload.game_version, payload.character,
                          payload.ascension, c.source_id, c.source_type,
@@ -182,7 +186,9 @@ async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
                          c.attributed_damage, c.effective_block,
                          c.mitigated_by_debuff, c.mitigated_by_buff,
                          c.cards_drawn, c.energy_gained, c.hp_healed,
-                         c.stars_contribution, c.mitigated_by_str)
+                         c.stars_contribution, c.mitigated_by_str,
+                         c.modifier_damage, c.modifier_block, c.self_damage,
+                         c.upgrade_damage, c.upgrade_block, c.origin_source_id)
                         for c in payload.contributions
                     ],
                 )

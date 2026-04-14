@@ -1,5 +1,5 @@
 {
-  "api_base_url": "http://localhost:5080/v1",
+  "api_base_url": "https://statsthespire.duckdns.org/v1",
   "query_timeout_ms": 10000,
   "upload_timeout_ms": 30000
 }

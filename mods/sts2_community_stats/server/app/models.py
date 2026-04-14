@@ -61,7 +61,12 @@ class EncounterUpload(BaseModel):
 
 class ContributionUpload(BaseModel):
     source_id: str = Field(..., max_length=64)
-    source_type: str = Field(..., pattern=r"^(card|relic|potion)$")
+    # Round 14 v5: widened from {card|relic|potion} to accept power/untracked/
+    # orb/event/rest/merchant/floor_regen produced by CombatTracker.ResolveSource.
+    # The ".well-known" set here mirrors all types emitted by the client; unknown
+    # types coming from future client versions will be clamped to "card" at the
+    # ingest layer (not rejected) to keep forward compat.
+    source_type: str = Field(..., max_length=16)
     encounter_id: str | None = None
     times_played: int = Field(0, ge=0)
     direct_damage: int = Field(0, ge=0)
@@ -74,6 +79,22 @@ class ContributionUpload(BaseModel):
     hp_healed: int = Field(0, ge=0)
     stars_contribution: int = Field(0, ge=0)
     mitigated_by_str: int = Field(0, ge=0)
+    # Round 14 v5 fields: modifier / upgrade / self-damage / sub-bar parent.
+    modifier_damage: int = Field(0, ge=0)
+    modifier_block: int = Field(0, ge=0)
+    self_damage: int = Field(0, ge=0)
+    upgrade_damage: int = Field(0, ge=0)
+    upgrade_block: int = Field(0, ge=0)
+    origin_source_id: str | None = Field(None, max_length=64)
+
+    @field_validator("source_type")
+    @classmethod
+    def clamp_source_type(cls, v: str) -> str:
+        # Known values emitted by the client. Anything else falls back to
+        # "untracked" rather than rejecting the whole payload.
+        known = {"card", "relic", "potion", "power", "untracked",
+                 "orb", "event", "rest", "merchant", "floor_regen"}
+        return v if v in known else "untracked"
 
 
 class RunUploadPayload(BaseModel):

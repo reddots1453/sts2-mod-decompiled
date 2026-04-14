@@ -119,8 +119,8 @@ public partial class FilterPanel : PanelContainer
         body.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         scroll.AddChild(body);
 
-        // ── Section: 数据来源 ────────────────────────────────
-        body.AddChild(MakeSectionHeader(L.Get("settings.title")));
+        // ── Section: 基础设置 ────────────────────────────────
+        body.AddChild(MakeSectionHeader(L.Get("settings.section_basic")));
         var dataGrid = NewRowGrid();
         body.AddChild(dataGrid);
 
