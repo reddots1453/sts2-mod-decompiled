@@ -133,7 +133,9 @@ public static class Catalog_PotionTests
 
             var delta = ctx.GetDelta();
             delta.TryGetValue("BLOOD_POTION", out var d);
-            ctx.AssertGreaterThan(result, "BLOOD_POTION.HpHealed", 0, d?.HpHealed ?? 0);
+            // BloodPotion heals 20% of MaxHp, clamped to the current wound.
+            // Runner's MaxHp grant (9999) * 20% ≫ wound of 50, so HpHealed == 50 exactly.
+            ctx.AssertEquals(result, "BLOOD_POTION.HpHealed", 50, d?.HpHealed ?? 0);
             return result;
         }
     }
@@ -216,12 +218,13 @@ public static class Catalog_PotionTests
             ctx.TakeSnapshot();
             await ctx.UsePotion<WeakPotion>(target: enemy);
 
-            // Enemy should now have WeakPower; we just verify the potion entry exists.
+            // SPEC-WAIVER: WeakPotion's only contribution path is MitigatedByDebuff on a
+            // subsequent enemy attack, which is enemy-intent dependent and non-deterministic
+            // in this harness. Verify power application as a stand-in.
             var weak = enemy.GetPower<WeakPower>();
-            if (weak != null && weak.Amount >= 3)
-                result.Pass("WeakPower.Amount", weak.Amount.ToString());
-            else
-                result.Fail("WeakPower.Amount", "≥3", weak?.Amount.ToString() ?? "null");
+            int weakAmt = weak?.Amount ?? 0;
+            ctx.AssertEquals(result, "WeakPower.Amount (from WeakPotion)", 3, weakAmt);
+            result.ActualValues["WeakPower.Amount"] = weakAmt.ToString();
             return result;
         }
     }
@@ -242,26 +245,34 @@ public static class Catalog_PotionTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            try
+            {
+                await PowerCmd.Remove<RegenPower>(ctx.PlayerCreature);
 
-            // Open a wound so heal has somewhere to go.
-            await CreatureCmd.Damage(
-                new MegaCrit.Sts2.Core.GameActions.Multiplayer.BlockingPlayerChoiceContext(),
-                ctx.PlayerCreature, 30,
-                MegaCrit.Sts2.Core.ValueProps.ValueProp.Move,
-                ctx.PlayerCreature, null);
-            await Task.Delay(100);
+                // Open a wound so heal has somewhere to go.
+                await CreatureCmd.Damage(
+                    new MegaCrit.Sts2.Core.GameActions.Multiplayer.BlockingPlayerChoiceContext(),
+                    ctx.PlayerCreature, 30,
+                    MegaCrit.Sts2.Core.ValueProps.ValueProp.Move,
+                    ctx.PlayerCreature, null);
+                await Task.Delay(100);
 
-            ctx.TakeSnapshot();
-            await ctx.UsePotion<RegenPotion>();
-            await ctx.EndTurnAndWaitForPlayerTurn();
+                await ctx.UsePotion<RegenPotion>();
 
-            var delta = ctx.GetDelta();
-            delta.TryGetValue("REGEN_POTION", out var d);
-            // Smoke-level: report whatever value we observe but only fail on negative.
-            if (d != null && d.HpHealed > 0)
-                result.Pass("REGEN_POTION.HpHealed", d.HpHealed.ToString());
-            else
-                result.Fail("REGEN_POTION.HpHealed", ">0", d?.HpHealed.ToString() ?? "null");
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("REGEN_POTION", out var d);
+                // RegenPotion applies RegenPower(5); a single EndTurn ticks once → heal 5,
+                // clamped by the 30 HP wound opened above, so HpHealed == 5.
+                ctx.AssertEquals(result, "REGEN_POTION.HpHealed", 5, d?.HpHealed ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<RegenPower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }

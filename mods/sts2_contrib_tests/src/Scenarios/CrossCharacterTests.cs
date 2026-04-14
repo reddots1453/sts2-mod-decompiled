@@ -50,6 +50,7 @@ public static class CrossCharacterTests
             delta.TryGetValue("ZAP", out var zapDelta);
 
             int attrDmg = zapDelta?.AttributedDamage ?? 0;
+            // non-deterministic: Lightning evoke targets random enemy; damage may be absorbed by block
             ctx.AssertGreaterThan(result, "ZAP.AttributedDamage", 0, attrDmg);
 
             result.ActualValues["AttributedDamage"] = attrDmg.ToString();
@@ -87,10 +88,12 @@ public static class CrossCharacterTests
             await Task.Delay(300);
 
             var delta = ctx.GetDelta();
+            // SPEC-WAIVER: Focus + Lightning evoke — damage splits across ZAP + DEFRAGMENT sources
+            // and random target routing. Sum verifies evoke invariant.
             int totalDamage = 0;
             foreach (var (key, d) in delta)
                 totalDamage += d.TotalDamage;
-
+            // non-deterministic: Lightning evoke targets random enemy; may be blocked
             ctx.AssertGreaterThan(result, "TotalEvokeDamage", 0, totalDamage);
 
             result.ActualValues["TotalDamage"] = totalDamage.ToString();
@@ -134,7 +137,8 @@ public static class CrossCharacterTests
             delta.TryGetValue("SHIV", out var shivDelta);
 
             int shivDmg = shivDelta?.DirectDamage ?? 0;
-            ctx.AssertGreaterThan(result, "SHIV.DirectDamage", 0, shivDmg);
+            // KB: Shiv base damage = 4 (STS2)
+            ctx.AssertEquals(result, "SHIV.DirectDamage", 4, shivDmg);
 
             string? origin = shivDelta?.OriginSourceId;
             result.ActualValues["SHIV.OriginSourceId"] = origin ?? "(null)";
@@ -172,11 +176,14 @@ public static class CrossCharacterTests
 
             var delta = ctx.GetDelta();
 
+            // SPEC-WAIVER: Star contribution may be split HIDDEN_CACHE (immediate +1) and
+            // STAR_NEXT_TURN_POWER (next turn +3). Sum verifies immediate grant.
             int stars = 0;
             foreach (var (key, d) in delta)
                 stars += d.StarsContribution;
 
-            ctx.AssertGreaterThan(result, "Total.StarsContribution", 0, stars);
+            // KB: HiddenCache grants 1 star immediately
+            ctx.AssertEquals(result, "Total.StarsContribution", 1, stars);
             result.ActualValues["StarsContribution"] = stars.ToString();
 
             await PowerCmd.Remove<StarNextTurnPower>(ctx.PlayerCreature);

@@ -149,8 +149,8 @@ public static class ModifierDamageTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("DEFEND_IRONCLAD", out var defendDelta);
 
-            // Defend should have EffectiveBlock of 5 (base portion consumed)
-            // The Dex ModifierBlock of 2 should go to the dexterity source
+            // SPEC-WAIVER: Dex applied via ApplyPower directly (no card source), so ModifierBlock
+            // routes to DEXTERITY_POWER fallback id. Verify invariants via foreach sum.
             int totalEffective = 0;
             int totalModifierBlock = 0;
             foreach (var (key, d) in delta)
@@ -161,6 +161,7 @@ public static class ModifierDamageTests
 
             // Total effective block consumed should be 7 (all used)
             ctx.AssertEquals(result, "Total.EffectiveBlock", 7, totalEffective);
+            ctx.AssertEquals(result, "Total.ModifierBlock", 2, totalModifierBlock);
 
             result.ExpectedValues["ModifierBlock_detail"] = "2 from Dexterity";
             result.ActualValues["ModifierBlock_detail"] = totalModifierBlock.ToString();
@@ -220,8 +221,9 @@ public static class ModifierDamageTests
             int totalMod = bashMod + tcMod;
 
             ctx.AssertEquals(result, "TotalVulnModifier", 3, totalMod);
-            // FIFO: Bash (first applier) should have more of the modifier attribution
-            ctx.AssertGreaterThan(result, "BASH.ModifierDamage", 0, bashMod);
+            // FIFO: Bash applied 2 Vuln layers, Thunderclap 1, total 3 → split 2:1
+            ctx.AssertEquals(result, "BASH.ModifierDamage (FIFO 2/3)", 2, bashMod);
+            ctx.AssertEquals(result, "THUNDERCLAP.ModifierDamage (FIFO 1/3)", 1, tcMod);
 
             result.ExpectedValues["FIFO_detail"] = "Bash should get majority of vuln modifier";
             result.ActualValues["FIFO_detail"] = $"Bash={bashMod}, Thunderclap={tcMod}";
@@ -268,6 +270,8 @@ public static class ModifierDamageTests
             // Total damage should be ~18 (6 * 1.5 * 2)
             // DirectDamage = 6 (base)
             // ModifierDamage from various sources should sum to ~12
+            // SPEC-WAIVER: DoubleDamage + Vuln independent-zone test — ApplyPower sources route
+            // to fallback power ids, foreach-sum verifies total invariant
             int totalDamage = 0;
             int totalMod = 0;
             foreach (var (key, d) in delta)
@@ -276,10 +280,10 @@ public static class ModifierDamageTests
                 totalMod += d.ModifierDamage;
             }
 
-            // Total damage dealt should be around 18 (6 * 1.5 * 2)
-            ctx.AssertRange(result, "TotalDamageDealt", 17, 19, totalDamage);
-            // Modifiers should capture some of the bonus (exact split depends on formula)
-            ctx.AssertGreaterThan(result, "TotalModifierDamage", 0, totalMod);
+            // Strike 6 × 1.5 × 2 = 18
+            ctx.AssertEquals(result, "TotalDamageDealt", 18, totalDamage);
+            // Vuln contrib=3 (9-6), DoubleDamage contrib=9 (18-9), total modifier=12
+            ctx.AssertEquals(result, "TotalModifierDamage", 12, totalMod);
             // DirectDamage + ModifierDamage should equal TotalDamage (no data loss)
             int strikeDirect = strikeDelta?.DirectDamage ?? 0;
             ctx.AssertEquals(result, "Direct+Modifier=Total", totalDamage, strikeDirect + totalMod);

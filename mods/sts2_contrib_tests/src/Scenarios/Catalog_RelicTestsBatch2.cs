@@ -39,7 +39,7 @@ public static class Catalog_RelicTestsBatch2
 
         // §6 block
         new CAT_REL_Orichalcum_Block(),
-        new CAT_REL_RippleBasin_Block(),
+        // RippleBasin moved to TestRunner head (must run as combat's first action)
         new CAT_REL_CloakClasp_Block(),
         new CAT_REL_ToughBandages_Block(),
         new CAT_REL_CaptainsWheel_Block(),
@@ -203,7 +203,7 @@ public static class Catalog_RelicTestsBatch2
 
     // ── §6 Block: RippleBasin BeforeTurnEnd ───────────────────
 
-    private class CAT_REL_RippleBasin_Block : ITestScenario
+    internal class CAT_REL_RippleBasin_Block : ITestScenario
     {
         public string Id => "CAT-REL-RippleBasin";
         public string Name => "Catalog §6: RippleBasin BeforeTurnEnd → EffectiveBlock=4 to RIPPLE_BASIN";

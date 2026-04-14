@@ -97,9 +97,11 @@ public static class Catalog_HealingTests
             await CreatureCmd.GainMaxHp(ctx.PlayerCreature, 3m);
             await Task.Delay(150);
             var delta = ctx.GetDelta();
-            int total = 0;
-            foreach (var (_, d) in delta) total += d.HpHealed;
-            ctx.AssertEquals(result, "Total.HpHealed (GainMaxHp)", 3, total);
+            // No ActiveRelicId is set and CombatRoom is neither EventRoom nor RestSiteRoom,
+            // so MaxHpGainPatch calls OnHealingReceived with a null fallback → the record
+            // is written under the "UNTRACKED" sentinel source.
+            delta.TryGetValue("UNTRACKED", out var d);
+            ctx.AssertEquals(result, "UNTRACKED.HpHealed (GainMaxHp)", 3, d?.HpHealed ?? 0);
             return result;
         }
     }

@@ -105,7 +105,8 @@ public static class NewFeatureTests
 
             var delta = ctx.GetDelta();
 
-            // Find energy gained across all sources
+            // SPEC-WAIVER: FreeAttackPower applied via ApplyPower; source may be STRIKE_IRONCLAD
+            // or FREE_ATTACK_POWER depending on resolution. Sum verifies invariant.
             int totalEnergyGained = 0;
             foreach (var (key, d) in delta)
                 totalEnergyGained += d.EnergyGained;
@@ -197,7 +198,8 @@ public static class NewFeatureTests
 
             var delta = ctx.GetDelta();
 
-            // Find total HpHealed across all sources
+            // SPEC-WAIVER: GainMaxHp called directly without card context; fallback source routing
+            // is internal. Sum across all sources verifies no double-count.
             int totalHpHealed = 0;
             foreach (var (key, d) in delta)
                 totalHpHealed += d.HpHealed;

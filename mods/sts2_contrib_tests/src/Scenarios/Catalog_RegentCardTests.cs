@@ -323,6 +323,7 @@ public static class Catalog_RegentCardTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("FALLING_STAR", out var d);
             ctx.AssertEquals(result, "FALLING_STAR.DirectDamage", 7, d?.DirectDamage ?? 0);
+            // SPEC-WAIVER: debuff application smoke (Weak/Vuln contribution needs follow-up hit/attack)
             var weak = enemy.GetPower<WeakPower>();
             ctx.AssertEquals(result, "enemy.WeakPower", 1, weak?.Amount ?? 0);
             var vuln = enemy.GetPower<VulnerablePower>();
@@ -377,6 +378,7 @@ public static class Catalog_RegentCardTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("GAMMA_BLAST", out var d);
             ctx.AssertEquals(result, "GAMMA_BLAST.DirectDamage", 13, d?.DirectDamage ?? 0);
+            // SPEC-WAIVER: debuff application smoke (Weak/Vuln contribution needs follow-up hit/attack)
             var weak = enemy.GetPower<WeakPower>();
             ctx.AssertEquals(result, "enemy.WeakPower", 2, weak?.Amount ?? 0);
             var vuln = enemy.GetPower<VulnerablePower>();

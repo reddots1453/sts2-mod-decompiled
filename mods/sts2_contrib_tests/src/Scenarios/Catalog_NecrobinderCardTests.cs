@@ -134,10 +134,14 @@ public static class Catalog_NecrobinderCardTests
 
     // ── DevourLife: Power, sets up DevourLifePower ──────────
 
+    // DevourLife: "Whenever you play a Soul, Summon 1." Downstream summons don't
+    // map to any contribution field (no HpHealed, Damage, or Block on the
+    // generator card). Play DevourLife → play Soul → assert TimesPlayed tracked.
+    // SPEC-WAIVER: Summon is not a tracked contribution event.
     private class CAT_NEC_DevourLife : ITestScenario
     {
         public string Id => "CAT-NEC-DevourLife";
-        public string Name => "Catalog §14: DevourLife (Power) → DevourLifePower applied";
+        public string Name => "Catalog §14: DevourLife → play Soul → TimesPlayed=1";
         public string Category => "Catalog_Necrobinder";
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive;
 
@@ -147,18 +151,24 @@ public static class Catalog_NecrobinderCardTests
             try
             {
                 await PowerCmd.Remove<DevourLifePower>(ctx.PlayerCreature);
-                var card = await ctx.CreateCardInHand<DevourLife>();
-                await ctx.PlayCard(card);
+                await ctx.SetEnergy(999);
 
-                var pow = ctx.PlayerCreature.GetPower<DevourLifePower>();
-                if (pow != null && pow.Amount > 0)
-                    result.Pass("DevourLifePower.Amount", pow.Amount.ToString());
-                else
-                    result.Fail("DevourLifePower.Amount", ">0", pow?.Amount.ToString() ?? "null");
+                var devour = await ctx.CreateCardInHand<DevourLife>();
+                ctx.TakeSnapshot();
+                await ctx.PlayCard(devour);
+
+                var soul = await ctx.CreateCardInHand<Soul>();
+                await ctx.PlayCard(soul);
+
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("DEVOUR_LIFE", out var d);
+                ctx.AssertEquals(result, "DEVOUR_LIFE.TimesPlayed", 1, d?.TimesPlayed ?? 0);
+                // SPEC-WAIVER: Summon not a contribution event
             }
             finally
             {
                 await PowerCmd.Remove<DevourLifePower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
             }
             return result;
         }
@@ -166,10 +176,13 @@ public static class Catalog_NecrobinderCardTests
 
     // ── Pagestorm: Power applied ────────────────────────────
 
+    // Pagestorm: "Whenever you draw an Ethereal card, draw 1." Play Pagestorm →
+    // EndTurn → next turn draws the starting hand including any Ethereal cards
+    // → Pagestorm hook fires → CardsDrawn attributes to PAGESTORM.
     private class CAT_NEC_Pagestorm : ITestScenario
     {
         public string Id => "CAT-NEC-Pagestorm";
-        public string Name => "Catalog §2: Pagestorm (Power) → PagestormPower applied";
+        public string Name => "Catalog §2: Pagestorm → turn-start Ethereal draw → PAGESTORM.CardsDrawn>0";
         public string Category => "Catalog_Necrobinder";
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive;
 
@@ -179,18 +192,31 @@ public static class Catalog_NecrobinderCardTests
             try
             {
                 await PowerCmd.Remove<PagestormPower>(ctx.PlayerCreature);
+                await PowerCmd.Remove<NoDrawPower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
+
+                // Seed draw pile with Ethereal cards (Parse) so next turn's draw fires.
+                for (int i = 0; i < 3; i++)
+                {
+                    var ethereal = ctx.CombatState.CreateCard<Parse>(ctx.Player);
+                    await CardPileCmd.Add(ethereal, MegaCrit.Sts2.Core.Entities.Cards.PileType.Draw, skipVisuals: true);
+                }
+
                 var card = await ctx.CreateCardInHand<Pagestorm>();
                 await ctx.PlayCard(card);
 
-                var pow = ctx.PlayerCreature.GetPower<PagestormPower>();
-                if (pow != null && pow.Amount > 0)
-                    result.Pass("PagestormPower.Amount", pow.Amount.ToString());
-                else
-                    result.Fail("PagestormPower.Amount", ">0", pow?.Amount.ToString() ?? "null");
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("PAGESTORM", out var d);
+                ctx.AssertGreaterThan(result, "PAGESTORM.CardsDrawn", 0, d?.CardsDrawn ?? 0);
+                // non-deterministic: depends on which Ethereal cards are in starting draw
             }
             finally
             {
                 await PowerCmd.Remove<PagestormPower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
             }
             return result;
         }
@@ -198,12 +224,15 @@ public static class Catalog_NecrobinderCardTests
 
     // ── Haunt: Power applied ────────────────────────────────
 
+    // Haunt: "Whenever you play a Soul, a random enemy loses 6 HP."
+    // Play Haunt → play Soul → random enemy takes 6 HP-loss → AttributedDamage
+    // to HAUNT.
     private class CAT_NEC_Haunt : ITestScenario
     {
         public string Id => "CAT-NEC-Haunt";
-        public string Name => "Catalog §2: Haunt (Power) → HauntPower applied";
+        public string Name => "Catalog §2: Haunt → play Soul → HAUNT.AttributedDamage>0";
         public string Category => "Catalog_Necrobinder";
-        public bool CanRun(TestContext ctx) => ctx.IsCombatActive;
+        public bool CanRun(TestContext ctx) => ctx.IsCombatActive && ctx.GetAllEnemies().Count > 0;
 
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
@@ -211,18 +240,24 @@ public static class Catalog_NecrobinderCardTests
             try
             {
                 await PowerCmd.Remove<HauntPower>(ctx.PlayerCreature);
-                var card = await ctx.CreateCardInHand<Haunt>();
-                await ctx.PlayCard(card);
+                await ctx.ResetEnemyHp();
+                await ctx.SetEnergy(999);
 
-                var pow = ctx.PlayerCreature.GetPower<HauntPower>();
-                if (pow != null && pow.Amount > 0)
-                    result.Pass("HauntPower.Amount", pow.Amount.ToString());
-                else
-                    result.Fail("HauntPower.Amount", ">0", pow?.Amount.ToString() ?? "null");
+                var haunt = await ctx.CreateCardInHand<Haunt>();
+                await ctx.PlayCard(haunt);
+
+                ctx.TakeSnapshot();
+                var soul = await ctx.CreateCardInHand<Soul>();
+                await ctx.PlayCard(soul);
+
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("HAUNT", out var d);
+                ctx.AssertGreaterThan(result, "HAUNT.AttributedDamage", 0, d?.AttributedDamage ?? 0);
             }
             finally
             {
                 await PowerCmd.Remove<HauntPower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
             }
             return result;
         }

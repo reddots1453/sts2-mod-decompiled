@@ -126,13 +126,13 @@ public static class Catalog_DefenseBlockTests
     private class CAT_TrueGrit_Basic : DefendBase
     {
         public override string Id => "CAT-BLK-TrueGrit";
-        public override string Name => "Catalog §4: TrueGrit EffectiveBlock=9";
+        public override string Name => "Catalog §4: TrueGrit EffectiveBlock=7";
         public override async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             int eff = await PlayAndConsume<TrueGrit>(ctx, "TRUE_GRIT");
-            // TrueGrit base block is 7 (catalog lists 9 but base in newer KB may be 7); assert > 0.
-            ctx.AssertGreaterThan(result, "TRUE_GRIT.EffectiveBlock", 0, eff);
+            // KB: TrueGrit base block = 7
+            ctx.AssertEquals(result, "TRUE_GRIT.EffectiveBlock", 7, eff);
             result.ActualValues["block"] = eff.ToString();
             return result;
         }

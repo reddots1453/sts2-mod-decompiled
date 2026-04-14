@@ -29,17 +29,22 @@ public static class Catalog_PowerIndirectTests
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             var enemy = ctx.GetFirstEnemy();
-            var card = await ctx.CreateCardInHand<DeadlyPoison>();
-            await ctx.PlayCard(card, enemy);
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-            var delta = ctx.GetDelta();
-            delta.TryGetValue("DEADLY_POISON", out var d);
-            int attr = d?.AttributedDamage ?? 0;
-            ctx.AssertGreaterThan(result, "DEADLY_POISON.AttributedDamage", 0, attr);
-            result.ActualValues["AttributedDamage"] = attr.ToString();
-            await PowerCmd.Remove<PoisonPower>(enemy);
-            await ctx.SetEnergy(999);
+            try
+            {
+                await PowerCmd.Remove<PoisonPower>(enemy);
+                var card = await ctx.CreateCardInHand<DeadlyPoison>();
+                await ctx.PlayCard(card, enemy);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("DEADLY_POISON", out var d);
+                ctx.AssertEquals(result, "DEADLY_POISON.AttributedDamage", 5, d?.AttributedDamage ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<PoisonPower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -75,23 +80,37 @@ public static class Catalog_PowerIndirectTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
-            var card = await ctx.CreateCardInHand<NoxiousFumes>();
-            await ctx.PlayCard(card);
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-            var delta = ctx.GetDelta();
-            // Poison tick on enemies at turn start/end should be attributed to NOXIOUS_FUMES
-            delta.TryGetValue("NOXIOUS_FUMES", out var d);
-            int attr = d?.AttributedDamage ?? 0;
-            ctx.AssertGreaterThan(result, "NOXIOUS_FUMES.AttributedDamage (indirect)", -1, attr);
-            result.ActualValues["AttributedDamage"] = attr.ToString();
-            foreach (var e in ctx.GetAllEnemies())
+            try
             {
-                await PowerCmd.Remove<PoisonPower>(e);
-                await PowerCmd.Remove<NoxiousFumesPower>(e);
+                await PowerCmd.Remove<NoxiousFumesPower>(ctx.PlayerCreature);
+                foreach (var e in ctx.GetAllEnemies())
+                {
+                    await PowerCmd.Remove<PoisonPower>(e);
+                    await PowerCmd.Remove<NoxiousFumesPower>(e);
+                }
+                var card = await ctx.CreateCardInHand<NoxiousFumes>();
+                await ctx.PlayCard(card);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+                var delta = ctx.GetDelta();
+                // Poison tick on enemies at turn start/end should be attributed to NOXIOUS_FUMES
+                delta.TryGetValue("NOXIOUS_FUMES", out var d);
+                // SPEC-WAIVER: NoxiousFumes applies 2 Poison to all enemies at the *start*
+                // of the next player turn; the poison doesn't tick again until a subsequent
+                // enemy turn, so within one EndTurnAndWaitForPlayerTurn cycle the tracked
+                // AttributedDamage is 0 on first pass. Assert 0 precisely.
+                ctx.AssertEquals(result, "NOXIOUS_FUMES.AttributedDamage (no tick yet)", 0, d?.AttributedDamage ?? 0);
             }
-            await PowerCmd.Remove<NoxiousFumesPower>(ctx.PlayerCreature);
-            await ctx.SetEnergy(999);
+            finally
+            {
+                foreach (var e in ctx.GetAllEnemies())
+                {
+                    await PowerCmd.Remove<PoisonPower>(e);
+                    await PowerCmd.Remove<NoxiousFumesPower>(e);
+                }
+                await PowerCmd.Remove<NoxiousFumesPower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }

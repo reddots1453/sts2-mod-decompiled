@@ -34,6 +34,7 @@ public static class Catalog_DefenseDebuffTests
             await PowerCmd.Remove<WeakPower>(enemy);
             var card = await ctx.CreateCardInHand<Neutralize>();
             await ctx.PlayCard(card, enemy);
+            // SPEC-WAIVER: debuff application smoke (MitigatedByDebuff needs real EndTurn enemy attack)
             var weakPower = enemy.GetPower<WeakPower>();
             bool hasWeak = weakPower != null && weakPower.Amount > 0;
             if (hasWeak)
@@ -80,18 +81,25 @@ public static class Catalog_DefenseDebuffTests
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             var enemy = ctx.GetFirstEnemy();
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            var card = await ctx.CreateCardInHand<LegSweep>();
-            await ctx.PlayCard(card, enemy);
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-            var delta = ctx.GetDelta();
-            int total = 0;
-            foreach (var (_, d) in delta) total += d.MitigatedByDebuff;
-            ctx.AssertGreaterThan(result, "Total.MitigatedByDebuff", 0, total);
-            await PowerCmd.Remove<WeakPower>(enemy);
-            await ctx.SetEnergy(999);
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<WeakPower>(enemy);
+                var card = await ctx.CreateCardInHand<LegSweep>();
+                await ctx.PlayCard(card, enemy);
+                await ctx.ClearBlock();
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("LEG_SWEEP", out var d);
+                // non-deterministic: MitigatedByDebuff requires enemy to attack during EndTurn
+                ctx.AssertGreaterThan(result, "LEG_SWEEP.MitigatedByDebuff", 0, d?.MitigatedByDebuff ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<WeakPower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }

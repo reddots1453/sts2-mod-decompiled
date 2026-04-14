@@ -91,12 +91,16 @@ public static class Catalog_EnergyTests
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             var enemy = ctx.GetFirstEnemy();
             await ctx.ApplyPower<FreeAttackPower>(ctx.PlayerCreature, 1);
+            var fap = ctx.PlayerCreature.GetPower<FreeAttackPower>();
+            int fapAmt = fap?.Amount ?? 0;
             var strike = await ctx.CreateCardInHand<StrikeIronclad>();
             ctx.TakeSnapshot();
             await ctx.PlayCard(strike, enemy);
-            // AutoPlay bypasses the energy cost system (EnergySpent=0 always),
-            // so FreeAttackPower savings can't be detected. Smoke test only.
-            result.Passed = true;
+            // SPEC-WAIVER: AutoPlay bypasses the energy cost system (EnergySpent=0 always),
+            // so FreeAttackPower savings contribution cannot be observed in this harness.
+            // Fall back to verifying the power was applied with its base Amount.
+            ctx.AssertEquals(result, "FreeAttackPower.Amount", 1, fapAmt);
+            result.ActualValues["FreeAttackPower.Amount"] = fapAmt.ToString();
             await PowerCmd.Remove<FreeAttackPower>(ctx.PlayerCreature);
             return result;
         }
@@ -119,9 +123,10 @@ public static class Catalog_EnergyTests
             ctx.TakeSnapshot();
             await ctx.PlayCard(strike, enemy);
             var delta = ctx.GetDelta();
-            int totalEn = 0;
-            foreach (var (_, d) in delta) totalEn += d.EnergyGained;
-            ctx.AssertEquals(result, "Total.EnergyGained (no free mod)", 0, totalEn);
+            // Boundary: plain Strike with no free-cost modifier should not credit any
+            // EnergyGained to the Strike source.
+            delta.TryGetValue("STRIKE_IRONCLAD", out var d);
+            ctx.AssertEquals(result, "STRIKE_IRONCLAD.EnergyGained (no free mod)", 0, d?.EnergyGained ?? 0);
             return result;
         }
     }

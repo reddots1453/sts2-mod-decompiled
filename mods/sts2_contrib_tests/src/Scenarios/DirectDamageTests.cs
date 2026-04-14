@@ -198,13 +198,14 @@ public static class DirectDamageTests
 
             var delta = ctx.GetDelta();
 
-            // Without relic context set, this should go to UNTRACKED or the active context.
-            // We verify some source captured it (no data loss).
+            // SPEC-WAIVER: fallback-routing test — verifies no data loss when no card source is set.
+            // Source routing depends on active context which is internal; foreach-sum is the only
+            // way to verify total-tracked invariant
             int totalDmg = 0;
             foreach (var (key, d) in delta)
                 totalDmg += d.DirectDamage + d.AttributedDamage;
 
-            ctx.AssertGreaterThan(result, "TotalDamageTracked", 0, totalDmg);
+            ctx.AssertEquals(result, "TotalDamageTracked", 3, totalDmg);
 
             result.ExpectedValues["TotalDamageTracked_detail"] = "3 (to some source)";
             result.ActualValues["TotalDamageTracked_detail"] = totalDmg.ToString();

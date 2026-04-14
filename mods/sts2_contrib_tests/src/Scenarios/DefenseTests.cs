@@ -40,26 +40,28 @@ public static class DefenseTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
-
             var enemy = ctx.GetFirstEnemy();
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<StrengthPower>(enemy);
 
-            // Play DarkShackles from hand (preserves card source attribution)
-            var shackles = await ctx.CreateCardInHand<DarkShackles>();
-            await ctx.PlayCard(shackles, enemy);
+                var shackles = await ctx.CreateCardInHand<DarkShackles>();
+                await ctx.PlayCard(shackles, enemy);
 
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
 
-            var delta = ctx.GetDelta();
-            int totalMitigated = 0;
-            foreach (var (key, d) in delta)
-                totalMitigated += d.MitigatedByStrReduction;
-
-            ctx.AssertGreaterThan(result, "Total.MitigatedByStrReduction", 0, totalMitigated);
-            result.ActualValues["MitigatedByStrReduction"] = totalMitigated.ToString();
-
-            await ctx.SetEnergy(999);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("DARK_SHACKLES", out var d);
+                // non-deterministic: enemy intent + base Str unknown, mitigation capped by both.
+                ctx.AssertGreaterThan(result, "DARK_SHACKLES.MitigatedByStrReduction", 0, d?.MitigatedByStrReduction ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<StrengthPower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -80,30 +82,32 @@ public static class DefenseTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
-
             var enemy = ctx.GetFirstEnemy();
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<WeakPower>(enemy);
+                await PowerCmd.Remove<VulnerablePower>(enemy);
 
-            // Play Uppercut from hand to apply Weak (preserves card source attribution)
-            var uppercut = await ctx.CreateCardInHand<Uppercut>();
-            await ctx.PlayCard(uppercut, enemy);
+                var uppercut = await ctx.CreateCardInHand<Uppercut>();
+                await ctx.PlayCard(uppercut, enemy);
+                await ctx.ClearBlock();
 
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
 
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-
-            var delta = ctx.GetDelta();
-            int totalMitigated = 0;
-            foreach (var (key, d) in delta)
-                totalMitigated += d.MitigatedByDebuff;
-
-            ctx.AssertGreaterThan(result, "Total.MitigatedByDebuff", 0, totalMitigated);
-            result.ActualValues["MitigatedByDebuff"] = totalMitigated.ToString();
-
-            await PowerCmd.Remove<WeakPower>(enemy);
-            await PowerCmd.Remove<VulnerablePower>(enemy);
-            await ctx.SetEnergy(999);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("UPPERCUT", out var d);
+                // non-deterministic: enemy intent determines attack count/damage, Weak 25% cut
+                // applies only if enemy attacks this turn.
+                ctx.AssertGreaterThan(result, "UPPERCUT.MitigatedByDebuff", 0, d?.MitigatedByDebuff ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<WeakPower>(enemy);
+                await PowerCmd.Remove<VulnerablePower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -124,27 +128,31 @@ public static class DefenseTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
-
             var enemy = ctx.GetFirstEnemy();
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<ColossusPower>(ctx.PlayerCreature);
+                await PowerCmd.Remove<VulnerablePower>(enemy);
 
-            await ctx.ApplyPower<ColossusPower>(ctx.PlayerCreature, 1);
-            await ctx.ApplyPower<VulnerablePower>(enemy, 3, ctx.PlayerCreature);
+                await ctx.ApplyPower<ColossusPower>(ctx.PlayerCreature, 1);
+                await ctx.ApplyPower<VulnerablePower>(enemy, 3, ctx.PlayerCreature);
 
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
 
-            var delta = ctx.GetDelta();
-            int totalMitigated = 0;
-            foreach (var (key, d) in delta)
-                totalMitigated += d.MitigatedByBuff;
-
-            ctx.AssertGreaterThan(result, "Total.MitigatedByBuff", 0, totalMitigated);
-            result.ActualValues["MitigatedByBuff"] = totalMitigated.ToString();
-
-            await PowerCmd.Remove<ColossusPower>(ctx.PlayerCreature);
-            await PowerCmd.Remove<VulnerablePower>(enemy);
-            await ctx.SetEnergy(999);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("COLOSSUS_POWER", out var d);
+                // non-deterministic: enemy intent determines whether (and how much) Vuln attack
+                // damage is halved by Colossus.
+                ctx.AssertGreaterThan(result, "COLOSSUS_POWER.MitigatedByBuff", 0, d?.MitigatedByBuff ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<ColossusPower>(ctx.PlayerCreature);
+                await PowerCmd.Remove<VulnerablePower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -165,33 +173,37 @@ public static class DefenseTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<IntangiblePower>(ctx.PlayerCreature);
+                await ctx.ApplyPower<IntangiblePower>(ctx.PlayerCreature, 1);
 
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            await ctx.ApplyPower<IntangiblePower>(ctx.PlayerCreature, 1);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
 
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-
-            var delta = ctx.GetDelta();
-            int totalMitigated = 0;
-            foreach (var (key, d) in delta)
-                totalMitigated += d.MitigatedByBuff;
-
-            ctx.AssertGreaterThan(result, "Total.MitigatedByBuff", 0, totalMitigated);
-            result.ActualValues["MitigatedByBuff"] = totalMitigated.ToString();
-
-            await ctx.SetEnergy(999);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("INTANGIBLE_POWER", out var d);
+                // non-deterministic: enemy intent determines raw hit size; mitigation = hit-1
+                // only if enemy actually attacks.
+                ctx.AssertGreaterThan(result, "INTANGIBLE_POWER.MitigatedByBuff", 0, d?.MitigatedByBuff ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<IntangiblePower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
 
     /// <summary>
-    /// DEF-4a: Basic block — play Defend, EndTurn, verify EffectiveBlock > 0.
+    /// DEF-4a: Basic block — play Defend, EndTurn, verify EffectiveBlock=5.
     /// </summary>
     private class DEF4a_BasicBlock : ITestScenario
     {
         public string Id => "DEF-4a";
-        public string Name => "Defend(5), EndTurn → EffectiveBlock > 0";
+        public string Name => "Defend(5), EndTurn → EffectiveBlock=5";
         public string Category => "Defense";
 
         public bool CanRun(TestContext ctx) =>
@@ -200,24 +212,26 @@ public static class DefenseTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<DexterityPower>(ctx.PlayerCreature);
+                await PowerCmd.Remove<FrailPower>(ctx.PlayerCreature);
 
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
+                var defend = await ctx.CreateCardInHand<DefendIronclad>();
+                await ctx.PlayCard(defend);
 
-            var defend = await ctx.CreateCardInHand<DefendIronclad>();
-            await ctx.PlayCard(defend);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
 
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-
-            var delta = ctx.GetDelta();
-            int totalEffective = 0;
-            foreach (var (key, d) in delta)
-                totalEffective += d.EffectiveBlock;
-
-            ctx.AssertGreaterThan(result, "Total.EffectiveBlock", 0, totalEffective);
-            result.ActualValues["EffectiveBlock"] = totalEffective.ToString();
-
-            await ctx.SetEnergy(999);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("DEFEND_IRONCLAD", out var d);
+                ctx.AssertEquals(result, "DEFEND_IRONCLAD.EffectiveBlock", 5, d?.EffectiveBlock ?? 0);
+            }
+            finally
+            {
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -237,36 +251,33 @@ public static class DefenseTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<DexterityPower>(ctx.PlayerCreature);
+                await PowerCmd.Remove<FrailPower>(ctx.PlayerCreature);
 
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
+                var defend = await ctx.CreateCardInHand<DefendIronclad>();
+                var shrug = await ctx.CreateCardInHand<ShrugItOff>();
+                await ctx.PlayCard(defend); // 5 block first (FIFO: consumed first)
+                await ctx.PlayCard(shrug);  // 8 block second
 
-            var defend = await ctx.CreateCardInHand<DefendIronclad>();
-            var shrug = await ctx.CreateCardInHand<ShrugItOff>();
-            await ctx.PlayCard(defend);
-            await ctx.PlayCard(shrug);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
 
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-
-            var delta = ctx.GetDelta();
-            delta.TryGetValue("DEFEND_IRONCLAD", out var defendDelta);
-            delta.TryGetValue("SHRUG_IT_OFF", out var shrugDelta);
-
-            int defendBlock = defendDelta?.EffectiveBlock ?? 0;
-            int shrugBlock = shrugDelta?.EffectiveBlock ?? 0;
-            int totalBlock = defendBlock + shrugBlock;
-
-            ctx.AssertGreaterThan(result, "Total.EffectiveBlock", 0, totalBlock);
-
-            if (totalBlock > 5)
-                ctx.AssertEquals(result, "DEFEND.EffectiveBlock (FIFO)", 5, defendBlock);
-            else if (totalBlock > 0)
-                ctx.AssertEquals(result, "DEFEND.EffectiveBlock (FIFO: all to first)", totalBlock, defendBlock);
-
-            result.ActualValues["Defend.EffectiveBlock"] = defendBlock.ToString();
-            result.ActualValues["Shrug.EffectiveBlock"] = shrugBlock.ToString();
-
-            await ctx.SetEnergy(999);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("DEFEND_IRONCLAD", out var defendDelta);
+                delta.TryGetValue("SHRUG_IT_OFF", out var shrugDelta);
+                // FIFO: Defend's 5 block consumed before Shrug's 8 → DEFEND.EffectiveBlock=5 (if enemy hit ≥5)
+                ctx.AssertEquals(result, "DEFEND_IRONCLAD.EffectiveBlock (FIFO first)", 5, defendDelta?.EffectiveBlock ?? 0);
+                // non-deterministic: enemy intent determines how many of Shrug's 8 blocks are
+                // actually consumed (after Defend's 5 are burned first by FIFO).
+                ctx.AssertGreaterThan(result, "SHRUG_IT_OFF.EffectiveBlock (FIFO second)", 0, shrugDelta?.EffectiveBlock ?? 0);
+            }
+            finally
+            {
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -286,22 +297,26 @@ public static class DefenseTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<BufferPower>(ctx.PlayerCreature);
+                await ctx.ApplyPower<BufferPower>(ctx.PlayerCreature, 1);
 
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            await ctx.ApplyPower<BufferPower>(ctx.PlayerCreature, 1);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
 
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-
-            var delta = ctx.GetDelta();
-            int totalMitigated = 0;
-            foreach (var (key, d) in delta)
-                totalMitigated += d.MitigatedByBuff;
-
-            ctx.AssertGreaterThan(result, "Total.MitigatedByBuff", 0, totalMitigated);
-            result.ActualValues["MitigatedByBuff"] = totalMitigated.ToString();
-
-            await ctx.SetEnergy(999);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("BUFFER_POWER", out var d);
+                // non-deterministic: enemy intent; Buffer only absorbs the first HP-loss event
+                // which may or may not happen this turn.
+                ctx.AssertGreaterThan(result, "BUFFER_POWER.MitigatedByBuff", 0, d?.MitigatedByBuff ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<BufferPower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -339,11 +354,13 @@ public static class DefenseTests
             await Task.Delay(50);
 
             var delta = ctx.GetDelta();
-            int totalMitigated = 0;
-            foreach (var (key, d) in delta) totalMitigated += d.MitigatedByBuff;
+            // OnBufferPrevention falls back to BUFFER_POWER sourceId when no buff source
+            // is registered in ContributionMap, so target that specific key per spec.
+            delta.TryGetValue("BUFFER_POWER", out var d);
+            int mitigated = d?.MitigatedByBuff ?? 0;
 
-            ctx.AssertEquals(result, "Total.MitigatedByBuff (PRD §4.4)", 8, totalMitigated);
-            result.ActualValues["MitigatedByBuff"] = totalMitigated.ToString();
+            ctx.AssertEquals(result, "BUFFER_POWER.MitigatedByBuff (PRD §4.4)", 8, mitigated);
+            result.ActualValues["MitigatedByBuff"] = mitigated.ToString();
 
             return result;
         }

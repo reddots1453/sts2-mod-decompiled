@@ -83,7 +83,8 @@ public static class SourcePriorityTests
 
             var delta = ctx.GetDelta();
 
-            // Some source should have captured the 5 damage (either UNTRACKED or _activeCardId if set)
+            // SPEC-WAIVER: UNTRACKED fallback test — source id is internal ("UNTRACKED" or active
+            // context), sum across all sources is the only way to verify no data loss
             int totalDmg = 0;
             bool hasUntracked = false;
             foreach (var (key, d) in delta)

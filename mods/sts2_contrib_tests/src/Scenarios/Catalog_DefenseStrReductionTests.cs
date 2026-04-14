@@ -24,24 +24,32 @@ public static class Catalog_DefenseStrReductionTests
     {
         public abstract string Id { get; }
         public abstract string Name { get; }
+        public abstract string SourceKey { get; }
         public string Category => "Catalog_StrReduction";
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive && ctx.GetAllEnemies().Count > 0;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             var enemy = ctx.GetFirstEnemy();
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            var card = await ctx.CreateCardInHand<T>();
-            await ctx.PlayCard(card, enemy);
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-            var delta = ctx.GetDelta();
-            int total = 0;
-            foreach (var (_, d) in delta) total += d.MitigatedByStrReduction;
-            ctx.AssertGreaterThan(result, "Total.MitigatedByStrReduction", 0, total);
-            result.ActualValues["MitigatedByStrReduction"] = total.ToString();
-            await ctx.SetEnergy(999);
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<StrengthPower>(enemy);
+                var card = await ctx.CreateCardInHand<T>();
+                await ctx.PlayCard(card, enemy);
+                await ctx.ClearBlock();
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+                var delta = ctx.GetDelta();
+                delta.TryGetValue(SourceKey, out var d);
+                // non-deterministic: MitigatedByStrReduction requires enemy attack with Str >0 during EndTurn
+                ctx.AssertGreaterThan(result, $"{SourceKey}.MitigatedByStrReduction", 0, d?.MitigatedByStrReduction ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<StrengthPower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -50,18 +58,21 @@ public static class Catalog_DefenseStrReductionTests
     {
         public override string Id => "CAT-STR-Malaise";
         public override string Name => "Catalog §9: Malaise reduces enemy Strength → MitigatedByStrReduction > 0";
+        public override string SourceKey => "MALAISE";
     }
 
     private class CAT_DarkShackles_StrReduction : StrRedBase<DarkShackles>
     {
         public override string Id => "CAT-STR-DarkShackles";
         public override string Name => "Catalog §9: DarkShackles -Str → MitigatedByStrReduction > 0";
+        public override string SourceKey => "DARK_SHACKLES";
     }
 
     private class CAT_EnfeeblingTouch_StrReduction : StrRedBase<EnfeeblingTouch>
     {
         public override string Id => "CAT-STR-EnfeeblingTouch";
         public override string Name => "Catalog §9: EnfeeblingTouch -Str → MitigatedByStrReduction > 0";
+        public override string SourceKey => "ENFEEBLING_TOUCH";
     }
 
     /// <summary>Boundary: apply StrReduction to enemy without intent to attack → no mitigation recorded.</summary>

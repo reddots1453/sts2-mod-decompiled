@@ -556,6 +556,28 @@ public partial class ContributionChart : VBoxContainer
             return string.Format(L.Get("source.floor_regen"), floor);
         }
 
+        // Forge sub-bar (Sovereign Blade's forge mechanic). IDs look like
+        // "FORGE:BASE", "FORGE:BULWARK", "FORGE:FURNACE", etc.
+        if (id.StartsWith("FORGE:"))
+        {
+            var variant = id.Substring(6);
+            var key = "source.forge_" + variant.ToLowerInvariant();
+            var known = L.Get(key);
+            if (!string.IsNullOrEmpty(known) && known != key)
+                return known;
+            // Unknown variant: best-effort — look up the source power's title
+            // from the game's LocString table, then wrap in the prefix template.
+            try
+            {
+                var locStr = new LocString("powers", variant + "_POWER.title");
+                var powerName = locStr.GetFormattedText();
+                if (!string.IsNullOrEmpty(powerName) && powerName != variant + "_POWER.title")
+                    return string.Format(L.Get("source.forge_prefix"), powerName);
+            }
+            catch { /* fall through */ }
+            return string.Format(L.Get("source.forge_prefix"), variant);
+        }
+
         // Event: resolve event ID to localized name
         if (sourceType == "event")
         {

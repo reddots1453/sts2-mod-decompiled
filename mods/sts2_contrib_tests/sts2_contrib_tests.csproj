@@ -27,6 +27,14 @@
     </Reference>
   </ItemGroup>
 
+  <!-- Harmony (for patching CombatStateTracker in TestMode) -->
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>..\..\..\data_sts2_windows_x86_64\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
   <!-- Community Stats mod (for CombatTracker, ContributionMap, ContributionAccum) -->
   <ItemGroup>
     <Reference Include="sts2_community_stats">

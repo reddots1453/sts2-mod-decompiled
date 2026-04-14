@@ -233,13 +233,29 @@ public static class PowerApplyPatch
 /// </summary>
 public static class RelicHookContextPatcher
 {
+    // P2-3: Relics whose hook draws multiple cards in a single invocation.
+    // The pending draw source must remain sticky for N draws instead of being
+    // consumed on the first draw only. Maps relic ID → expected draw count.
+    private static readonly Dictionary<string, int> _relicMultiDrawCounts = new()
+    {
+        { "CENTENNIAL_PUZZLE", 3 }, // draws 3 cards when damaged
+    };
+
     public static void SetRelicContext(RelicModel __instance)
     {
         Safe.Run(() =>
         {
-            CombatTracker.Instance.SetActiveRelic(__instance.Id.Entry);
+            var relicId = __instance.Id.Entry;
+            CombatTracker.Instance.SetActiveRelic(relicId);
             // Pending draw source for async relic hooks (CharonsAshes draws via GamePiece etc.)
-            CombatTracker.Instance.SetPendingDrawSource(__instance.Id.Entry, "relic");
+            if (_relicMultiDrawCounts.TryGetValue(relicId, out var nCount))
+            {
+                CombatTracker.Instance.SetPendingDrawSource(relicId, "relic", nCount);
+            }
+            else
+            {
+                CombatTracker.Instance.SetPendingDrawSource(relicId, "relic");
+            }
         });
     }
 
@@ -455,18 +471,40 @@ public static class RelicHookContextPatcher
 /// </summary>
 public static class PowerHookContextPatcher
 {
+    // P2-5: Powers whose hook draws multiple cards in a single invocation.
+    // The pending draw source is made sticky for N draws so powers like Pagestorm
+    // (draws `Amount` cards when ethereal card drawn) fully attribute all extra
+    // draws, not just the first. Count is resolved from PowerModel.Amount at
+    // hook-fire time so upgraded/scaled powers attribute the correct number.
+    private static readonly HashSet<string> _powerMultiDrawIds = new()
+    {
+        "PAGESTORM_POWER",
+    };
+
     public static void SetPowerContext(PowerModel __instance)
     {
         Safe.Run(() =>
         {
-            CombatTracker.Instance.SetActivePowerSource(__instance.Id.Entry);
+            var powerId = __instance.Id.Entry;
+            CombatTracker.Instance.SetActivePowerSource(powerId);
             // Also set pending draw/block/damage source for async power hooks.
-            // These persist through async await (unlike _activePowerSourceId which
-            // is cleared by ClearPowerContext postfix at the first await).
+            // These persist through async await because they're AsyncLocal-backed.
             // Consumed by OnCardDrawn/OnBlockGained after use.
-            var source = ContributionMap.Instance.GetPowerSource(__instance.Id.Entry);
+            var source = ContributionMap.Instance.GetPowerSource(powerId);
             if (source != null)
-                CombatTracker.Instance.SetPendingDrawSource(source.SourceId, source.SourceType);
+            {
+                if (_powerMultiDrawIds.Contains(powerId))
+                {
+                    int count = Math.Max(1, (int)__instance.Amount);
+                    CombatTracker.Instance.SetPendingDrawSource(
+                        source.SourceId, source.SourceType, count);
+                }
+                else
+                {
+                    CombatTracker.Instance.SetPendingDrawSource(
+                        source.SourceId, source.SourceType);
+                }
+            }
         });
     }
 
@@ -498,6 +536,17 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(CrimsonMantlePower), "AfterPlayerTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(DarkEmbracePower), "AfterCardExhausted", prefix, postfix);
         TryPatch(harmony, typeof(DarkEmbracePower), "AfterTurnEnd", prefix, postfix);
+        // Fix 3.3 (Round 14 v5): DemonForm applies Str+N at turn start.
+        // Without this patch, the Strength apply sees no power context, so
+        // the global STRENGTH_POWER source list stays empty, and Strike's
+        // ModifierDamage decomposition falls through DistributeByPowerSources
+        // to the default "(STRENGTH_POWER, power, total)" fallback, showing
+        // "Strength_power" in the attack panel instead of DEMON_FORM.
+        TryPatch(harmony, typeof(DemonFormPower), "AfterSideTurnStart", prefix, postfix);
+        // Rupture: self-damage during player turn → gain 1 Str per hit.
+        // Same symptom as DemonForm — needs power context for the Str apply.
+        TryPatch(harmony, typeof(RupturePower), "AfterDamageReceived", prefix, postfix);
+        TryPatch(harmony, typeof(RupturePower), "AfterCardPlayed", prefix, postfix);
 
         // ── Silent ──
         TryPatch(harmony, typeof(PoisonPower), "AfterSideTurnStart", prefix, postfix);
@@ -562,6 +611,25 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(BlockNextTurnPower), "AfterBlockCleared", prefix, postfix);
         TryPatch(harmony, typeof(StarNextTurnPower), "AfterEnergyReset", prefix, postfix);
 
+        // ── Round 14 v5 review §2: missing contribution-producing Power hooks ──
+        // Ironclad / general card-played triggers that apply Str/Block indirectly.
+        TryPatch(harmony, typeof(EnragePower), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(GalvanicPower), "AfterCardPlayed", prefix, postfix);
+        // Draw / hand-manipulation powers.
+        TryPatch(harmony, typeof(JugglingPower), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(PrepTimePower), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(MayhemPower), "BeforeHandDrawLate", prefix, postfix);
+        TryPatch(harmony, typeof(StratagemPower), "AfterShuffle", prefix, postfix);
+        // Energy-on-turn-start powers (AfterEnergyReset fires once per player turn).
+        TryPatch(harmony, typeof(RadiancePower), "AfterEnergyReset", prefix, postfix);
+        TryPatch(harmony, typeof(EnergyNextTurnPower), "AfterEnergyReset", prefix, postfix);
+        // Burst / EchoForm duplicate next card plays — treat their effect-setup hook
+        // as the attribution context for the duplicated plays.
+        TryPatch(harmony, typeof(BurstPower), "AfterModifyingCardPlayCount", prefix, postfix);
+        TryPatch(harmony, typeof(BurstPower), "AfterTurnEnd", prefix, postfix);
+        TryPatch(harmony, typeof(EchoFormPower), "AfterModifyingCardPlayCount", prefix, postfix);
+        TryPatch(harmony, typeof(MasterPlannerPower), "AfterCardPlayed", prefix, postfix);
+
         // ── Thorns ──
         TryPatch(harmony, typeof(ThornsPower), "BeforeDamageReceived", prefix, postfix);
 
@@ -571,6 +639,14 @@ public static class PowerHookContextPatcher
         // ── Shared / Colorless ──
         TryPatch(harmony, typeof(SmokestackPower), "AfterCardGeneratedForCombat", prefix, postfix);
         TryPatch(harmony, typeof(RollingBoulderPower), "AfterPlayerTurnStart", prefix, postfix);
+        // Fix 3.5 (Round 14 v5): RollingBoulder's non-test path dispatches damage
+        // through a Godot NRollingBoulderVfx signal callback (Callable.From(...)).
+        // The signal handler runs in a fresh ExecutionContext, so AsyncLocal values
+        // set by the AfterPlayerTurnStart prefix don't propagate to DoDamage.
+        // Patching the private DoDamage method ensures the power context is
+        // re-established at the actual damage dispatch site, regardless of which
+        // async path reached it.
+        TryPatch(harmony, typeof(RollingBoulderPower), "DoDamage", prefix, postfix);
         TryPatch(harmony, typeof(SpeedsterPower), "AfterCardDrawn", prefix, postfix);
         TryPatch(harmony, typeof(SerpentFormPower), "AfterCardPlayed", prefix, postfix);
         TryPatch(harmony, typeof(TrashToTreasurePower), "AfterCardGeneratedForCombat", prefix, postfix);
@@ -834,68 +910,10 @@ public static class DamageModifierPatch
         }
     }
 
-    /// <summary>
-    /// H2-R: Decompose WeakPower's combined multiplier into individual contributions:
-    /// Weak base (0.75) + PaperKrane (-0.15) + Debilitate (doubles reduction).
-    /// </summary>
-    private static void DecomposeWeakContribution(
-        PowerModel weakPower, Creature? target, Creature? dealer, ValueProp props, CardModel? cardSource,
-        decimal finalDmg, decimal combinedMult,
-        List<ContributionMap.ModifierContribution> modList)
-    {
-        // Weak reduces damage: the "bonus" is negative (damage was reduced)
-        // We track this as a positive number representing damage mitigated
-        int totalContrib = (int)(finalDmg / combinedMult - finalDmg);
-        if (totalContrib <= 0) return;
-
-        decimal baseReduction = 0.25m; // from 0.75 multiplier
-        decimal kraneDelta = 0;
-        decimal debilitateDelta = 0;
-
-        // Check PaperKrane relic on target (player)
-        if (target?.Player != null)
-        {
-            var krane = target.Player.GetRelic<PaperKrane>();
-            if (krane != null)
-                kraneDelta = 0.15m;
-        }
-
-        // Debilitate on dealer doubles the reduction
-        if (dealer != null)
-        {
-            var debilitate = dealer.GetPower<DebilitatePower>();
-            if (debilitate != null)
-                debilitateDelta = baseReduction + kraneDelta; // doubles
-        }
-
-        decimal subTotal = baseReduction + kraneDelta + debilitateDelta;
-        if (subTotal <= 0) return;
-
-        // Weak base share
-        var weakSource = ContributionMap.Instance.GetPowerSource("WEAK_POWER");
-        int weakShare = (int)Math.Round(totalContrib * (baseReduction / subTotal));
-        if (weakShare > 0)
-            modList.Add(new ContributionMap.ModifierContribution(
-                weakSource?.SourceId ?? "WEAK_POWER", weakSource?.SourceType ?? "power", weakShare));
-
-        // PaperKrane relic
-        if (kraneDelta > 0)
-        {
-            int kraneShare = (int)Math.Round(totalContrib * (kraneDelta / subTotal));
-            if (kraneShare > 0)
-                modList.Add(new ContributionMap.ModifierContribution("PAPER_KRANE", "relic", kraneShare));
-        }
-
-        // DebilitatePower
-        if (debilitateDelta > 0)
-        {
-            var debilSource = ContributionMap.Instance.GetPowerSource("DEBILITATE_POWER");
-            int debilShare = (int)Math.Round(totalContrib * (debilitateDelta / subTotal));
-            if (debilShare > 0)
-                modList.Add(new ContributionMap.ModifierContribution(
-                    debilSource?.SourceId ?? "DEBILITATE_POWER", debilSource?.SourceType ?? "power", debilShare));
-        }
-    }
+    // Round 14 v5 review §11: DecomposeWeakContribution removed — dead code.
+    // Replaced by BeforeModifyDamage's `if (multiplicative < 1m) continue;` gate
+    // which skips Weak in the player→enemy damage path entirely. Weak's contribution
+    // is now tracked exclusively as player-side MitigatedByDebuff via OnWeakMitigation.
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1227,6 +1245,31 @@ public static class PowerMitigationPatch
             }
         });
     }
+
+    // Round 14 v5 review §12: HardenedShell mitigates incoming damage via
+    // ModifyHpLostBeforeOstyLate (Min(amount, shellRemaining)). Pattern mirrors
+    // BufferPower — compute the absorbed delta as state->result, route to
+    // MitigatedByBuff via a new helper on CombatTracker.
+    [HarmonyPatch(typeof(HardenedShellPower), nameof(HardenedShellPower.ModifyHpLostBeforeOstyLate))]
+    [HarmonyPrefix]
+    public static void BeforeHardenedShellModify(Creature target, decimal amount, out decimal __state)
+    {
+        __state = amount;
+    }
+
+    [HarmonyPatch(typeof(HardenedShellPower), nameof(HardenedShellPower.ModifyHpLostBeforeOstyLate))]
+    [HarmonyPostfix]
+    public static void AfterHardenedShellModify(decimal __result, decimal __state, Creature target)
+    {
+        Safe.Run(() =>
+        {
+            if (__state > __result && __result >= 0 && target.IsPlayer)
+            {
+                int prevented = (int)(__state - __result);
+                CombatTracker.Instance.OnHardenedShellMitigation(prevented);
+            }
+        });
+    }
 }
 
 [HarmonyPatch]
@@ -1446,7 +1489,12 @@ public static class ForgeCmdPatch
             if (amount <= 0 || source == null) return;
             string sourceId = source.Id.Entry;
             if (string.IsNullOrEmpty(sourceId)) return;
-            string sourceType = source is RelicModel ? "relic" : "card";
+            // P2-2: Distinguish PowerModel forges from card/relic forges so
+            // FlushForgeSubBars can normalize FurnacePower/BulwarkPower IDs.
+            string sourceType;
+            if (source is RelicModel) sourceType = "relic";
+            else if (source is PowerModel) sourceType = "power";
+            else sourceType = "card";
             CombatTracker.Instance.OnForge(sourceId, sourceType, (int)amount);
         });
     }
@@ -1628,20 +1676,26 @@ public static class LocalCostModifierSourceTagPatch
         string sourceId;
         string sourceType;
 
-        if (tracker.ActiveCardId != null)
+        // Fix 3.6: power > relic > potion > card priority
+        if (tracker.ActivePowerSourceId != null)
         {
-            sourceId = tracker.ActiveCardId;
-            sourceType = "card";
+            sourceId = tracker.ActivePowerSourceId;
+            sourceType = tracker.ActivePowerSourceType ?? "power";
+        }
+        else if (tracker.ActiveRelicId != null)
+        {
+            sourceId = tracker.ActiveRelicId;
+            sourceType = "relic";
         }
         else if (tracker.ActivePotionId != null)
         {
             sourceId = tracker.ActivePotionId;
             sourceType = "potion";
         }
-        else if (tracker.ActiveRelicId != null)
+        else if (tracker.ActiveCardId != null)
         {
-            sourceId = tracker.ActiveRelicId;
-            sourceType = "relic";
+            sourceId = tracker.ActiveCardId;
+            sourceType = "card";
         }
         else
         {
@@ -1751,12 +1805,14 @@ public static class EnergyCostSetterTagPatch
         var existing = ContributionMap.Instance.GetCostReductionSourceTag(card.GetHashCode());
         if (existing != null) return;
 
+        // Fix 3.6: power > relic > potion > card priority
         var tracker = CombatTracker.Instance;
         string sourceId;
         string sourceType;
-        if (tracker.ActiveCardId != null) { sourceId = tracker.ActiveCardId; sourceType = "card"; }
-        else if (tracker.ActivePotionId != null) { sourceId = tracker.ActivePotionId; sourceType = "potion"; }
+        if (tracker.ActivePowerSourceId != null) { sourceId = tracker.ActivePowerSourceId; sourceType = tracker.ActivePowerSourceType ?? "power"; }
         else if (tracker.ActiveRelicId != null) { sourceId = tracker.ActiveRelicId; sourceType = "relic"; }
+        else if (tracker.ActivePotionId != null) { sourceId = tracker.ActivePotionId; sourceType = "potion"; }
+        else if (tracker.ActiveCardId != null) { sourceId = tracker.ActiveCardId; sourceType = "card"; }
         else return;
 
         // Generate-and-free exception (same as LocalCostModifierSourceTagPatch).
@@ -1907,6 +1963,58 @@ public static class HandDrawBonusPatch
         });
     }
 
+    // Fix 3.4 v2 (Round 14 v5): Demesne/Friendship's ModifyMaxEnergy is a
+    // PROPERTY GETTER (PlayerCombatState.MaxEnergy => Hook.ModifyMaxEnergy(...)),
+    // which fires on EVERY read — UI refresh, card cost check, AI decision, etc.
+    // Postfixing ModifyMaxEnergy inflated EnergyGained by a large multiplier
+    // (once per read, not once per turn).
+    //
+    // Correct attribution point: Hook.AfterEnergyReset, which fires exactly
+    // once per player turn after energy is reset. Iterate player's powers,
+    // find each one that contributes to MaxEnergy, and credit its source card
+    // by its Amount. Centralized so adding new energy-bonus powers is trivial.
+    [HarmonyPatch(typeof(Hook), nameof(Hook.AfterEnergyReset))]
+    [HarmonyPostfix]
+    public static void AfterEnergyResetAttribution(CombatState combatState, Player player)
+    {
+        Safe.Run(() =>
+        {
+            if (player?.Creature == null) return;
+            foreach (var power in player.Creature.Powers)
+            {
+                int bonus = 0;
+                string? powerId = null;
+                if (power is DemesnePower demesne)
+                {
+                    bonus = (int)demesne.Amount;
+                    powerId = demesne.Id.Entry;
+                }
+                else if (power is FriendshipPower friendship)
+                {
+                    bonus = (int)friendship.Amount;
+                    powerId = friendship.Id.Entry;
+                }
+                else if (power is PyrePower pyre)
+                {
+                    // Round 14 v5 review §5: Pyre is a Regent modifier-only
+                    // power (ModifyMaxEnergy override) like Demesne/Friendship.
+                    // Without this branch, its energy contribution is lost.
+                    bonus = (int)pyre.Amount;
+                    powerId = pyre.Id.Entry;
+                }
+                if (bonus <= 0 || powerId == null) continue;
+
+                var source = ContributionMap.Instance.GetPowerSource(powerId);
+                if (source != null)
+                    CombatTracker.Instance.AddEnergyBonusDirect(source.SourceId, source.SourceType, bonus);
+                else
+                    // Fallback when no source mapping exists (e.g., power applied outside
+                    // tracked play): credit under the power's own ID.
+                    CombatTracker.Instance.AddEnergyBonusDirect(powerId, "power", bonus);
+            }
+        });
+    }
+
     [HarmonyPatch(typeof(MachineLearningPower), nameof(MachineLearningPower.ModifyHandDraw))]
     [HarmonyPostfix]
     public static void AfterMachineLearningDraw(decimal __result, MachineLearningPower __instance,
@@ -2052,32 +2160,33 @@ public static class EnemyStrReductionPatch
             if (owner.IsPlayer) return;
             if (__instance.Amount >= 0) return; // Only negative (reduction)
 
-            // Determine the source via the standard fallback chain so card / potion /
-            // relic / power-applied StrReduction (e.g. POTION_OF_BINDING, MALAISE,
-            // DARK_SHACKLES, DRAIN_POWER, ENFEEBLING_TOUCH, TEA_OF_DISCOURTESY) all attribute.
+            // Fix 3.6: power > relic > potion > card priority. A relic that
+            // applies enemy Str reduction during card play (e.g. a hypothetical
+            // relic that triggers on AfterCardPlayed and debuffs enemies) should
+            // credit the relic, not the triggering card.
             var tracker = CombatTracker.Instance;
             string? sourceId = null;
             string sourceType = "card";
 
-            if (tracker.ActiveCardId != null)
+            if (tracker.ActivePowerSourceId != null)
             {
-                sourceId = tracker.ActiveCardId;
-                sourceType = "card";
-            }
-            else if (tracker.ActivePotionId != null)
-            {
-                sourceId = tracker.ActivePotionId;
-                sourceType = "potion";
+                sourceId = tracker.ActivePowerSourceId;
+                sourceType = tracker.ActivePowerSourceType ?? "card";
             }
             else if (tracker.ActiveRelicId != null)
             {
                 sourceId = tracker.ActiveRelicId;
                 sourceType = "relic";
             }
-            else if (tracker.ActivePowerSourceId != null)
+            else if (tracker.ActivePotionId != null)
             {
-                sourceId = tracker.ActivePowerSourceId;
-                sourceType = tracker.ActivePowerSourceType ?? "card";
+                sourceId = tracker.ActivePotionId;
+                sourceType = "potion";
+            }
+            else if (tracker.ActiveCardId != null)
+            {
+                sourceId = tracker.ActiveCardId;
+                sourceType = "card";
             }
             if (sourceId == null) return;
 

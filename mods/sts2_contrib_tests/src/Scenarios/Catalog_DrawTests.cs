@@ -25,19 +25,20 @@ public static class Catalog_DrawTests
     private class CAT_Acrobatics_Draw : ITestScenario
     {
         public string Id => "CAT-DRAW-Acrobatics";
-        public string Name => "Catalog §11: Acrobatics CardsDrawn > 0";
+        public string Name => "Catalog §11: Acrobatics CardsDrawn=3";
         public string Category => "Catalog_Draw";
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
+            await ctx.ClearHand(); // Round 14 B5: Acrobatics draws 3, prevent hand overflow
             var card = await ctx.CreateCardInHand<Acrobatics>();
             ctx.TakeSnapshot();
             await ctx.PlayCard(card);
             var delta = ctx.GetDelta();
             delta.TryGetValue("ACROBATICS", out var d);
             int cd = d?.CardsDrawn ?? 0;
-            ctx.AssertGreaterThan(result, "ACROBATICS.CardsDrawn", 0, cd);
+            ctx.AssertEquals(result, "ACROBATICS.CardsDrawn", 3, cd);
             result.ActualValues["CardsDrawn"] = cd.ToString();
             return result;
         }
@@ -66,7 +67,7 @@ public static class Catalog_DrawTests
     private class CAT_EscapePlan_Draw : ITestScenario
     {
         public string Id => "CAT-DRAW-EscapePlan";
-        public string Name => "Catalog §11: EscapePlan CardsDrawn > 0";
+        public string Name => "Catalog §11: EscapePlan CardsDrawn=1";
         public string Category => "Catalog_Draw";
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
@@ -79,7 +80,7 @@ public static class Catalog_DrawTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("ESCAPE_PLAN", out var d);
             int cd = d?.CardsDrawn ?? 0;
-            ctx.AssertGreaterThan(result, "ESCAPE_PLAN.CardsDrawn", 0, cd);
+            ctx.AssertEquals(result, "ESCAPE_PLAN.CardsDrawn", 1, cd);
             return result;
         }
     }
@@ -144,8 +145,7 @@ public static class Catalog_DrawTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("BATTLE_TRANCE", out var d);
             int cd = d?.CardsDrawn ?? 0;
-            // Should draw 3 (or fewer if deck empty)
-            ctx.AssertGreaterThan(result, "BATTLE_TRANCE.CardsDrawn", 0, cd);
+            ctx.AssertEquals(result, "BATTLE_TRANCE.CardsDrawn", 3, cd);
             result.ActualValues["CardsDrawn"] = cd.ToString();
             await PowerCmd.Remove<NoDrawPower>(ctx.PlayerCreature);
             return result;

@@ -119,6 +119,12 @@ public static class L
         ["source.merchant"] = "Merchant",
         ["source.floor_regen"] = "Floor {0} Recovery",
 
+        // Forge sub-bar labels (Regent's Sovereign Blade forge mechanic)
+        ["source.forge_base"] = "Base Forge",
+        ["source.forge_furnace"] = "Forge (Furnace)",
+        ["source.forge_bulwark"] = "Forge (Bulwark)",
+        ["source.forge_prefix"] = "Forge ({0})",
+
         // ModSettingsPatch
         ["mod.settings_btn"] = "Stats the Spire Settings",
 
@@ -388,6 +394,12 @@ public static class L
         ["source.event_prefix"] = "[事件] ",
         ["source.merchant"] = "商店",
         ["source.floor_regen"] = "第{0}层恢复",
+
+        // Forge sub-bar labels (储君之剑锻造机制子条)
+        ["source.forge_base"] = "基础锻造",
+        ["source.forge_furnace"] = "熔炉加成",
+        ["source.forge_bulwark"] = "铸墙加成",
+        ["source.forge_prefix"] = "锻造加成 ({0})",
 
         // ModSettingsPatch
         ["mod.settings_btn"] = "Stats the Spire 设置",

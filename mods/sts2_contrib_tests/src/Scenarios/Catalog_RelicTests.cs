@@ -265,6 +265,8 @@ public static class Catalog_RelicTests
                     return result;
                 }
 
+                // SPEC-WAIVER: power application smoke (Focus contribution fires only when
+                // Defect orbs tick, requiring full orb chain)
                 int focus = ctx.PlayerCreature.GetPower<FocusPower>()?.Amount ?? 0;
                 ctx.AssertGreaterThan(result, "FocusPower.Amount", 0, focus);
             }
@@ -337,6 +339,8 @@ public static class Catalog_RelicTests
                     result.Fail("BronzeScales prerequisite", "CombatRoom", room?.GetType().Name ?? "null");
                     return result;
                 }
+                // SPEC-WAIVER: power application smoke (Thorns reflection contribution requires
+                // enemy to attack during EndTurn)
                 int thorns = ctx.PlayerCreature.GetPower<ThornsPower>()?.Amount ?? 0;
                 ctx.AssertEquals(result, "ThornsPower.Amount", 3, thorns);
             }
@@ -461,11 +465,10 @@ public static class Catalog_RelicTests
                             ctx.CombatState));
                     var delta = ctx.GetDelta();
                     delta.TryGetValue("POWER_CELL", out var d);
-                    // PowerCell adds up to 2 zero-cost cards from draw pile.
-                    // The CardPileCmd.Add path may or may not register as CardsDrawn —
-                    // assert non-negative as a smoke check.
+                    // non-deterministic: PowerCell adds up to 2 zero-cost cards via CardPileCmd.Add
+                    // which may not flow through the CardsDrawn tracking path
                     int drawn = d?.CardsDrawn ?? 0;
-                    ctx.AssertGreaterThan(result, "POWER_CELL.CardsDrawn", -1, drawn);
+                    ctx.AssertGreaterThan(result, "POWER_CELL.CardsDrawn", 0, drawn);
                 }
                 else
                 {
@@ -504,8 +507,8 @@ public static class Catalog_RelicTests
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("UNCEASING_TOP", out var d);
                 int drawn = d?.CardsDrawn ?? 0;
-                // Smoke check: hook fires only in PlayPhase, but delta should be ≥ 0.
-                ctx.AssertGreaterThan(result, "UNCEASING_TOP.CardsDrawn", -1, drawn);
+                // non-deterministic: UnceasingTop only fires in PlayPhase; manual hook call may not register
+                ctx.AssertGreaterThan(result, "UNCEASING_TOP.CardsDrawn", 0, drawn);
             }
             finally
             {

@@ -61,9 +61,10 @@ public static class Catalog_InteractionTests
             int total = direct + infMod + bashMod;
             // Strike base 6 + Str 2 = 8; with Vuln 1.5× → 12 total.
             ctx.AssertEquals(result, "Strike.DirectDamage", 6, direct);
-            ctx.AssertGreaterThan(result, "Inflame.ModifierDamage", 0, infMod);
-            ctx.AssertGreaterThan(result, "Bash.ModifierDamage (vuln)", 0, bashMod);
-            ctx.AssertRange(result, "SumDamage", 11, 13, total);
+            ctx.AssertEquals(result, "Inflame.ModifierDamage (Str=2)", 2, infMod);
+            // Bash Vuln: 8×1.5=12, totalContrib=12-floor(12/1.5)=4 → BASH gets 4
+            ctx.AssertEquals(result, "Bash.ModifierDamage (vuln)", 4, bashMod);
+            ctx.AssertEquals(result, "SumDamage (6+2+4)", 12, total);
 
             await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
             await PowerCmd.Remove<VulnerablePower>(enemy);
@@ -81,29 +82,36 @@ public static class Catalog_InteractionTests
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-
-            // Setup: Block via Defend, Buffer + Intangible via ApplyPower
-            await ctx.PlayCard(await ctx.CreateCardInHand<DefendIronclad>());
-            await ctx.ApplyPower<BufferPower>(ctx.PlayerCreature, 1);
-            await ctx.ApplyPower<IntangiblePower>(ctx.PlayerCreature, 1);
-
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-
-            var delta = ctx.GetDelta();
-            int effBlock = 0, mitigBuff = 0;
-            foreach (var (_, d) in delta)
+            try
             {
-                effBlock += d.EffectiveBlock;
-                mitigBuff += d.MitigatedByBuff;
-            }
-            // Chain should populate at least one of the defense categories
-            ctx.AssertGreaterThan(result, "Defense.EffectiveBlock+MitigatedByBuff", 0, effBlock + mitigBuff);
-            result.ActualValues["EffectiveBlock"] = effBlock.ToString();
-            result.ActualValues["MitigatedByBuff"] = mitigBuff.ToString();
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<BufferPower>(ctx.PlayerCreature);
+                await PowerCmd.Remove<IntangiblePower>(ctx.PlayerCreature);
 
-            await ctx.SetEnergy(999);
+                // Setup: Block via Defend, Buffer + Intangible via ApplyPower
+                await ctx.PlayCard(await ctx.CreateCardInHand<DefendIronclad>());
+                await ctx.ApplyPower<BufferPower>(ctx.PlayerCreature, 1);
+                await ctx.ApplyPower<IntangiblePower>(ctx.PlayerCreature, 1);
+
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("DEFEND_IRONCLAD", out var dDef);
+                delta.TryGetValue("BUFFER_POWER", out var dBuf);
+                delta.TryGetValue("INTANGIBLE_POWER", out var dInt);
+                // Defend base block = 5
+                ctx.AssertEquals(result, "DEFEND_IRONCLAD.EffectiveBlock", 5, dDef?.EffectiveBlock ?? 0);
+                int mitigBuff = (dBuf?.MitigatedByBuff ?? 0) + (dInt?.MitigatedByBuff ?? 0);
+                // non-deterministic: MitigatedByBuff requires enemy attack during EndTurn
+                ctx.AssertGreaterThan(result, "Buffer+Intangible.MitigatedByBuff", 0, mitigBuff);
+            }
+            finally
+            {
+                await PowerCmd.Remove<BufferPower>(ctx.PlayerCreature);
+                await PowerCmd.Remove<IntangiblePower>(ctx.PlayerCreature);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -162,6 +170,8 @@ public static class Catalog_InteractionTests
             await Task.Delay(50);
 
             var delta = ctx.GetDelta();
+            // SPEC-WAIVER: aggregate accounting test — source routing is internal; sum across all
+            // delta entries verifies no double-count regardless of which id gets credit
             int total = 0;
             foreach (var (_, d) in delta) total += d.HpHealed;
             // Expect 4 (MaxHp) + 3 (Heal) = 7
@@ -186,6 +196,7 @@ public static class Catalog_InteractionTests
             CombatTracker.Instance.OnEnergyGained(2);
             await Task.Delay(20);
             var delta = ctx.GetDelta();
+            // SPEC-WAIVER: direct tracker write path test — source routing is internal
             int totalEn = 0;
             foreach (var (_, d) in delta) totalEn += d.EnergyGained;
             ctx.AssertEquals(result, "Total.EnergyGained (+2)", 2, totalEn);
@@ -204,18 +215,27 @@ public static class Catalog_InteractionTests
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             var enemy = ctx.GetFirstEnemy();
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            await ctx.PlayCard(await ctx.CreateCardInHand<Malaise>(), enemy);
-            await ctx.PlayCard(await ctx.CreateCardInHand<DarkShackles>(), enemy);
-            await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
-            ctx.TakeSnapshot();
-            await ctx.EndTurnAndWaitForPlayerTurn();
-            var delta = ctx.GetDelta();
-            int total = 0;
-            foreach (var (_, d) in delta) total += d.MitigatedByStrReduction;
-            ctx.AssertGreaterThan(result, "Total.MitigatedByStrReduction", -1, total);
-            result.ActualValues["Total"] = total.ToString();
-            await ctx.SetEnergy(999);
+            try
+            {
+                await ctx.ClearBlock();
+                await PowerCmd.Remove<StrengthPower>(enemy);
+                await ctx.PlayCard(await ctx.CreateCardInHand<Malaise>(), enemy);
+                await ctx.PlayCard(await ctx.CreateCardInHand<DarkShackles>(), enemy);
+                await ctx.ClearBlock();
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("MALAISE", out var dM);
+                delta.TryGetValue("DARK_SHACKLES", out var dD);
+                int total = (dM?.MitigatedByStrReduction ?? 0) + (dD?.MitigatedByStrReduction ?? 0);
+                // non-deterministic: MitigatedByStrReduction requires enemy attack during EndTurn
+                ctx.AssertGreaterThan(result, "Malaise+DarkShackles.MitigatedByStrReduction", 0, total);
+            }
+            finally
+            {
+                await PowerCmd.Remove<StrengthPower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
@@ -236,6 +256,7 @@ public static class Catalog_InteractionTests
             CombatTracker.Instance.OnBufferPrevention(6);
             await Task.Delay(50);
             var delta = ctx.GetDelta();
+            // SPEC-WAIVER: direct tracker write path test — source routing is internal
             int total = 0;
             foreach (var (_, d) in delta) total += d.MitigatedByBuff;
             ctx.AssertEquals(result, "Total.MitigatedByBuff (3-hit)", 12, total);
@@ -313,6 +334,7 @@ public static class Catalog_InteractionTests
             await ctx.PlayCard(strike, enemy);
 
             var delta = ctx.GetDelta();
+            // SPEC-WAIVER: aggregate free-energy accounting — source may be STRIKE_IRONCLAD or FREE_ATTACK_POWER
             int totalEn = 0;
             foreach (var (_, d) in delta) totalEn += d.EnergyGained;
             // FreeAttackPower should credit 1 energy saved for Strike.

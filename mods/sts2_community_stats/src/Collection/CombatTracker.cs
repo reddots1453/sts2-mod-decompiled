@@ -15,14 +15,54 @@ public sealed class CombatTracker
     // sourceId → accumulated contributions
     private readonly Dictionary<string, ContributionAccum> _currentCombat = new();
 
+    // ── P0 FIX: AsyncLocal-backed attribution context ───────────
+    // Harmony Postfix on async hook methods fires at the first `await` inside the
+    // method, not after completion. With plain fields this meant ClearActive* wiped
+    // attribution BEFORE the real damage/block/draw commands that the hook produced
+    // post-await. AsyncLocal<T> uses copy-on-write ExecutionContext flow: the value
+    // set by the prefix is captured by the async state machine at suspend time, and
+    // is preserved for the continuation regardless of what the (synchronous) postfix
+    // does to the outer logical flow. This restores attribution for 20+ power-tick
+    // and async relic hook tests (Panache, DemonForm, Juggernaut, CharonsAshes, etc.).
+    private static readonly AsyncLocal<string?> _activeCardIdAL = new();
+    private static readonly AsyncLocal<string?> _activeRelicIdAL = new();
+    private static readonly AsyncLocal<string?> _activePotionIdAL = new();
+    private static readonly AsyncLocal<string?> _activePowerSourceIdAL = new();
+    private static readonly AsyncLocal<string?> _activePowerSourceTypeAL = new();
+    private static readonly AsyncLocal<string?> _pendingDrawSourceIdAL = new();
+    private static readonly AsyncLocal<string?> _pendingDrawSourceTypeAL = new();
+    // P2-3: N-count pending draw (CentennialPuzzle draws N cards from a single hook).
+    // Wrapped in a box so we can decrement across async boundaries without needing
+    // to re-Set the AsyncLocal value (which would not flow back to the caller anyway).
+    private static readonly AsyncLocal<System.Runtime.CompilerServices.StrongBox<int>?> _pendingDrawRemainingAL = new();
+    // Round 14 v5 review §8: upgrade delta must be AsyncLocal too so that nested
+    // card plays (EchoForm / Mayhem / Burst duplications) don't cross-contaminate
+    // the pending upgrade fields of their parent context.
+    private static readonly AsyncLocal<int> _pendingUpgradeDamageDeltaAL = new();
+    private static readonly AsyncLocal<int> _pendingUpgradeBlockDeltaAL = new();
+    private static readonly AsyncLocal<string?> _pendingUpgradeSourceIdAL = new();
+    private static readonly AsyncLocal<string?> _pendingUpgradeSourceTypeAL = new();
+
     // The card currently being played (set by CardPlayStarted, cleared by CardPlayFinished)
-    private string? _activeCardId;
+    private string? _activeCardId
+    {
+        get => _activeCardIdAL.Value;
+        set => _activeCardIdAL.Value = value;
+    }
 
     // The relic currently executing a hook (set/cleared by relic hook tracking patch)
-    private string? _activeRelicId;
+    private string? _activeRelicId
+    {
+        get => _activeRelicIdAL.Value;
+        set => _activeRelicIdAL.Value = value;
+    }
 
     // The potion currently being used (set by PotionContextPatch Prefix, cleared by Postfix)
-    private string? _activePotionId;
+    private string? _activePotionId
+    {
+        get => _activePotionIdAL.Value;
+        set => _activePotionIdAL.Value = value;
+    }
 
     // Public accessors for source tagging (NEW-1: local cost modifier patches need active context)
     // ActiveCardId already exposed above
@@ -30,16 +70,46 @@ public sealed class CombatTracker
     public string? ActiveRelicId => _activeRelicId;
 
     // The power whose hook is currently executing (for indirect effects like Rage, FlameBarrier)
-    private string? _activePowerSourceId;
-    private string? _activePowerSourceType;
+    private string? _activePowerSourceId
+    {
+        get => _activePowerSourceIdAL.Value;
+        set => _activePowerSourceIdAL.Value = value;
+    }
+    private string? _activePowerSourceType
+    {
+        get => _activePowerSourceTypeAL.Value;
+        set => _activePowerSourceTypeAL.Value = value;
+    }
 
     // Track DamageResult objects already processed by DamageReceived,
     // so KillingBlowPatcher doesn't double-count them.
     private readonly HashSet<int> _processedDamageResults = new();
 
-    // Pending upgrade delta for the currently playing card (per-hit split, per Review R3)
-    private int _pendingUpgradeDamageDelta;
-    private int _pendingUpgradeBlockDelta;
+    // Pending upgrade delta for the currently playing card (per-hit split, per Review R3).
+    // Round 14 v5 Fix 6: also carry the UPGRADE SOURCE so that UpgradeDamage/UpgradeBlock
+    // credits the card that performed the upgrade (e.g. ARMAMENTS), not the triggering card
+    // (e.g. STRIKE_IRONCLAD) being played.
+    // Round 14 v5 review §8: AsyncLocal-backed so nested card plays don't cross-contaminate.
+    private int _pendingUpgradeDamageDelta
+    {
+        get => _pendingUpgradeDamageDeltaAL.Value;
+        set => _pendingUpgradeDamageDeltaAL.Value = value;
+    }
+    private int _pendingUpgradeBlockDelta
+    {
+        get => _pendingUpgradeBlockDeltaAL.Value;
+        set => _pendingUpgradeBlockDeltaAL.Value = value;
+    }
+    private string? _pendingUpgradeSourceId
+    {
+        get => _pendingUpgradeSourceIdAL.Value;
+        set => _pendingUpgradeSourceIdAL.Value = value;
+    }
+    private string? _pendingUpgradeSourceType
+    {
+        get => _pendingUpgradeSourceTypeAL.Value;
+        set => _pendingUpgradeSourceTypeAL.Value = value;
+    }
 
     // H3: Deferred Osty death negative defense — only applied when enemy next attacks player
     private (string sourceId, string sourceType, int amount)? _pendingOstyDeathDefense;
@@ -167,6 +237,8 @@ public sealed class CombatTracker
         _pendingOstyDeathDefense = null;
         _pendingUpgradeDamageDelta = 0;
         _pendingUpgradeBlockDelta = 0;
+        _pendingUpgradeSourceId = null;
+        _pendingUpgradeSourceType = null;
         _processedDamageResults.Clear();
         _forgeLog.Clear();
         ContributionMap.Instance.Clear();
@@ -225,11 +297,21 @@ public sealed class CombatTracker
         var upgDelta = ContributionMap.Instance.GetUpgradeDelta(cardHash);
         _pendingUpgradeDamageDelta = upgDelta?.DamageDelta ?? 0;
         _pendingUpgradeBlockDelta = upgDelta?.BlockDelta ?? 0;
+        _pendingUpgradeSourceId = upgDelta?.SourceId;
+        _pendingUpgradeSourceType = upgDelta?.SourceType;
     }
 
     public void OnCardPlayFinished()
     {
         _activeCardId = null;
+        // Round 14 v5 review §9: defensive clear of pending upgrade state at end
+        // of each card play. OnCardPlayStarted already overwrites these each time,
+        // so this is strictly defense-in-depth for any future code path that might
+        // query them between play events.
+        _pendingUpgradeDamageDelta = 0;
+        _pendingUpgradeBlockDelta = 0;
+        _pendingUpgradeSourceId = null;
+        _pendingUpgradeSourceType = null;
     }
 
     // ── Relic Context Tracking ──────────────────────────────
@@ -263,7 +345,12 @@ public sealed class CombatTracker
         _activePowerSourceType = null;
     }
 
-    /// <summary>Force-clear ALL context. Called between tests to prevent stale state.</summary>
+    /// <summary>Force-clear ALL context. Called between tests to prevent stale state.
+    /// Round 14: also clears the ContributionMap lookup state (power sources, block pool,
+    /// debuff layers, etc.) which previously leaked between tests and caused
+    /// (a) off-by-one in multi-source modifier distribution (P1) and
+    /// (b) Defend/Potion/Power zero-attribution from stale pool/source pollution (P3).
+    /// Does NOT clear CombatTracker._currentCombat — tests use delta snapshots.</summary>
     public void ForceResetAllContext()
     {
         _activeCardId = null;
@@ -273,7 +360,15 @@ public sealed class CombatTracker
         _activePowerSourceType = null;
         _pendingDrawSourceId = null;
         _pendingDrawSourceType = null;
-        ContributionMap.Instance.ClearActiveOrbContext();
+        _pendingDrawRemainingAL.Value = null;
+        _pendingOstyDeathDefense = null;
+        _pendingUpgradeDamageDelta = 0;
+        _pendingUpgradeBlockDelta = 0;
+        _pendingUpgradeSourceId = null;
+        _pendingUpgradeSourceType = null;
+        _processedDamageResults.Clear();
+        _forgeLog.Clear();
+        ContributionMap.Instance.Clear();
     }
 
     // ── Turn Tracking ───────────────────────────────────────
@@ -284,26 +379,47 @@ public sealed class CombatTracker
     }
 
     // ── Resolve Source ───────────────────────────────────────
-    // RESTORED original priority: card first (explicit cardSourceId or _activeCardId),
-    // then potion, then relic, then power, then orb.
-    // Orb context is checked via separate orb-aware methods, not the main fallback.
+    // Fix 3 (Round 14 v5): power source now has HIGHER priority than card.
+    // Rationale: when a power hook fires DURING card play (e.g. FeelNoPain's
+    // AfterCardExhausted triggered while playing TrueGrit, or Juggernaut's
+    // AfterBlockGained triggered while playing Defend), the downstream
+    // contribution (block/damage/draw) originates from the POWER, not the
+    // card that triggered the hook. Without this swap, TRUE_GRIT would
+    // capture FEEL_NO_PAIN's 3 block, DEFEND_IC would capture JUGGERNAUT's
+    // 5 damage, STRIKE_IRONCLAD would capture ENVENOM's poison apply, etc.
+    //
+    // Safety:
+    //   - Normal card play: only _activeCardId is set → card branch runs.
+    //   - Turn-start/end power hook: _activeCardId is null → power branch
+    //     runs (same as before).
+    //   - Power hook during card play: both set → power wins (the fix).
+    //   - Explicit cardSourceId arg: still highest priority (caller knows best).
+    //   - Orb context: still above power for orb passive/evoke damage.
 
     private (string id, string type) ResolveSource(string? cardSourceId)
     {
         if (cardSourceId != null)
             return (cardSourceId, "card");
-        // Orb context takes priority over card when set (orb passive/evoke damage)
+        // Orb context takes priority (orb passive/evoke damage always wins)
         var orbCtx = ContributionMap.Instance.ActiveOrbContext;
         if (orbCtx != null)
             return (orbCtx.Value.sourceId, orbCtx.Value.sourceType);
-        if (_activeCardId != null)
-            return (_activeCardId, "card");
-        if (_activePotionId != null)
-            return (_activePotionId, "potion");
-        if (_activeRelicId != null)
-            return (_activeRelicId, "relic");
+        // Round 14 v5 Fix 3.6: all non-card trigger contexts (power/relic/potion)
+        // take priority over card. When a relic hook fires DURING card play
+        // (e.g. CharonsAshes.AfterCardExhausted, Kusarigama.AfterCardPlayed,
+        // Nunchaku.AfterCardPlayed, GamePiece.AfterCardPlayed, etc.) the
+        // contribution originates from the RELIC, not the card that triggered
+        // the hook. Same rationale as power > card (Fix 3): prefix/postfix
+        // scoping guarantees non-card contexts are only set while their own
+        // hook is actively producing an effect.
         if (_activePowerSourceId != null)
             return (_activePowerSourceId, _activePowerSourceType ?? "card");
+        if (_activeRelicId != null)
+            return (_activeRelicId, "relic");
+        if (_activePotionId != null)
+            return (_activePotionId, "potion");
+        if (_activeCardId != null)
+            return (_activeCardId, "card");
         // No context found
         Godot.GD.Print($"[CommunityStats] WARN ResolveSource: no active context, using UNTRACKED");
         return ("UNTRACKED", "untracked");
@@ -348,21 +464,35 @@ public sealed class CombatTracker
             _damageTakenByPlayer += totalDamage;
 
             // Self-damage: player dealing damage to themselves via a card (Bloodletting, Offering, etc.)
-            // Record as negative defense contribution
+            // Record as negative defense contribution. Two detection paths:
+            //   (1) explicit self-target (dealerHash == targetHash) — Bloodletting path
+            //   (2) P2-6: no dealer + cardSource active + player is receiver — Offering path.
+            //       CreatureCmd.Damage(this, owner.Creature, ..., this) with no dealer
+            //       arg goes through DamageReceived with dealer=null (hash=0) but
+            //       cardSource=Offering. Still a self-hit, still should count as SelfDamage.
             int unblockedSelf = totalDamage - blockedDamage;
-            if (dealerHash != 0 && dealerHash == targetHash && unblockedSelf > 0)
+            bool isExplicitSelfHit = dealerHash != 0 && dealerHash == targetHash;
+            bool isCardSelfHit = dealerHash == 0 && cardSourceId != null;
+            if ((isExplicitSelfHit || isCardSelfHit) && unblockedSelf > 0)
             {
                 var (srcId, srcType) = ResolveSource(cardSourceId);
                 GetOrCreate(srcId, srcType).SelfDamage += unblockedSelf;
             }
 
-            // Attribute blocked damage to block sources via FIFO pool
+            // Attribute blocked damage to block sources via FIFO pool.
+            // Round 14 v5: use detailed consume so modifier slices
+            // (Dex/Focus/Footwork) credit ModifierBlock, not EffectiveBlock,
+            // and only when the chunk is actually consumed — matching the
+            // existing invariant for EffectiveBlock.
             if (blockedDamage > 0)
             {
-                var consumed = ContributionMap.Instance.ConsumeBlock(blockedDamage);
-                foreach (var (sourceId, sourceType, amount) in consumed)
+                var slices = ContributionMap.Instance.ConsumeBlockDetailed(blockedDamage);
+                foreach (var slice in slices)
                 {
-                    GetOrCreate(sourceId, sourceType).EffectiveBlock += amount;
+                    if (slice.IsModifier)
+                        GetOrCreate(slice.SourceId, slice.SourceType).ModifierBlock += slice.Amount;
+                    else
+                        GetOrCreate(slice.SourceId, slice.SourceType).EffectiveBlock += slice.Amount;
                 }
             }
 
@@ -484,23 +614,27 @@ public sealed class CombatTracker
 
             var (sourceId2, sourceType2) = ResolveSource(cardSourceId);
 
-            // Per-hit upgrade delta split (C2): each hit of a multi-hit card gets its upgrade bonus
+            // Per-hit upgrade delta split (C2): each hit of a multi-hit card gets its upgrade bonus.
+            // Fix 6: attribute the upgrade bonus to the UPGRADE SOURCE (e.g. ARMAMENTS),
+            // not the triggering card (sourceId2 = STRIKE_IRONCLAD). This restores the correct
+            // chain "the card that upgraded is credited for the extra damage it enabled".
             if (_pendingUpgradeDamageDelta > 0 && directDamage > 0)
             {
                 int upgSplit = Math.Min(_pendingUpgradeDamageDelta, directDamage);
-                GetOrCreate(sourceId2, sourceType2).UpgradeDamage += upgSplit;
+                string upgSrcId = _pendingUpgradeSourceId ?? sourceId2;
+                string upgSrcType = _pendingUpgradeSourceType ?? sourceType2;
+                GetOrCreate(upgSrcId, upgSrcType).UpgradeDamage += upgSplit;
                 directDamage -= upgSplit;
             }
 
-            // Indirect damage (poison, thorns, orbs) → AttributedDamage
-            // Direct damage (cards, relics, potions) → DirectDamage
-            // Orb context always means indirect (orb passive/evoke damage)
+            // Indirect damage (poison, thorns, orbs, power-hook-triggered) → AttributedDamage
+            // Direct damage (cards, relics, potions on play) → DirectDamage
+            // Fix 3: if _activePowerSourceId is set, the damage ORIGINATES from
+            // a power hook (not the card/relic that may also be active), so it
+            // qualifies as indirect regardless of card context.
             bool hasOrbContext = ContributionMap.Instance.ActiveOrbContext != null;
-            bool isIndirect = hasOrbContext || (cardSourceId == null
-                && _activeCardId == null
-                && _activePotionId == null
-                && _activeRelicId == null
-                && _activePowerSourceId != null);
+            bool isIndirect = hasOrbContext
+                || (cardSourceId == null && _activePowerSourceId != null);
 
             if (isIndirect)
                 GetOrCreate(sourceId2, sourceType2).AttributedDamage += directDamage;
@@ -575,6 +709,19 @@ public sealed class CombatTracker
         GetOrCreate(sourceId, sourceType).MitigatedByBuff += prevented;
     }
 
+    /// <summary>
+    /// Called when HardenedShellPower absorbs incoming HP loss (Min(amount, shellRemaining)).
+    /// Round 14 v5 review §12.
+    /// </summary>
+    public void OnHardenedShellMitigation(int preventedDamage)
+    {
+        if (preventedDamage <= 0) return;
+        var source = ContributionMap.Instance.GetPlayerBuffSource("HARDENED_SHELL_POWER");
+        string sourceId = source?.SourceId ?? "HARDENED_SHELL_POWER";
+        string sourceType = source?.SourceType ?? "power";
+        GetOrCreate(sourceId, sourceType).MitigatedByBuff += preventedDamage;
+    }
+
     // ── Block Tracking ──────────────────────────────────────
 
     public void OnBlockGained(int amount, string? cardPlayId)
@@ -583,38 +730,58 @@ public sealed class CombatTracker
 
         if (amount > 0)
         {
-            ContributionMap.Instance.AddBlock(sourceId, sourceType, amount);
+            // Round 14 v5: modifier contributions (Dex/Focus/Footwork/Dex potion)
+            // are pushed to the block pool as metadata on the chunk. They do NOT
+            // write ModifierBlock immediately. On damage absorption, ConsumeBlock
+            // proportionally splits the consumed amount between base (EffectiveBlock)
+            // and each modifier (ModifierBlock). This matches the existing invariant
+            // "block credit only counts when actually used to absorb damage".
+            List<(string Id, string Type, int Amount)>? modifierList = null;
+            int modifierTotal = 0;
+            var modifiers = ContributionMap.Instance.LastBlockModifiers;
+            if (modifiers.Count > 0)
+            {
+                modifierList = new List<(string, string, int)>();
+                foreach (var mod in modifiers)
+                {
+                    if (mod.Amount > 0)
+                    {
+                        modifierList.Add((mod.SourceId, mod.SourceType, mod.Amount));
+                        modifierTotal += mod.Amount;
+                    }
+                }
+                modifiers.Clear();
+            }
 
-            // Focus contribution split for Frost orb: Focus bonus as ModifierBlock
+            // Focus contribution split for Frost orb: Focus bonus is treated as a
+            // modifier entry too, so it only credits when block is actually used.
             var focusContrib = ContributionMap.Instance.PendingOrbFocusContrib;
             if (focusContrib != null && focusContrib.Value.amount > 0)
             {
                 int focusAmount = Math.Min(focusContrib.Value.amount, amount);
                 if (focusAmount > 0)
-                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType).ModifierBlock += focusAmount;
-            }
-
-            // Per-hit upgrade block delta split (C2)
-            if (_pendingUpgradeBlockDelta > 0 && amount > 0)
-            {
-                int upgSplit = Math.Min(_pendingUpgradeBlockDelta, amount);
-                GetOrCreate(sourceId, sourceType).UpgradeBlock += upgSplit;
-            }
-
-            // Consume block modifier context (Dexterity, etc.)
-            var modifiers = ContributionMap.Instance.LastBlockModifiers;
-            int modifierTotal = 0;
-            if (modifiers.Count > 0)
-            {
-                foreach (var mod in modifiers)
                 {
-                    if (mod.Amount > 0)
-                    {
-                        GetOrCreate(mod.SourceId, mod.SourceType).ModifierBlock += mod.Amount;
-                        modifierTotal += mod.Amount;
-                    }
+                    modifierList ??= new List<(string, string, int)>();
+                    modifierList.Add((focusContrib.Value.sourceId, focusContrib.Value.sourceType, focusAmount));
+                    modifierTotal += focusAmount;
                 }
-                modifiers.Clear();
+            }
+
+            int baseAmount = Math.Max(0, amount - modifierTotal);
+            if (baseAmount > 0 || modifierTotal > 0)
+                ContributionMap.Instance.AddBlock(sourceId, sourceType, baseAmount, modifierList);
+
+            // Per-hit upgrade block delta split (C2) — credits immediately since
+            // upgrade delta is a static property of the card, not a consumption-
+            // dependent contribution.
+            // Fix 6: attribute to the UPGRADE SOURCE (e.g. ARMAMENTS), not the
+            // triggering card being played.
+            if (_pendingUpgradeBlockDelta > 0 && baseAmount > 0)
+            {
+                int upgSplit = Math.Min(_pendingUpgradeBlockDelta, baseAmount);
+                string upgSrcId = _pendingUpgradeSourceId ?? sourceId;
+                string upgSrcType = _pendingUpgradeSourceType ?? sourceType;
+                GetOrCreate(upgSrcId, upgSrcType).UpgradeBlock += upgSplit;
             }
         }
     }
@@ -623,36 +790,60 @@ public sealed class CombatTracker
 
     public void OnPowerSourceRecorded(string powerId)
     {
-        if (_activeCardId != null)
-            ContributionMap.Instance.RecordPowerSource(powerId, _activeCardId, "card");
-        else if (_activePotionId != null)
-            ContributionMap.Instance.RecordPowerSource(powerId, _activePotionId, "potion");
+        // Fix 3.6: power > relic > potion > card priority. When a relic hook
+        // (e.g. BurningBlood applying Heal, or a relic's AfterCardPlayed buff)
+        // fires during card play, the power source attribution must follow
+        // the hook context, not the triggering card.
+        if (_activePowerSourceId != null)
+            ContributionMap.Instance.RecordPowerSource(powerId, _activePowerSourceId, _activePowerSourceType ?? "card");
         else if (_activeRelicId != null)
             ContributionMap.Instance.RecordPowerSource(powerId, _activeRelicId, "relic");
-        else if (_activePowerSourceId != null)
-            ContributionMap.Instance.RecordPowerSource(powerId, _activePowerSourceId, _activePowerSourceType ?? "card");
+        else if (_activePotionId != null)
+            ContributionMap.Instance.RecordPowerSource(powerId, _activePotionId, "potion");
+        else if (_activeCardId != null)
+            ContributionMap.Instance.RecordPowerSource(powerId, _activeCardId, "card");
     }
 
     public void OnPowerApplied(string powerId, decimal amount, int creatureHash, bool isPlayerTarget)
     {
-        string? sourceId = _activeCardId ?? _activePotionId ?? _activeRelicId ?? _activePowerSourceId;
-        string sourceType = _activeCardId != null ? "card" :
-                            _activePotionId != null ? "potion" :
+        // Fix 3.6: power > relic > potion > card priority (see ResolveSource notes).
+        string? sourceId = _activePowerSourceId ?? _activeRelicId ?? _activePotionId ?? _activeCardId;
+        string sourceType = _activePowerSourceId != null ? (_activePowerSourceType ?? "card") :
                             _activeRelicId != null ? "relic" :
-                            _activePowerSourceId != null ? (_activePowerSourceType ?? "card") : "card";
+                            _activePotionId != null ? "potion" :
+                            _activeCardId != null ? "card" : "card";
 
         if (sourceId == null) return;
 
-        // Record power source with amount for proportional multi-source attribution
         int intAmount = (int)amount;
-        ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType, intAmount);
 
         if (isPlayerTarget)
         {
-            ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType, intAmount);
+            // Player buffs: record globally for proportional multi-source attribution.
+            // E.g. Strike's ModifierDamage gets split across all STRENGTH_POWER sources.
+            //
+            // Round 14 v5 Fix A: only record POSITIVE contributions. A negative
+            // amount (e.g. Friendship's "Lose 2 Strength" self-cost) must not be
+            // added to the global STRENGTH_POWER source list, otherwise Strike's
+            // future ModifierDamage decomposition attributes a positive share to
+            // Friendship — the opposite of its actual effect. Negative player
+            // self-costs should flow through SelfDamage/cost channels, not the
+            // positive-contribution table.
+            if (intAmount > 0)
+            {
+                ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType, intAmount);
+                ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType, intAmount);
+            }
         }
         else
         {
+            // Enemy debuffs: record per-creature in debuff table only. Do NOT pollute
+            // the global _powerSources table (Fix 3.1). Previously when MonarchsGaze
+            // applied StrengthPower(-1) to an enemy, the global table saw
+            // STRENGTH_POWER → MONARCHS_GAZE_POWER @ -1, which then corrupted the
+            // proportional distribution of player's own Str on Strike's ModifierDamage
+            // (the denominator became sum(+2, -1)=1, producing share=4 for INFLAME and
+            // share=-2 for MONARCHS_GAZE, making MonarchsGaze appear in the attack column).
             ContributionMap.Instance.RecordDebuffSource(creatureHash, powerId, sourceId, sourceType);
             // H1: Record FIFO debuff layer for duration-based debuffs (Vulnerable, Weak)
             int duration = (int)amount;
@@ -676,34 +867,73 @@ public sealed class CombatTracker
     // ── Card Draw ───────────────────────────────────────────
 
     // Pending power/relic draw attribution: set by async power/relic hooks
-    // (like DarkEmbrace) whose Harmony postfix fires before the draw completes.
-    // The prefix records the intended source here; OnCardDrawn checks it first.
-    private string? _pendingDrawSourceId;
-    private string? _pendingDrawSourceType;
+    // (like DarkEmbrace, CentennialPuzzle) whose Harmony postfix fires before the
+    // draw completes. The prefix records the intended source here; OnCardDrawn checks
+    // it first. Backed by AsyncLocal so the value survives the first `await` point.
+    private string? _pendingDrawSourceId
+    {
+        get => _pendingDrawSourceIdAL.Value;
+        set => _pendingDrawSourceIdAL.Value = value;
+    }
+    private string? _pendingDrawSourceType
+    {
+        get => _pendingDrawSourceTypeAL.Value;
+        set => _pendingDrawSourceTypeAL.Value = value;
+    }
 
     public void SetPendingDrawSource(string sourceId, string sourceType)
     {
         _pendingDrawSourceId = sourceId;
         _pendingDrawSourceType = sourceType;
+        _pendingDrawRemainingAL.Value = null; // unlimited until consumed by single draw
+    }
+
+    /// <summary>
+    /// P2-3: Set pending draw source with an N-count sticky cap. Used by relics that
+    /// draw multiple cards in a single hook (e.g. CentennialPuzzle → draw 3). The
+    /// source is kept alive until `count` draws have been attributed to it.
+    /// </summary>
+    public void SetPendingDrawSource(string sourceId, string sourceType, int count)
+    {
+        _pendingDrawSourceId = sourceId;
+        _pendingDrawSourceType = sourceType;
+        _pendingDrawRemainingAL.Value =
+            new System.Runtime.CompilerServices.StrongBox<int>(Math.Max(1, count));
     }
 
     public void ClearPendingDrawSource()
     {
         _pendingDrawSourceId = null;
         _pendingDrawSourceType = null;
+        _pendingDrawRemainingAL.Value = null;
     }
 
     public void OnCardDrawn(bool fromHandDraw)
     {
         if (fromHandDraw) return; // Normal turn draw, not attributed
 
-        // Check pending power/relic draw source first (for async hooks like DarkEmbrace).
-        // Consumes the pending source after use.
+        // Check pending power/relic draw source first (for async hooks like DarkEmbrace,
+        // CentennialPuzzle). If an N-count is set, decrement and keep the source alive
+        // until fully consumed; otherwise consume after a single draw.
         if (_pendingDrawSourceId != null)
         {
             GetOrCreate(_pendingDrawSourceId, _pendingDrawSourceType ?? "card").CardsDrawn++;
-            _pendingDrawSourceId = null;
-            _pendingDrawSourceType = null;
+            var box = _pendingDrawRemainingAL.Value;
+            if (box != null)
+            {
+                box.Value--;
+                if (box.Value <= 0)
+                {
+                    _pendingDrawSourceId = null;
+                    _pendingDrawSourceType = null;
+                    _pendingDrawRemainingAL.Value = null;
+                }
+            }
+            else
+            {
+                _pendingDrawSourceId = null;
+                _pendingDrawSourceType = null;
+            }
             return;
         }
 
@@ -721,6 +951,18 @@ public sealed class CombatTracker
         var (sourceId, sourceType) = ResolveSource(null);
         if (sourceId != null)
             GetOrCreate(sourceId, sourceType).EnergyGained += amount;
+    }
+
+    /// <summary>
+    /// Direct EnergyGained write used by ModifyMaxEnergy postfix patches
+    /// (Demesne, Friendship). These powers are pure modifier overrides and
+    /// have no hook-fire event to set the attribution context, so the
+    /// caller supplies the resolved source directly.
+    /// </summary>
+    public void AddEnergyBonusDirect(string sourceId, string sourceType, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrEmpty(sourceId)) return;
+        GetOrCreate(sourceId, sourceType).EnergyGained += amount;
     }
 
     /// <summary>Called when player gains Stars (GainStars hook).</summary>
@@ -918,6 +1160,11 @@ public sealed class CombatTracker
 
     /// <summary>
     /// Called after Doom kills. Attributes total HP as damage to the Doom power source.
+    /// P2-1: Also falls back to active card/relic/power context when DOOM_POWER source
+    /// is missing (can happen when Doom was applied by a non-card path, or when the
+    /// ContributionMap lookup was cleared between apply and kill). This ensures the
+    /// NB-DOOM-Deathbringer scenario (21-Doom AoE from Deathbringer) properly credits
+    /// AttributedDamage back to DEATHBRINGER even when GetPowerSource returns null.
     /// </summary>
     public void OnDoomKillsCompleted()
     {
@@ -934,10 +1181,31 @@ public sealed class CombatTracker
         if (source != null)
         {
             GetOrCreate(source.SourceId, source.SourceType).AttributedDamage += totalDamage;
+            return;
+        }
+
+        // P2-1 fallback: use active context if DOOM_POWER source was not recorded
+        // (ContributionMap miss). Priority: activeCard > activePotion > activeRelic
+        // > activePowerSource. Only if none available, bucket under generic "DOOM".
+        if (_activeCardId != null)
+        {
+            GetOrCreate(_activeCardId, "card").AttributedDamage += totalDamage;
+        }
+        else if (_activePotionId != null)
+        {
+            GetOrCreate(_activePotionId, "potion").AttributedDamage += totalDamage;
+        }
+        else if (_activeRelicId != null)
+        {
+            GetOrCreate(_activeRelicId, "relic").AttributedDamage += totalDamage;
+        }
+        else if (_activePowerSourceId != null)
+        {
+            GetOrCreate(_activePowerSourceId, _activePowerSourceType ?? "card")
+                .AttributedDamage += totalDamage;
         }
         else
         {
-            // Fallback: attribute to generic "DOOM" entry
             GetOrCreate("DOOM", "card").AttributedDamage += totalDamage;
         }
     }
@@ -994,8 +1262,15 @@ public sealed class CombatTracker
         }
 
         // Write sub-bar entries: "FORGE:SOURCE_ID" with OriginSourceId = "SOVEREIGN_BLADE"
-        foreach (var (srcId, (srcType, count, totalAmt)) in aggregated)
+        // P2-2: Normalize Power sources — FurnacePower's Id.Entry is "FURNACE_POWER"
+        // but tests (and users) expect the sub-bar key "FORGE:FURNACE" / "FORGE:BULWARK"
+        // (the variant name, not the power suffix). Strip the trailing "_POWER" so
+        // the format is FORGE:<VARIANT>.
+        foreach (var (rawSrcId, (srcType, count, totalAmt)) in aggregated)
         {
+            string srcId = rawSrcId;
+            if (srcType == "power" && srcId.EndsWith("_POWER", StringComparison.Ordinal))
+                srcId = srcId.Substring(0, srcId.Length - "_POWER".Length);
             string key = $"FORGE:{srcId}";
             var accum = GetOrCreate(key, srcType);
             accum.OriginSourceId = "SOVEREIGN_BLADE";

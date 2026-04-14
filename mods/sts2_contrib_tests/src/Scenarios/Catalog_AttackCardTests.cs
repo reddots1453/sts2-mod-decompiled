@@ -189,7 +189,7 @@ public static class Catalog_AttackCardTests
             delta.TryGetValue("BLOOD_WALL", out var d);
             // BloodWall deals 2 self-damage and gains 16 block (consumed by SimulateDamage)
             ctx.AssertEquals(result, "BLOOD_WALL.SelfDamage", 2, d?.SelfDamage ?? 0);
-            ctx.AssertGreaterThan(result, "BLOOD_WALL.EffectiveBlock", 0, d?.EffectiveBlock ?? 0);
+            ctx.AssertEquals(result, "BLOOD_WALL.EffectiveBlock", 16, d?.EffectiveBlock ?? 0);
             await CreatureCmd.LoseBlock(ctx.PlayerCreature, ctx.PlayerCreature.Block);
             return result;
         }
@@ -239,6 +239,7 @@ public static class Catalog_AttackCardTests
             // Second play of a new instance will still be 9 since Rampage per-instance.
             // Accept either 9 or 14 depending on whether increment persists cross-instance.
             int dmg = d?.DirectDamage ?? 0;
+            // non-deterministic: Rampage per-instance accumulator, second instance base may be 9 or 14
             ctx.AssertGreaterThan(result, "RAMPAGE.DirectDamage_secondPlay", 0, dmg);
             result.ActualValues["damage"] = dmg.ToString();
             return result;
@@ -261,8 +262,7 @@ public static class Catalog_AttackCardTests
             var delta = ctx.GetDelta();
             delta.TryGetValue("CLAW", out var d);
             int dmg = d?.DirectDamage ?? 0;
-            // Claw scales based on prior Claw plays (combat-wide). First play = 3.
-            // Accept >= 3 since earlier tests may have played Claw.
+            // non-deterministic: Claw scales combat-wide by prior Claw plays, first-play value may drift
             ctx.AssertGreaterThan(result, "CLAW.DirectDamage", 2, dmg);
             result.ActualValues["damage"] = dmg.ToString();
             return result;

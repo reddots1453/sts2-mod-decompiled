@@ -647,6 +647,7 @@ public static class Catalog_ColorlessCardTests
             var card = await ctx.CreateCardInHand<Shockwave>();
             ctx.TakeSnapshot();
             await ctx.PlayCard(card);
+            // SPEC-WAIVER: debuff application smoke (Shockwave doesn't deal damage; no contribution path)
             var weak = enemy.GetPower<WeakPower>();
             ctx.AssertEquals(result, "enemy.WeakPower", 3, weak?.Amount ?? 0);
             var vuln = enemy.GetPower<VulnerablePower>();
@@ -762,8 +763,8 @@ public static class Catalog_ColorlessCardTests
                 // Enemy attacked → Thorns fires → 3 damage per attack
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("CALTROPS", out var d);
-                int totalDmg = (d?.DirectDamage ?? 0) + (d?.AttributedDamage ?? 0);
-                ctx.AssertGreaterThan(result, "CALTROPS.TotalDamage", 0, totalDmg);
+                // non-deterministic: Thorns reflection requires enemy to actually attack during EndTurn
+                ctx.AssertGreaterThan(result, "CALTROPS.AttributedDamage", 0, d?.AttributedDamage ?? 0);
             }
             finally
             {
@@ -795,6 +796,7 @@ public static class Catalog_ColorlessCardTests
                 // Intangible reduces all damage to 1 → MitigatedByBuff = damage - 1
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("APPARITION", out var d);
+                // non-deterministic: MitigatedByBuff requires enemy to attack during EndTurn
                 ctx.AssertGreaterThan(result, "APPARITION.MitigatedByBuff", 0, d?.MitigatedByBuff ?? 0);
             }
             finally
@@ -829,6 +831,7 @@ public static class Catalog_ColorlessCardTests
             await ctx.PlayCard(card, enemy);
             var delta = ctx.GetDelta();
             delta.TryGetValue("MIND_BLAST", out var d);
+            // non-deterministic: MindBlast damage = draw pile size, varies by deck state
             ctx.AssertGreaterThan(result, "MIND_BLAST.DirectDamage", 0, d?.DirectDamage ?? 0);
             return result;
         }
@@ -849,6 +852,7 @@ public static class Catalog_ColorlessCardTests
             await ctx.PlayCard(card);
             var delta = ctx.GetDelta();
             delta.TryGetValue("RIP_AND_TEAR", out var d);
+            // non-deterministic: RipAndTear hits random enemies, damage per-hit depends on enemy block
             ctx.AssertGreaterThan(result, "RIP_AND_TEAR.DirectDamage", 0, d?.DirectDamage ?? 0);
             return result;
         }

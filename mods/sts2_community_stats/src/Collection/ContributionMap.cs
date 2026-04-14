@@ -50,6 +50,8 @@ public class ContributionAccum
         SelfDamage += other.SelfDamage;
         UpgradeDamage += other.UpgradeDamage;
         UpgradeBlock += other.UpgradeBlock;
+        // Round 14 v5 review §12: preserve sub-bar parent tag on merge.
+        if (OriginSourceId == null) OriginSourceId = other.OriginSourceId;
     }
 }
 
@@ -75,18 +77,40 @@ public class ContributionMap
     // Per-creature buff tracking (on player): (powerId) → list of sources
     private readonly Dictionary<string, List<PowerSourceEntry>> _playerBuffSources = new();
 
-    // Block pool: FIFO queue of (sourceId, sourceType, remainingAmount)
+    // Block pool: FIFO queue of block chunks. Each chunk carries an optional
+    // modifier breakdown so that when the chunk is consumed by incoming damage,
+    // the consumed amount can be proportionally split between the base source
+    // (→ EffectiveBlock) and each modifier source (→ ModifierBlock). This
+    // matches the damage path symmetry (DirectDamage + ModifierDamage = Total)
+    // AND ensures modifier contributions are only credited when the block is
+    // actually used to absorb damage (not at gain time). Addresses Round 14 v5
+    // Footwork/Dex potion timing issue.
     private readonly List<BlockEntry> _blockPool = new();
 
     public class BlockEntry
     {
-        public string SourceId = "";
+        public string SourceId = "";        // base source (the card/relic that granted block)
         public string SourceType = "";
-        public int Remaining;
+        public int OriginalTotal;            // base + sum(modifiers) at creation time
+        public int OriginalBase;             // base-only portion
+        public int Remaining;                // current remaining = OriginalTotal - cumulativeConsumed
+        public List<(string Id, string Type, int Amount)>? Modifiers;  // original per-modifier amounts
+        public int BaseConsumed;             // cumulative base portion already consumed
+        public int[]? ModConsumed;           // parallel to Modifiers, cumulative per-mod consumed
     }
+
+    /// <summary>Consumed block chunk returned by ConsumeBlock; flag says whether the slice goes to ModifierBlock vs EffectiveBlock.</summary>
+    public readonly record struct ConsumedBlockSlice(string SourceId, string SourceType, int Amount, bool IsModifier);
 
     public void RecordPowerSource(string powerId, string sourceId, string sourceType, int amount = 0)
     {
+        // Round 14 v5 review §7: defense-in-depth — reject negative contributions.
+        // Negative amounts (e.g. Friendship's "Lose 2 Strength" self-cost) must not
+        // enter the global source table, otherwise DistributeByPowerSources'
+        // Math.Max(Amount, 1) masks them as positive shares and produces phantom
+        // attribution. Existing callers (OnPowerApplied) already guard, but this
+        // is a safety net for any future call site.
+        if (amount < 0) return;
         if (!_powerSources.TryGetValue(powerId, out var list))
         {
             list = new List<PowerSourceEntry>();
@@ -111,6 +135,8 @@ public class ContributionMap
 
     public void RecordPlayerBuffSource(string powerId, string sourceId, string sourceType, int amount = 0)
     {
+        // Round 14 v5 review §7: negative-amount defense-in-depth (see RecordPowerSource).
+        if (amount < 0) return;
         if (!_playerBuffSources.TryGetValue(powerId, out var list))
         {
             list = new List<PowerSourceEntry>();
@@ -132,16 +158,44 @@ public class ContributionMap
 
     public void AddBlock(string sourceId, string sourceType, int amount)
     {
-        if (amount <= 0) return;
-        _blockPool.Add(new BlockEntry { SourceId = sourceId, SourceType = sourceType, Remaining = amount });
+        AddBlock(sourceId, sourceType, amount, null);
     }
 
     /// <summary>
-    /// Consume block from the pool (FIFO) and return per-source consumption.
+    /// Add a block chunk with optional modifier breakdown. Modifiers are recorded
+    /// as part of the chunk and split proportionally on consume, so Dex/Focus/
+    /// Footwork bonuses only credit ModifierBlock when the block is actually used.
     /// </summary>
-    public List<(string SourceId, string SourceType, int Amount)> ConsumeBlock(int blockedDamage)
+    public void AddBlock(string sourceId, string sourceType, int baseAmount,
+        List<(string Id, string Type, int Amount)>? modifiers)
     {
-        var result = new List<(string, string, int)>();
+        int modSum = 0;
+        if (modifiers != null)
+            foreach (var m in modifiers) modSum += Math.Max(0, m.Amount);
+        int total = baseAmount + modSum;
+        if (total <= 0) return;
+
+        var entry = new BlockEntry
+        {
+            SourceId = sourceId,
+            SourceType = sourceType,
+            OriginalBase = baseAmount,
+            OriginalTotal = total,
+            Remaining = total,
+            Modifiers = modifiers,
+            ModConsumed = modifiers != null ? new int[modifiers.Count] : null,
+        };
+        _blockPool.Add(entry);
+    }
+
+    /// <summary>
+    /// Consume block from the pool (FIFO). Each slice returned is tagged as
+    /// EffectiveBlock (base) or ModifierBlock (modifier). Caller writes the
+    /// slice to the corresponding contribution field.
+    /// </summary>
+    public List<ConsumedBlockSlice> ConsumeBlockDetailed(int blockedDamage)
+    {
+        var result = new List<ConsumedBlockSlice>();
         var remaining = blockedDamage;
 
         for (int i = 0; i < _blockPool.Count && remaining > 0; i++)
@@ -149,16 +203,70 @@ public class ContributionMap
             var entry = _blockPool[i];
             if (entry.Remaining <= 0) continue;
 
-            var consumed = Math.Min(entry.Remaining, remaining);
-            result.Add((entry.SourceId, entry.SourceType, consumed));
-            entry.Remaining -= consumed;
-            remaining -= consumed;
+            int take = Math.Min(entry.Remaining, remaining);
+            int consumedAfter = entry.OriginalTotal - entry.Remaining + take;
+
+            // Cumulative proportional split. Using cumulative targets avoids
+            // rounding drift across multiple partial consumes from the same entry.
+            int newBaseCum = entry.OriginalTotal > 0
+                ? (int)((long)entry.OriginalBase * consumedAfter / entry.OriginalTotal)
+                : 0;
+            int baseDelta = newBaseCum - entry.BaseConsumed;
+
+            // Compute modifier deltas before committing cumulative state so we
+            // can fix rounding residue in one pass.
+            int[]? modDeltas = null;
+            if (entry.Modifiers != null && entry.ModConsumed != null)
+            {
+                modDeltas = new int[entry.Modifiers.Count];
+                for (int j = 0; j < entry.Modifiers.Count; j++)
+                {
+                    int modOrig = entry.Modifiers[j].Amount;
+                    int newModCum = entry.OriginalTotal > 0
+                        ? (int)((long)modOrig * consumedAfter / entry.OriginalTotal)
+                        : 0;
+                    modDeltas[j] = newModCum - entry.ModConsumed[j];
+                }
+            }
+
+            int totalAllocated = baseDelta;
+            if (modDeltas != null) foreach (var d in modDeltas) totalAllocated += d;
+
+            // Absorb rounding residue into base so base + sum(mods) == take exactly.
+            int residue = take - totalAllocated;
+            if (residue != 0) baseDelta += residue;
+
+            // Commit cumulative state
+            entry.BaseConsumed += baseDelta;
+            if (modDeltas != null && entry.ModConsumed != null)
+                for (int j = 0; j < modDeltas.Length; j++) entry.ModConsumed[j] += modDeltas[j];
+
+            // Emit slices
+            if (baseDelta > 0)
+                result.Add(new ConsumedBlockSlice(entry.SourceId, entry.SourceType, baseDelta, false));
+            if (modDeltas != null && entry.Modifiers != null)
+            {
+                for (int j = 0; j < modDeltas.Length; j++)
+                {
+                    if (modDeltas[j] > 0)
+                    {
+                        var m = entry.Modifiers[j];
+                        result.Add(new ConsumedBlockSlice(m.Id, m.Type, modDeltas[j], true));
+                    }
+                }
+            }
+
+            entry.Remaining -= take;
+            remaining -= take;
         }
 
-        // Cleanup empty entries
         _blockPool.RemoveAll(e => e.Remaining <= 0);
         return result;
     }
+
+    // Round 14 v5 review §11: legacy ConsumeBlock (base-only slices) removed.
+    // All callers switched to ConsumeBlockDetailed which routes modifier slices
+    // to ModifierBlock correctly (Fix 4).
 
     /// <summary>Get all sources for a power (multi-source support).</summary>
     public IReadOnlyList<PowerSourceEntry>? GetPowerSources(string powerId)

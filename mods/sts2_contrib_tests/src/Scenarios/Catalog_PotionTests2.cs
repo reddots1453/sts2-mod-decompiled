@@ -315,92 +315,135 @@ public static class Catalog_PotionTests2
     }
 
     // ═══════════════════════════════════════════════════════════
-    // G: Debuff application (exact power values)
-    // These check game state (debuff applied) rather than contribution tracking,
-    // since the contribution from debuffs requires subsequent actions (enemy attack
-    // for Weak, player attack for Vuln, EndTurn for Poison).
+    // G: Debuff application → EndTurn chain to verify contribution
+    // Poison → AttributedDamage via tick. Vuln/Shackling → ModifierDamage via player attack.
     // ═══════════════════════════════════════════════════════════
 
     private class POT2_PoisonPotion : ITestScenario
     {
         public string Id => "CAT-POT2-Poison";
-        public string Name => "PoisonPotion: PoisonPower=6 on enemy";
+        public string Name => "PoisonPotion: 6 poison → EndTurn → AttributedDamage=6";
         public string Category => Cat;
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive && ctx.GetAllEnemies().Count > 0;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             var enemy = ctx.GetFirstEnemy();
-            await PowerCmd.Remove<PoisonPower>(enemy);
-            ctx.TakeSnapshot();
-            await ctx.UsePotion<PoisonPotion>(target: enemy);
-            var poison = enemy.GetPower<PoisonPower>();
-            ctx.AssertEquals(result, "enemy.PoisonPower", 6, poison?.Amount ?? 0);
+            try
+            {
+                await PowerCmd.Remove<PoisonPower>(enemy);
+                await ctx.UsePotion<PoisonPotion>(target: enemy);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("POISON_POTION", out var d);
+                ctx.AssertEquals(result, "POISON_POTION.AttributedDamage", 6, d?.AttributedDamage ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<PoisonPower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
 
+    // VulnerablePotion: +3 Vuln → play Strike → VulnerablePotion.ModifierDamage via Vuln decomposition
     private class POT2_VulnerablePotion : ITestScenario
     {
         public string Id => "CAT-POT2-Vulnerable";
-        public string Name => "VulnerablePotion: VulnerablePower=3 on enemy";
+        public string Name => "VulnerablePotion: +3 Vuln → Strike ModifierDamage attributed";
         public string Category => Cat;
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive && ctx.GetAllEnemies().Count > 0;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
-            var enemy = ctx.GetFirstEnemy();
-            await PowerCmd.Remove<VulnerablePower>(enemy);
-            ctx.TakeSnapshot();
-            await ctx.UsePotion<VulnerablePotion>(target: enemy);
-            var vuln = enemy.GetPower<VulnerablePower>();
-            ctx.AssertEquals(result, "enemy.VulnerablePower", 3, vuln?.Amount ?? 0);
-            await PowerCmd.Remove<VulnerablePower>(enemy);
+            try
+            {
+                await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
+                var enemy = ctx.GetFirstEnemy();
+                await PowerCmd.Remove<VulnerablePower>(enemy);
+                await ctx.UsePotion<VulnerablePotion>(target: enemy);
+                // Strike base=6, Vuln 1.5x → final=9, totalContrib=9-floor(9/1.5)=9-6=3
+                var strike = await ctx.CreateCardInHand<StrikeIronclad>();
+                ctx.TakeSnapshot();
+                await ctx.PlayCard(strike, enemy);
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("VULNERABLE_POTION", out var d);
+                ctx.AssertEquals(result, "VULNERABLE_POTION.ModifierDamage", 3, d?.ModifierDamage ?? 0);
+            }
+            finally
+            {
+                var enemy = ctx.GetFirstEnemy();
+                await PowerCmd.Remove<VulnerablePower>(enemy);
+            }
             return result;
         }
     }
 
+    // ShacklingPotion: -7 Str on enemy → enemy attacks player → MitigatedByStrReduction
+    // EndTurn chain: need enemy with attack intent
     private class POT2_ShacklingPotion : ITestScenario
     {
         public string Id => "CAT-POT2-Shackling";
-        public string Name => "ShacklingPotion: enemy Str=-7";
+        public string Name => "ShacklingPotion: -7 Str → EndTurn → MitigatedByStrReduction>0";
         public string Category => Cat;
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive && ctx.GetAllEnemies().Count > 0;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
             var enemy = ctx.GetFirstEnemy();
-            await PowerCmd.Remove<StrengthPower>(enemy);
-            ctx.TakeSnapshot();
-            await ctx.UsePotion<ShacklingPotion>(target: enemy);
-            var str = enemy.GetPower<StrengthPower>();
-            ctx.AssertEquals(result, "enemy.StrengthPower", -7, str?.Amount ?? 0);
-            await PowerCmd.Remove<StrengthPower>(enemy);
+            try
+            {
+                await PowerCmd.Remove<StrengthPower>(enemy);
+                await ctx.UsePotion<ShacklingPotion>(target: enemy);
+                ctx.TakeSnapshot();
+                await ctx.EndTurnAndWaitForPlayerTurn();
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("SHACKLING_POTION", out var d);
+                // non-deterministic: enemy intent + base Str (capped) + attack count unknown.
+                ctx.AssertGreaterThan(result, "SHACKLING_POTION.MitigatedByStrReduction", 0, d?.MitigatedByStrReduction ?? 0);
+            }
+            finally
+            {
+                await PowerCmd.Remove<StrengthPower>(enemy);
+                await ctx.SetEnergy(999);
+            }
             return result;
         }
     }
 
+    // PotionOfBinding: 1 Weak + 1 Vuln → Strike → PotionOfBinding.ModifierDamage from Vuln
     private class POT2_PotionOfBinding : ITestScenario
     {
         public string Id => "CAT-POT2-Binding";
-        public string Name => "PotionOfBinding: Weak + Vuln on enemy";
+        public string Name => "PotionOfBinding: Vuln → Strike ModifierDamage attributed";
         public string Category => Cat;
         public bool CanRun(TestContext ctx) => ctx.IsCombatActive && ctx.GetAllEnemies().Count > 0;
         public async Task<TestResult> RunAsync(TestContext ctx, CancellationToken ct)
         {
             var result = new TestResult { ScenarioId = Id, ScenarioName = Name, Category = Category };
-            var enemy = ctx.GetFirstEnemy();
-            await PowerCmd.Remove<WeakPower>(enemy);
-            await PowerCmd.Remove<VulnerablePower>(enemy);
-            ctx.TakeSnapshot();
-            await ctx.UsePotion<PotionOfBinding>(target: enemy);
-            var weak = enemy.GetPower<WeakPower>();
-            var vuln = enemy.GetPower<VulnerablePower>();
-            // PotionOfBinding applies Weak+Vuln (exact amounts depend on potion vars)
-            ctx.AssertEquals(result, "enemy.WeakPower", 1, weak?.Amount ?? 0);
-            ctx.AssertEquals(result, "enemy.VulnerablePower", 1, vuln?.Amount ?? 0);
-            await PowerCmd.Remove<WeakPower>(enemy);
-            await PowerCmd.Remove<VulnerablePower>(enemy);
+            try
+            {
+                await PowerCmd.Remove<StrengthPower>(ctx.PlayerCreature);
+                var enemy = ctx.GetFirstEnemy();
+                await PowerCmd.Remove<WeakPower>(enemy);
+                await PowerCmd.Remove<VulnerablePower>(enemy);
+                await ctx.UsePotion<PotionOfBinding>(target: enemy);
+                var strike = await ctx.CreateCardInHand<StrikeIronclad>();
+                ctx.TakeSnapshot();
+                await ctx.PlayCard(strike, enemy);
+                // Strike base=6, Vuln 1.5x → final=9, ModifierDamage=3
+                var delta = ctx.GetDelta();
+                delta.TryGetValue("POTION_OF_BINDING", out var d);
+                ctx.AssertEquals(result, "POTION_OF_BINDING.ModifierDamage", 3, d?.ModifierDamage ?? 0);
+            }
+            finally
+            {
+                var enemy = ctx.GetFirstEnemy();
+                await PowerCmd.Remove<WeakPower>(enemy);
+                await PowerCmd.Remove<VulnerablePower>(enemy);
+            }
             return result;
         }
     }
@@ -428,8 +471,9 @@ public static class Catalog_PotionTests2
                 // Enemy attacked → Thorns fired → 3 damage per attack
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("LIQUID_BRONZE", out var d);
-                int totalDmg = (d?.DirectDamage ?? 0) + (d?.AttributedDamage ?? 0);
-                ctx.AssertGreaterThan(result, "LIQUID_BRONZE.TotalDamage", 0, totalDmg);
+                // non-deterministic: enemy intent — Thorns (3) fires once per incoming attack,
+                // so total thorns damage = 3 × attack count, which is enemy-intent dependent.
+                ctx.AssertGreaterThan(result, "LIQUID_BRONZE.AttributedDamage", 0, d?.AttributedDamage ?? 0);
             }
             finally
             {
@@ -460,6 +504,8 @@ public static class Catalog_PotionTests2
                 // Plating fires BeforeTurnEndEarly → 7 block → enemy attacks consume it
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("HEART_OF_IRON", out var d);
+                // non-deterministic: enemy intent — Plating produces 7 block but EffectiveBlock
+                // == min(7, enemy hit total), capped further if enemy doesn't attack this turn.
                 ctx.AssertGreaterThan(result, "HEART_OF_IRON.EffectiveBlock", 0, d?.EffectiveBlock ?? 0);
             }
             finally
@@ -491,6 +537,8 @@ public static class Catalog_PotionTests2
                 // Intangible reduces all damage to 1 → MitigatedByBuff = damage - 1
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("GHOST_IN_A_JAR", out var d);
+                // non-deterministic: Intangible caps hit to 1; prevented = hit - 1, where hit is
+                // enemy-intent dependent.
                 ctx.AssertGreaterThan(result, "GHOST_IN_A_JAR.MitigatedByBuff", 0, d?.MitigatedByBuff ?? 0);
             }
             finally
@@ -522,6 +570,8 @@ public static class Catalog_PotionTests2
                 // Buffer prevents first HP loss entirely → MitigatedByBuff = full damage
                 var delta = ctx.GetDelta();
                 delta.TryGetValue("LUCKY_TONIC", out var d);
+                // non-deterministic: Buffer absorbs the first HP-loss event; prevented amount
+                // depends on enemy attack size.
                 ctx.AssertGreaterThan(result, "LUCKY_TONIC.MitigatedByBuff", 0, d?.MitigatedByBuff ?? 0);
             }
             finally

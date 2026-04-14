@@ -44,7 +44,7 @@ public partial class ContributionPanel : PanelContainer
 
         var style = new StyleBoxFlat
         {
-            BgColor = new Color(0.05f, 0.05f, 0.1f, 0.82f),
+            BgColor = new Color(0.05f, 0.05f, 0.1f, 0.70f),
             CornerRadiusBottomLeft = 8, CornerRadiusBottomRight = 8,
             CornerRadiusTopLeft = 8, CornerRadiusTopRight = 8,
             ContentMarginLeft = 16, ContentMarginRight = 16,
