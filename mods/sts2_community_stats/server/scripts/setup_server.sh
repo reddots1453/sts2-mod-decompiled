@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================
 #  STS2 Community Stats — Server Setup Script
-#  Target: Ubuntu 22.04+ / Debian 12+
-#  Run as root or with sudo
+#  Target: Ubuntu 22.04 / 24.04 / Debian 12+
+#  Run as root (or with sudo) from /opt/sts2stats/
 # ============================================================
 
 set -euo pipefail
@@ -19,11 +19,50 @@ echo "=========================================="
 
 # ── 1. System packages ──────────────────────────────────────
 echo "[1/7] Installing system packages..."
+
+# Docker's `docker-compose-plugin` is NOT in Ubuntu's default apt repos —
+# it only exists in Docker's official APT repository. We must add that
+# repo first, then install `docker-ce` + `docker-compose-plugin` together.
+# Ubuntu's legacy `docker.io` package is intentionally removed to avoid
+# a split installation (old daemon + new CLI plugins).
+
+echo "  Installing prerequisites..."
 apt-get update -qq
-apt-get install -y -qq \
-    docker.io docker-compose-plugin \
+apt-get install -y -qq ca-certificates curl gnupg lsb-release \
     nginx certbot python3-certbot-nginx \
-    curl jq htop > /dev/null
+    jq htop > /dev/null
+
+# Remove any legacy Docker packages that would conflict with docker-ce.
+# `|| true` because these may not be installed on a fresh VPS.
+echo "  Removing legacy docker packages (if any)..."
+apt-get remove -y -qq \
+    docker docker-engine docker.io containerd runc \
+    docker-doc docker-compose podman-docker > /dev/null 2>&1 || true
+
+# Add Docker's official GPG key + APT source (official instructions).
+if [ ! -f /etc/apt/keyrings/docker.gpg ]; then
+    echo "  Adding Docker official APT repository..."
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+
+    # VERSION_CODENAME is defined by /etc/os-release on Ubuntu/Debian.
+    . /etc/os-release
+    ARCH=$(dpkg --print-architecture)
+    echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
+        > /etc/apt/sources.list.d/docker.list
+fi
+
+apt-get update -qq
+echo "  Installing docker-ce + compose plugin..."
+apt-get install -y -qq \
+    docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin > /dev/null
+
+# Sanity check: both must be present before continuing.
+docker --version
+docker compose version
 
 # Enable Docker
 systemctl enable --now docker

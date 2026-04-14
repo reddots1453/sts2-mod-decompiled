@@ -140,29 +140,46 @@ ssh root@你的VPS_IP
 # 如果用了 SSH 密钥，无需输入密码
 ```
 
-#### 第二步：上传服务端代码
+#### 第二步：在 VPS 上获取服务端代码
 
-在**本机**另开一个终端:
+**在 VPS 的 SSH 会话里执行**（不是在本机）。推荐用 git clone，比 scp 干净且后续 `git pull` 能直接更新：
 
 ```bash
-# 先在 VPS 上创建目录
-ssh root@你的VPS_IP "mkdir -p /opt/sts2stats"
+# 1. 在 VPS 上克隆仓库（如果是私有仓库，先在 GitHub 生成 Personal Access Token，
+#    clone 时 Username 填你的 GitHub 账号，Password 粘贴 ghp_xxxx 的 token）
+cd ~
+git clone https://github.com/reddots1453/sts2-mod-decompiled.git
 
-# 上传 server/ 目录所有文件到 VPS
-scp -r "本机项目路径/mods/sts2_community_stats/server/"* root@你的VPS_IP:/opt/sts2stats/
+# 2. 把 server/ 目录内容拷到脚本期待的 /opt/sts2stats/
+mkdir -p /opt/sts2stats
+cp -r ~/sts2-mod-decompiled/mods/sts2_community_stats/server/. /opt/sts2stats/
+
+# 3. 确认目录里有 docker-compose.yml / nginx/ / scripts/ 等
+cd /opt/sts2stats
+ls
 ```
 
-> Windows 上路径中有空格时用引号包裹。也可用 WinSCP 等图形工具上传。
+> **替代方案 1（本机 scp）**：如果不想在 VPS 上 clone，也可以从**本机** Git Bash 执行：
+> ```bash
+> scp -r "/d/game_backup/steam/steamapps/common/Slay the Spire 2/Sts2-mod-decompiled/mods/sts2_community_stats/server/." root@你的VPS_IP:/opt/sts2stats/
+> ```
+> （Git Bash 中 Windows 盘符 `D:\` 写成 `/d/`；路径含空格必须整体用双引号；**不要**在 VPS 里跑 scp 引本机路径，会被当成 `hostname:path` 误解）
+>
+> **替代方案 2（WinSCP）**：图形工具拖拽上传 `server/` 目录里的全部文件到 `/opt/sts2stats/`。
 
-#### 第三步：运行一键安装脚本
+#### 第三步：运行一键安装脚本（在 VPS 上）
 
-SSH 登录 VPS 后执行:
+上一步完成后，**保持在 VPS 的 SSH 会话里**执行：
 
 ```bash
 cd /opt/sts2stats
 chmod +x scripts/setup_server.sh
 bash scripts/setup_server.sh api.你的域名.com 你的邮箱@example.com
 ```
+
+> **注意**：脚本假设当前目录是 `/opt/sts2stats`，且目录里有 `docker-compose.yml`。如果 line 1 的检查报 `ERROR: docker-compose.yml not found`，说明第二步的文件拷贝没做对——回去重新执行第二步。
+>
+> **Ubuntu 24.04**：脚本会自动添加 Docker 官方 APT 源再安装 `docker-ce` + `docker-compose-plugin`（`docker-compose-plugin` 不存在于 Ubuntu 默认 apt 源中，必须走 Docker 官方源）。如果你之前手动装过 Ubuntu 的 `docker.io` 包，脚本会先卸载再换官方包，避免新旧 docker 冲突。
 
 脚本会自动完成 7 件事:
 1. 安装 Docker + Docker Compose + Nginx + Certbot
