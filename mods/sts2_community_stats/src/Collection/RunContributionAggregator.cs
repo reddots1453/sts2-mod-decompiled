@@ -128,12 +128,20 @@ public sealed class RunContributionAggregator
         {
             EncounterId = e.EncounterId,
             EncounterType = e.EncounterType,
-            DamageTaken = e.DamageTaken,
-            TurnsTaken = e.TurnsTaken,
+            DamageTaken = Math.Max(0, e.DamageTaken),
+            TurnsTaken = Math.Clamp(e.TurnsTaken, 0, 999),
             PlayerDied = e.PlayerDied,
             Floor = e.Floor
         }).ToList();
     }
+
+    // Server-side ContributionUpload only accepts source_type ∈
+    // {card, relic, potion}. Local tracking also uses event/rest/merchant/
+    // floor_regen as fallbacks for non-card heal/block sources, but those
+    // are only meaningful in the local Run History view — uploading them
+    // would 422 the entire run. Filter at the upload boundary.
+    private static bool IsUploadableSourceType(string t)
+        => t == "card" || t == "relic" || t == "potion";
 
     public List<ContributionUpload> BuildContributionUploads()
     {
@@ -144,6 +152,7 @@ public sealed class RunContributionAggregator
         {
             foreach (var (_, accum) in contributions)
             {
+                if (!IsUploadableSourceType(accum.SourceType)) continue;
                 result.Add(ToUpload(accum, encounterId));
             }
         }
@@ -151,6 +160,7 @@ public sealed class RunContributionAggregator
         // Run-level totals (encounterId = "" means aggregate)
         foreach (var (_, accum) in _runTotals)
         {
+            if (!IsUploadableSourceType(accum.SourceType)) continue;
             result.Add(ToUpload(accum, ""));
         }
 

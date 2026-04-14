@@ -17,12 +17,47 @@ namespace CommunityStats.Patches;
 [HarmonyPatch]
 public static class CardUpgradePatch
 {
+    // PRD §3.13: live upgrade screens for DataRefreshed re-render.
+    private static readonly List<WeakReference<NDeckUpgradeSelectScreen>> _liveScreens = new();
+
+    public static void SubscribeRefresh()
+    {
+        StatsProvider.DataRefreshed += OnDataRefreshed;
+    }
+
+    private static void OnDataRefreshed()
+    {
+        Safe.Run(() =>
+        {
+            for (int i = _liveScreens.Count - 1; i >= 0; i--)
+            {
+                if (_liveScreens[i].TryGetTarget(out var screen) &&
+                    GodotObject.IsInstanceValid(screen) && screen.IsInsideTree())
+                    AfterScreenReady(screen);
+                else
+                    _liveScreens.RemoveAt(i);
+            }
+        });
+    }
+
+    private static void TrackScreen(NDeckUpgradeSelectScreen screen)
+    {
+        for (int i = _liveScreens.Count - 1; i >= 0; i--)
+        {
+            if (!_liveScreens[i].TryGetTarget(out var t) || !GodotObject.IsInstanceValid(t))
+                _liveScreens.RemoveAt(i);
+            else if (t == screen) return;
+        }
+        _liveScreens.Add(new WeakReference<NDeckUpgradeSelectScreen>(screen));
+    }
+
     // ── Display upgrade rate when screen shows cards ────────
 
     [HarmonyPatch(typeof(NDeckUpgradeSelectScreen), nameof(NDeckUpgradeSelectScreen._Ready))]
     [HarmonyPostfix]
     public static void AfterScreenReady(NDeckUpgradeSelectScreen __instance)
     {
+        TrackScreen(__instance);
         Safe.Run(() =>
         {
             // Access card grid to attach labels

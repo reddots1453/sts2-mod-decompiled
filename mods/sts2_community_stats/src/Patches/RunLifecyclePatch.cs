@@ -179,11 +179,20 @@ public static class RunLifecyclePatch
     [HarmonyPatch(typeof(MegaCrit.Sts2.Core.Runs.RunHistoryUtilities),
         nameof(MegaCrit.Sts2.Core.Runs.RunHistoryUtilities.CreateRunHistoryEntry))]
     [HarmonyPostfix]
-    public static void AfterCreateRunHistoryEntry(bool victory, bool isAbandoned)
+    public static void AfterCreateRunHistoryEntry(
+        MegaCrit.Sts2.Core.Saves.SerializableRun run, bool victory, bool isAbandoned)
     {
         Safe.Run(() =>
         {
             Safe.Info($"[RunLifecycle] CreateRunHistoryEntry postfix: victory={victory}, abandoned={isAbandoned}");
+
+            // Abandoned runs are skipped by OnMetricsUpload, so upload here.
+            if (isAbandoned)
+            {
+                Safe.Info("[RunLifecycle] Abandoned run — uploading via CreateRunHistoryEntry");
+                Collection.RunDataCollector.OnMetricsUpload(run, false, 0);
+            }
+
             // Drop cached snapshot + bundles, then kick off a forced reload
             // so the next time the player opens the card library / relic
             // collection / career stats screen, fresh data is ready.

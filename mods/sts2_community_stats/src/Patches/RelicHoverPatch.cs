@@ -18,6 +18,16 @@ public static class RelicHoverPatch
 {
     private const string StatsLabelMeta = "cs_relic_stats";
 
+    // PRD §3.13: no-op — hover tooltips are ephemeral. If the user is not
+    // currently hovering a relic there is nothing to refresh; if they are,
+    // unfocus+refocus will regenerate the label from fresh StatsProvider
+    // data anyway. Method is kept so CommunityStatsMod can wire it up
+    // alongside the other patches.
+    public static void SubscribeRefresh()
+    {
+        // intentionally empty
+    }
+
     // ── NRelicBasicHolder (reward screens, etc.) ────────────────
 
     [HarmonyPatch(typeof(NRelicBasicHolder), "OnFocus")]

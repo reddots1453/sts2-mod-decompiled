@@ -99,7 +99,7 @@ public partial class FilterPanel : PanelContainer
             MouseFilter = MouseFilterEnum.Stop,
         };
         closeBtn.AddThemeFontSizeOverride("font_size", 22);
-        closeBtn.Pressed += () => panel.Visible = false;
+        closeBtn.Pressed += () => panel.ApplyAndClose();
         header.AddChild(closeBtn);
 
         vbox.AddChild(NewSeparator());
@@ -420,6 +420,8 @@ public partial class FilterPanel : PanelContainer
             if (charIdx < 0 || charIdx >= _characterModes.Length) charIdx = 0;
             filter.CharacterFilterMode = _characterModes[charIdx];
 
+            Safe.Info($"[DIAG:FilterPanel] verIdx={verIdx}, GameVersion={filter.GameVersion}, CharMode={filter.CharacterFilterMode}, MinAsc={filter.MinAscension}, MaxAsc={filter.MaxAscension}, AutoAsc={filter.AutoMatchAscension}");
+
             filter.Save();
 
             foreach (var (key, cb) in _toggleCheckboxes)
@@ -429,7 +431,9 @@ public partial class FilterPanel : PanelContainer
 
             Safe.Run(() => ModConfig.SaveSettings());
 
+            Safe.Info("[DIAG:FilterPanel] About to invoke FilterApplied event");
             FilterApplied?.Invoke();
+            Safe.Info("[DIAG:FilterPanel] FilterApplied invoked, hiding panel");
             Visible = false;
         });
     }

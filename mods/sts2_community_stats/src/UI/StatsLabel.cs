@@ -72,6 +72,13 @@ public partial class StatsLabel : Label
         return Create(text, NeutralColor);
     }
 
+    public static StatsLabel ForComboOption(ComboOptionStats stats)
+    {
+        var text = string.Format(L.Get("stats.event_pick"),
+            (stats.SelectionRate * 100).ToString("F1"));
+        return Create(text, NeutralColor);
+    }
+
     public static StatsLabel ForEncounter(EncounterStats stats)
     {
         var text = string.Format(L.Get("stats.encounter"),
@@ -97,12 +104,18 @@ public partial class StatsLabel : Label
         return Create(text, WinRateColor(stats.WinRate));
     }
 
-    public static StatsLabel ForShopBuyRate(float shopBuyRate, float winRate)
+    public static StatsLabel ForShopBuyRate(float shopBuyRate, int fontSize = 16)
     {
         var text = string.Format(L.Get("stats.buy"),
-            (shopBuyRate * 100).ToString("F1"),
-            (winRate * 100).ToString("F1"));
-        return Create(text, WinRateColor(winRate));
+            (shopBuyRate * 100).ToString("F1"));
+        var label = new StatsLabel();
+        label.Text = text;
+        label.AddThemeColorOverride("font_color", NeutralColor);
+        label.AddThemeFontSizeOverride("font_size", fontSize);
+        label.HorizontalAlignment = HorizontalAlignment.Right;
+        label.VerticalAlignment = VerticalAlignment.Bottom;
+        label.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+        return label;
     }
 
     public static StatsLabel ForLoading()

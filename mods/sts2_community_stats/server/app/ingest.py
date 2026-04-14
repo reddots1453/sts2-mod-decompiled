@@ -8,18 +8,26 @@ logger = logging.getLogger("sts2stats.ingest")
 
 
 async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
-    """Insert a complete run and all sub-records. Returns the run_id."""
+    """Insert a complete run and all sub-records. Returns the run_id.
+    Returns -1 if run_hash already exists (silent dedup)."""
     async with pool.acquire() as conn:
         async with conn.transaction():
             # ── Main run record ──────────────────────────────
+            if payload.run_hash:
+                # Dedup: skip if this hash already exists (PRD §3.19.3)
+                existing = await conn.fetchval(
+                    "SELECT id FROM runs WHERE run_hash = $1", payload.run_hash)
+                if existing is not None:
+                    return -1
+
             run_id: int = await conn.fetchval(
                 """INSERT INTO runs
                    (game_version, mod_version, character, ascension, win,
-                    num_players, floor_reached)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id""",
+                    num_players, floor_reached, run_hash)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id""",
                 payload.game_version, payload.mod_version, payload.character,
                 payload.ascension, payload.win, payload.num_players,
-                payload.floor_reached,
+                payload.floor_reached, payload.run_hash,
             )
 
             # ── Card choices ─────────────────────────────────
@@ -43,12 +51,14 @@ async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
                 await conn.executemany(
                     """INSERT INTO event_choices
                        (run_id, game_version, character, ascension, player_win_rate,
-                        win, event_id, option_index, total_options)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)""",
+                        win, event_id, option_index, total_options,
+                        combo_key, chosen_option_id)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)""",
                     [
                         (run_id, payload.game_version, payload.character,
                          payload.ascension, payload.player_win_rate, payload.win,
-                         e.event_id, e.option_index, e.total_options)
+                         e.event_id, e.option_index, e.total_options,
+                         e.combo_key, e.chosen_option_id)
                         for e in payload.event_choices
                     ],
                 )
@@ -107,6 +117,34 @@ async def ingest_run(pool: asyncpg.Pool, payload: RunUploadPayload) -> int:
                         (run_id, payload.game_version, payload.character,
                          payload.ascension, payload.win, u.card_id, u.source)
                         for u in payload.card_upgrades
+                    ],
+                )
+
+            # ── Final deck ──────────────────────────────────
+            if payload.final_deck:
+                await conn.executemany(
+                    """INSERT INTO final_deck
+                       (run_id, game_version, character, ascension, win,
+                        card_id, upgrade_level)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.win, d.card_id, d.upgrade_level)
+                        for d in payload.final_deck
+                    ],
+                )
+
+            # ── Shop card offerings ─────────────────────────
+            if payload.shop_card_offerings:
+                await conn.executemany(
+                    """INSERT INTO shop_card_offerings
+                       (run_id, game_version, character, ascension, win,
+                        card_id, floor)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7)""",
+                    [
+                        (run_id, payload.game_version, payload.character,
+                         payload.ascension, payload.win, o.card_id, o.floor)
+                        for o in payload.shop_card_offerings
                     ],
                 )
 

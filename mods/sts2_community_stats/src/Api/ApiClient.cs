@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using CommunityStats.Config;
+using CommunityStats.UI;
 using CommunityStats.Util;
 
 namespace CommunityStats.Api;
@@ -53,17 +54,53 @@ public sealed class ApiClient : IDisposable
     public async Task UploadRunAsync(RunUploadPayload payload)
     {
         var json = JsonSerializer.Serialize(payload, _jsonOptions);
-        var success = await PostJsonAsync("runs", json);
+        var status = await PostJsonWithStatusAsync("runs", json);
 
-        if (success)
+        if (status >= 200 && status < 300)
         {
             Safe.Info("Run uploaded successfully");
+            UploadNotice.Show(L.Get("upload.run_success"));
             // Drain any pending offline uploads while we have connectivity
-            Safe.RunAsync(() => OfflineQueue.DrainAsync(rawJson => PostJsonAsync("runs", rawJson)));
+            Safe.RunAsync(() => OfflineQueue.DrainAsync(rawJson => PostJsonWithStatusAsync("runs", rawJson)));
+        }
+        else if (status >= 400 && status < 500 && status != 429)
+        {
+            // Permanent client error (schema mismatch, validation, etc.).
+            // Queueing is pointless — every retry will fail identically and
+            // block newer runs behind a poison payload. Drop and surface.
+            Safe.Warn($"Run upload rejected (HTTP {status}); not queueing");
+            UploadNotice.Show(L.Get("upload.run_rejected"));
         }
         else
         {
+            // Network error (status=0), 5xx, or 429: transient — queue for retry
             OfflineQueue.Enqueue(payload);
+            UploadNotice.Show(L.Get("upload.run_queued"));
+        }
+    }
+
+    /// <summary>
+    /// Posts raw JSON to an endpoint. Returns the HTTP status code,
+    /// or 0 on network error. Callers inspect the code to distinguish
+    /// success (2xx), rate limit (429), validation failure (422) etc.
+    /// </summary>
+    public async Task<int> PostJsonWithStatusAsync(string endpoint, string json)
+    {
+        try
+        {
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var response = await _uploadClient.PostAsync(endpoint, content);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                Safe.Warn($"Upload failed: {(int)response.StatusCode} {response.ReasonPhrase} — {body}");
+            }
+            return (int)response.StatusCode;
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"Upload error: {ex.Message}");
+            return 0;
         }
     }
 
@@ -72,20 +109,8 @@ public sealed class ApiClient : IDisposable
     /// </summary>
     public async Task<bool> PostJsonAsync(string endpoint, string json)
     {
-        try
-        {
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var response = await _uploadClient.PostAsync(endpoint, content);
-            if (response.IsSuccessStatusCode) return true;
-
-            Safe.Warn($"Upload failed: {(int)response.StatusCode} {response.ReasonPhrase}");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            Safe.Warn($"Upload error: {ex.Message}");
-            return false;
-        }
+        var code = await PostJsonWithStatusAsync(endpoint, json);
+        return code >= 200 && code < 300;
     }
 
     // ── Bulk Query ──────────────────────────────────────────

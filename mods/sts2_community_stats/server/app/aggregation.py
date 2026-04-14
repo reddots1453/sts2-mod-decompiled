@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import asyncpg
 from .models import (
     BulkStatsBundle, CardStats, RelicStats,
-    EventStats, EventOptionStats, EncounterStats,
+    EventStats, EventOptionStats, ComboOptionStats, EncounterStats,
 )
 
 logger = logging.getLogger("sts2stats.agg")
@@ -46,18 +46,41 @@ async def compute_bulk_stats(
 
 # ── Internal query functions ────────────────────────────────
 
-_WHERE = """
-    WHERE character = $1
-      AND game_version = $2
-      AND ascension BETWEEN $3 AND $4
-"""
+
+def _build_where(char: str, ver: str) -> tuple[str, list]:
+    """Build a dynamic WHERE clause, skipping character/version when 'all'."""
+    conditions = []
+    params: list = []
+    idx = 1
+
+    if char.lower() != "all":
+        conditions.append(f"character = ${idx}")
+        params.append(char)
+        idx += 1
+
+    if ver.lower() != "all":
+        conditions.append(f"game_version = ${idx}")
+        params.append(ver)
+        idx += 1
+
+    conditions.append(f"ascension BETWEEN ${idx} AND ${idx + 1}")
+    # params for lo, hi are appended by caller
+    return (" WHERE " + " AND ".join(conditions) if conditions else "", params, idx)
+
+
+def _where_with_asc(char: str, ver: str, lo: int, hi: int) -> tuple[str, list]:
+    """Return (where_clause, full_params_list) ready for query."""
+    clause, params, _ = _build_where(char, ver)
+    params.extend([lo, hi])
+    return clause, params
 
 
 async def _count_runs(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
 ) -> int:
+    where, params = _where_with_asc(char, ver, lo, hi)
     row = await conn.fetchval(
-        f"SELECT COUNT(*) FROM runs {_WHERE}", char, ver, lo, hi,
+        f"SELECT COUNT(*) FROM runs {where}", *params,
     )
     return row or 0
 
@@ -65,6 +88,8 @@ async def _count_runs(
 async def _aggregate_cards(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
 ) -> dict[str, CardStats]:
+    where, params = _where_with_asc(char, ver, lo, hi)
+
     # ── Pick rate & win rate from card_choices ──
     rows = await conn.fetch(f"""
         SELECT
@@ -73,9 +98,9 @@ async def _aggregate_cards(
             AVG(CASE WHEN was_picked THEN win::int END)::real AS win_rate,
             COUNT(*)                          AS sample_size
         FROM card_choices
-        {_WHERE}
+        {where}
         GROUP BY card_id
-    """, char, ver, lo, hi)
+    """, *params)
 
     result: dict[str, CardStats] = {}
     for r in rows:
@@ -89,9 +114,9 @@ async def _aggregate_cards(
     removal_rows = await conn.fetch(f"""
         SELECT card_id, COUNT(*) AS cnt
         FROM card_removals
-        {_WHERE}
+        {where}
         GROUP BY card_id
-    """, char, ver, lo, hi)
+    """, *params)
     total_runs = await _count_runs(conn, char, ver, lo, hi)
     if total_runs > 0:
         for r in removal_rows:
@@ -99,31 +124,40 @@ async def _aggregate_cards(
             if cid in result:
                 result[cid].removal = r["cnt"] / total_runs
 
-    # ── Upgrade rates ──
+    # ── Upgrade rates (from final deck: upgraded / total instances) ──
     upgrade_rows = await conn.fetch(f"""
-        SELECT card_id, COUNT(*) AS cnt
-        FROM card_upgrades
-        {_WHERE}
+        SELECT card_id,
+               SUM(CASE WHEN upgrade_level > 0 THEN 1 ELSE 0 END)::real
+                   / COUNT(*)::real AS upgrade_rate
+        FROM final_deck
+        {where}
         GROUP BY card_id
-    """, char, ver, lo, hi)
-    if total_runs > 0:
-        for r in upgrade_rows:
-            cid = r["card_id"]
-            if cid in result:
-                result[cid].upgrade = r["cnt"] / total_runs
+    """, *params)
+    for r in upgrade_rows:
+        cid = r["card_id"]
+        if cid in result:
+            result[cid].upgrade = r["upgrade_rate"] or 0
 
-    # ── Shop buy rates ──
-    shop_rows = await conn.fetch(f"""
-        SELECT item_id, COUNT(*) AS cnt
+    # ── Shop buy rates (purchases / times offered in shop) ──
+    offering_rows = await conn.fetch(f"""
+        SELECT card_id, COUNT(*) AS offered
+        FROM shop_card_offerings
+        {where}
+        GROUP BY card_id
+    """, *params)
+    purchase_rows = await conn.fetch(f"""
+        SELECT item_id, COUNT(*) AS bought
         FROM shop_purchases
-        {_WHERE} AND item_type = 'card'
+        {where} AND item_type = 'card'
         GROUP BY item_id
-    """, char, ver, lo, hi)
-    if total_runs > 0:
-        for r in shop_rows:
-            cid = r["item_id"]
-            if cid in result:
-                result[cid].shop_buy = r["cnt"] / total_runs
+    """, *params)
+    purchase_map = {r["item_id"]: r["bought"] for r in purchase_rows}
+    for r in offering_rows:
+        cid = r["card_id"]
+        offered = r["offered"]
+        bought = purchase_map.get(cid, 0)
+        if cid in result and offered > 0:
+            result[cid].shop_buy = bought / offered
 
     return result
 
@@ -131,15 +165,17 @@ async def _aggregate_cards(
 async def _aggregate_relics(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
 ) -> dict[str, RelicStats]:
+    where, params = _where_with_asc(char, ver, lo, hi)
+
     rows = await conn.fetch(f"""
         SELECT
             relic_id,
             AVG(win::int)::real  AS win_rate,
             COUNT(*)             AS sample_size
         FROM relic_records
-        {_WHERE}
+        {where}
         GROUP BY relic_id
-    """, char, ver, lo, hi)
+    """, *params)
 
     total_runs = await _count_runs(conn, char, ver, lo, hi)
 
@@ -156,9 +192,9 @@ async def _aggregate_relics(
     shop_rows = await conn.fetch(f"""
         SELECT item_id, COUNT(*) AS cnt
         FROM shop_purchases
-        {_WHERE} AND item_type = 'relic'
+        {where} AND item_type = 'relic'
         GROUP BY item_id
-    """, char, ver, lo, hi)
+    """, *params)
     if total_runs > 0:
         for r in shop_rows:
             rid = r["item_id"]
@@ -171,6 +207,9 @@ async def _aggregate_relics(
 async def _aggregate_events(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
 ) -> dict[str, EventStats]:
+    where, params = _where_with_asc(char, ver, lo, hi)
+
+    # ── Static events (option_index >= 0, no combo_key) ──
     rows = await conn.fetch(f"""
         SELECT
             event_id,
@@ -179,10 +218,10 @@ async def _aggregate_events(
             AVG(win::int)::real AS win_rate,
             COUNT(*)            AS sample_size
         FROM event_choices
-        {_WHERE}
+        {where} AND option_index >= 0 AND combo_key IS NULL
         GROUP BY event_id, option_index
         ORDER BY event_id, option_index
-    """, char, ver, lo, hi)
+    """, *params)
 
     result: dict[str, EventStats] = {}
     for r in rows:
@@ -196,12 +235,78 @@ async def _aggregate_events(
             n=r["sample_size"],
         ))
 
+    # ── Combo events (ancient events with combo_key) ──
+    combo_rows = await conn.fetch(f"""
+        SELECT
+            event_id,
+            combo_key,
+            chosen_option_id,
+            COUNT(*)::real / SUM(COUNT(*)) OVER (
+                PARTITION BY event_id, combo_key
+            ) AS selection_rate,
+            AVG(win::int)::real AS win_rate,
+            COUNT(*)            AS sample_size
+        FROM event_choices
+        {where} AND combo_key IS NOT NULL
+        GROUP BY event_id, combo_key, chosen_option_id
+        ORDER BY event_id, combo_key, chosen_option_id
+    """, *params)
+
+    for r in combo_rows:
+        eid = r["event_id"]
+        if eid not in result:
+            result[eid] = EventStats()
+        es = result[eid]
+        if es.combos is None:
+            es.combos = {}
+        ck = r["combo_key"]
+        if ck not in es.combos:
+            es.combos[ck] = []
+        es.combos[ck].append(ComboOptionStats(
+            id=r["chosen_option_id"],
+            sel=r["selection_rate"] or 0,
+            win=r["win_rate"] or 0,
+            n=r["sample_size"],
+        ))
+
+    # ── Flat dynamic events (COLORFUL_PHILOSOPHERS etc.) ──
+    flat_rows = await conn.fetch(f"""
+        SELECT
+            event_id,
+            chosen_option_id,
+            COUNT(*)::real / SUM(COUNT(*)) OVER (
+                PARTITION BY event_id
+            ) AS selection_rate,
+            AVG(win::int)::real AS win_rate,
+            COUNT(*)            AS sample_size
+        FROM event_choices
+        {where} AND combo_key IS NULL AND chosen_option_id IS NOT NULL
+        GROUP BY event_id, chosen_option_id
+        ORDER BY event_id, chosen_option_id
+    """, *params)
+
+    for r in flat_rows:
+        eid = r["event_id"]
+        if eid not in result:
+            result[eid] = EventStats()
+        es = result[eid]
+        if es.flat_options is None:
+            es.flat_options = []
+        es.flat_options.append(ComboOptionStats(
+            id=r["chosen_option_id"],
+            sel=r["selection_rate"] or 0,
+            win=r["win_rate"] or 0,
+            n=r["sample_size"],
+        ))
+
     return result
 
 
 async def _aggregate_encounters(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
 ) -> dict[str, EncounterStats]:
+    where, params = _where_with_asc(char, ver, lo, hi)
+
     rows = await conn.fetch(f"""
         SELECT
             encounter_id,
@@ -211,9 +316,9 @@ async def _aggregate_encounters(
             AVG(player_died::int)::real  AS death_rate,
             COUNT(*)                     AS sample_size
         FROM encounter_records
-        {_WHERE}
+        {where}
         GROUP BY encounter_id, encounter_type
-    """, char, ver, lo, hi)
+    """, *params)
 
     result: dict[str, EncounterStats] = {}
     for r in rows:

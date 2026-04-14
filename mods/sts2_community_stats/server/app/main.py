@@ -138,6 +138,8 @@ async def health():
 @limiter.limit(config.RATE_LIMIT_UPLOAD)
 async def upload_run(request: Request, payload: RunUploadPayload):
     run_id = await ingest_run(get_pool(), payload)
+    if run_id == -1:
+        return {"status": "ok", "run_id": None, "dedup": True}
     return {"status": "ok", "run_id": run_id}
 
 
