@@ -1,0 +1,3 @@
+D:\game_backup\steam\steamapps\common\Slay the Spire 2\Sts2-mod-decompiled\_decompiled\sts2\obj\Debug\netcoreapp9.0\sts2.GeneratedMSBuildEditorConfig.editorconfig
+D:\game_backup\steam\steamapps\common\Slay the Spire 2\Sts2-mod-decompiled\_decompiled\sts2\obj\Debug\netcoreapp9.0\sts2.csproj.CoreCompileInputs.cache
+D:\game_backup\steam\steamapps\common\Slay the Spire 2\Sts2-mod-decompiled\_decompiled\sts2\obj\Debug\netcoreapp9.0\sts2.sourcelink.json

@@ -49,9 +49,29 @@ public partial class ContributionChart : VBoxContainer
 
     public enum Category { Damage, Defense, Draw, Energy, Stars, Healing }
 
+    /// <summary>
+    /// Controls how a single row renders for entries that carry both a
+    /// positive defensive contribution AND a self-damage cost (e.g.
+    /// CRIMSON_MANTLE, BLOOD_WALL, OFFERING). In <see cref="Normal"/> mode the
+    /// row mixes both into one bar. When the split-self-damage visual is
+    /// requested the same entry is emitted twice: first as
+    /// <see cref="PositiveOnly"/> (block bar, no self-damage), then as
+    /// <see cref="NegativeOnly"/> (self-damage bar only, labelled "自伤").
+    /// </summary>
+    private enum RowMode { Normal, PositiveOnly, NegativeOnly }
+
     // Shared expand/collapse state across chart rebuilds, keyed by parent source id.
     // Default: expanded.
     private static readonly HashSet<string> _collapsedParents = new();
+
+    /// <summary>
+    /// Sum of all non-negative defense contributions for a single source —
+    /// the value we want to show on a "positive row" when self-damage is
+    /// split onto its own row.
+    /// </summary>
+    private static int PositiveDefense(ContributionAccum a)
+        => a.EffectiveBlock + a.ModifierBlock + a.MitigatedByDebuff
+         + a.MitigatedByBuff + a.MitigatedByStrReduction + a.UpgradeBlock;
 
     public static ContributionChart Create(
         IReadOnlyDictionary<string, ContributionAccum> data,
@@ -219,21 +239,46 @@ public partial class ContributionChart : VBoxContainer
         foreach (var (accum, value) in sorted)
         {
             bool hasSubs = subEntries.TryGetValue(accum.SourceId, out var subs);
-            BuildEntryRow(accum, value, maxVal, totalVal, category, false, hasSubs);
+
+            // Split self-damage onto its own row for Defense entries that
+            // carry both a positive block contribution AND an HP cost (e.g.
+            // CRIMSON_MANTLE, BLOOD_WALL, OFFERING). The mixed row looked
+            // noisy and made sorting / percentage interpretation ambiguous.
+            bool splitSelfDamage = category == Category.Defense
+                                && accum.SelfDamage > 0
+                                && PositiveDefense(accum) > 0;
+
+            if (splitSelfDamage)
+            {
+                int posValue = PositiveDefense(accum);
+                BuildEntryRow(accum, posValue, maxVal, totalVal, category, false, hasSubs, RowMode.PositiveOnly);
+            }
+            else
+            {
+                BuildEntryRow(accum, value, maxVal, totalVal, category, false, hasSubs, RowMode.Normal);
+            }
 
             // Render sub-bars if this entry has children AND not collapsed
             if (hasSubs && !_collapsedParents.Contains(accum.SourceId))
             {
                 foreach (var (subAccum, subValue) in subs!.OrderByDescending(x => x.value))
                 {
-                    BuildEntryRow(subAccum, subValue, maxVal, totalVal, category, true, false);
+                    BuildEntryRow(subAccum, subValue, maxVal, totalVal, category, true, false, RowMode.Normal);
                 }
+            }
+
+            // Emit the dedicated self-damage row AFTER sub-entries so it sits
+            // directly under the parent's positive row (sub-entries visually
+            // belong between them only when present, which is rare).
+            if (splitSelfDamage)
+            {
+                BuildEntryRow(accum, -accum.SelfDamage, maxVal, totalVal, category, false, false, RowMode.NegativeOnly);
             }
         }
     }
 
     private void BuildEntryRow(ContributionAccum accum, int value, int maxVal, int totalVal,
-        Category category, bool isSub, bool hasSubs = false)
+        Category category, bool isSub, bool hasSubs = false, RowMode rowMode = RowMode.Normal)
     {
         var rowWrap = new PanelContainer();
         var rowStyle = new StyleBoxFlat
@@ -280,29 +325,45 @@ public partial class ContributionChart : VBoxContainer
         }
 
         // Source name
-        var prefix = isSub ? "  \u2514 " : accum.SourceType switch
+        string prefix;
+        if (rowMode == RowMode.NegativeOnly)
         {
-            "relic" => "[R] ",
-            "potion" => "[P] ",
-            "osty" => "[O] ",
-            "rest" or "merchant" or "floor_regen" => "",
-            "event" => L.Get("source.event_prefix"),
-            _ => ""
-        };
+            // Dedicated self-damage row — indent like a sub-entry so it
+            // visually hangs off the positive parent row.
+            prefix = "  \u2514 ";
+        }
+        else
+        {
+            prefix = isSub ? "  \u2514 " : accum.SourceType switch
+            {
+                "relic" => "[R] ",
+                "potion" => "[P] ",
+                "osty" => "[O] ",
+                "rest" or "merchant" or "floor_regen" => "",
+                "event" => L.Get("source.event_prefix"),
+                _ => ""
+            };
+        }
         var displayName = GetLocalizedName(accum.SourceId, accum.SourceType);
+        if (rowMode == RowMode.NegativeOnly)
+            displayName = L.Get("chart.self_damage_suffix");
+        bool indentLike = isSub || rowMode == RowMode.NegativeOnly;
         var nameLabel = new Label
         {
             Text = $"{prefix}{displayName}",
-            CustomMinimumSize = new Vector2(isSub ? 100 : 110, BarHeight)
+            CustomMinimumSize = new Vector2(indentLike ? 100 : 110, BarHeight)
         };
         nameLabel.AddThemeColorOverride("font_color",
+            rowMode == RowMode.NegativeOnly ? SelfDmgBarColor :
             isSub ? new Color(0.7f, 0.7f, 0.8f) : new Color(0.9f, 0.9f, 0.9f));
-        nameLabel.AddThemeFontSizeOverride("font_size", isSub ? 11 : 12);
+        nameLabel.AddThemeFontSizeOverride("font_size", indentLike ? 11 : 12);
         nameLabel.ClipText = true;
         row.AddChild(nameLabel);
 
-        // Times played (for cards)
-        if (accum.SourceType == "card" && accum.TimesPlayed > 0)
+        // Times played (for cards) — omit on the dedicated self-damage row
+        // to avoid a misleading double count (the play count already showed
+        // on the positive row).
+        if (accum.SourceType == "card" && accum.TimesPlayed > 0 && rowMode != RowMode.NegativeOnly)
         {
             var playLabel = new Label
             {
@@ -334,7 +395,7 @@ public partial class ContributionChart : VBoxContainer
         if (category == Category.Damage)
             BuildDamageBar(barContainer, accum, maxVal, isSub);
         else if (category == Category.Defense)
-            BuildDefenseBar(barContainer, accum, maxVal, isSub);
+            BuildDefenseBar(barContainer, accum, maxVal, isSub, rowMode);
         else if (category == Category.Stars)
             BuildStarBar(barContainer, accum, value, maxVal, isSub);
         else if (category == Category.Healing)
@@ -345,14 +406,24 @@ public partial class ContributionChart : VBoxContainer
         row.AddChild(barContainer);
 
         // Value + percentage (PRD AC-15: 1 decimal place)
-        var pct = totalVal > 0 ? (float)value / totalVal * 100 : 0;
-        var valText = value < 0 ? $"{value}" : $"{value}  ({pct:F1}%)";
+        string valText;
+        if (rowMode == RowMode.NegativeOnly)
+        {
+            // Self-damage on its own row: show the raw HP cost, no percentage
+            // (denominators are computed from positive contributions).
+            valText = $"{value}";
+        }
+        else
+        {
+            var pct = totalVal > 0 ? (float)value / totalVal * 100 : 0;
+            valText = value < 0 ? $"{value}" : $"{value}  ({pct:F1}%)";
+        }
         var valLabel = new Label { Text = valText };
-        var valColor = value < 0
+        var valColor = (rowMode == RowMode.NegativeOnly || value < 0)
             ? SelfDmgBarColor  // red for negative
             : isSub ? new Color(0.5f, 0.5f, 0.6f) : new Color(0.7f, 0.7f, 0.7f);
         valLabel.AddThemeColorOverride("font_color", valColor);
-        valLabel.AddThemeFontSizeOverride("font_size", isSub ? 11 : 12);
+        valLabel.AddThemeFontSizeOverride("font_size", indentLike ? 11 : 12);
         row.AddChild(valLabel);
 
         AddChild(rowWrap);
@@ -414,10 +485,27 @@ public partial class ContributionChart : VBoxContainer
             container.AddChild(CreateBar(0, BarHeight, baseColor));
     }
 
-    private static void BuildDefenseBar(Control container, ContributionAccum accum, int maxVal, bool isSub)
+    private static void BuildDefenseBar(Control container, ContributionAccum accum, int maxVal, bool isSub, RowMode rowMode = RowMode.Normal)
     {
         var baseColor = isSub ? SubBarColor : GetSourceColor(accum.SourceType);
         float offset = 0;
+
+        // NegativeOnly: render just the self-damage bar, nothing else.
+        if (rowMode == RowMode.NegativeOnly)
+        {
+            if (accum.SelfDamage > 0)
+            {
+                var w = maxVal > 0 ? (float)accum.SelfDamage / maxVal * MaxBarWidth : MaxBarWidth * 0.2f;
+                var bar = CreateBar(w, BarHeight, SelfDmgBarColor);
+                bar.Position = new Vector2(0, 0);
+                container.AddChild(bar);
+            }
+            else
+            {
+                container.AddChild(CreateBar(0, BarHeight, SelfDmgBarColor));
+            }
+            return;
+        }
 
         if (accum.EffectiveBlock > 0)
         {
@@ -464,8 +552,10 @@ public partial class ContributionChart : VBoxContainer
             offset += w;
         }
 
-        // Self-damage: red bar extending to the left (visually, we just show a red bar)
-        if (accum.SelfDamage > 0)
+        // Self-damage: red bar trailing the positive bars. Only drawn in
+        // Normal mode; when the caller requested PositiveOnly the dedicated
+        // NegativeOnly row that follows carries the self-damage visual.
+        if (rowMode == RowMode.Normal && accum.SelfDamage > 0)
         {
             var w = maxVal > 0 ? (float)accum.SelfDamage / maxVal * MaxBarWidth : MaxBarWidth * 0.2f;
             var bar = CreateBar(w, BarHeight, SelfDmgBarColor);
@@ -473,7 +563,7 @@ public partial class ContributionChart : VBoxContainer
             container.AddChild(bar);
         }
 
-        if (accum.TotalDefense <= 0 && accum.SelfDamage <= 0)
+        if (PositiveDefense(accum) <= 0 && accum.SelfDamage <= 0)
             container.AddChild(CreateBar(0, BarHeight, baseColor));
     }
 

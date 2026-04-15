@@ -753,6 +753,19 @@ public sealed class CombatTracker
         GetOrCreate(sourceId, sourceType).MitigatedByBuff += preventedDamage;
     }
 
+    /// <summary>
+    /// Round 15: credit a relic that reduced incoming damage via a
+    /// ModifyDamageMultiplicative override on the enemy→player path
+    /// (e.g. UndyingSigil 0.5x when at low HP). The caller supplies the
+    /// raw prevented amount after computing it from the pre/post damage
+    /// delta and the relic's multiplier share.
+    /// </summary>
+    public void OnRelicIncomingDamageMitigation(string relicId, int preventedDamage)
+    {
+        if (preventedDamage <= 0 || string.IsNullOrEmpty(relicId)) return;
+        GetOrCreate(relicId, "relic").MitigatedByBuff += preventedDamage;
+    }
+
     // ── Block Tracking ──────────────────────────────────────
 
     public void OnBlockGained(int amount, string? cardPlayId)

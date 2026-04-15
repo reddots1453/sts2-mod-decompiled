@@ -133,10 +133,30 @@ public static class ContributionPersistence
     }
 
     /// <summary>
+    /// Round 14 v5+ post-test fix: re-hydrate
+    /// <see cref="RunContributionAggregator._runTotals"/> from every per-combat
+    /// file on disk. Called at upload time so the payload always has the
+    /// authoritative per-combat record even when in-memory state was wiped
+    /// by a save+quit+Reset cycle that failed to replay live.json.
+    ///
+    /// Per-combat files are written at combat end (CombatLifecyclePatch) and
+    /// never touched until the full run is retired, so they are a reliable
+    /// disk-side source of truth.
+    /// </summary>
+    public static void AssembleAndHydrateRunTotals(string seed)
+    {
+        if (string.IsNullOrEmpty(seed)) return;
+        var merged = AssembleFromCombats(seed);
+        if (merged == null || merged.Count == 0) return;
+        RunContributionAggregator.Instance.HydrateRunTotals(merged);
+        Safe.Info($"ContributionPersistence: hydrated run totals from {merged.Count} disk sources (seed={seed})");
+    }
+
+    /// <summary>
     /// Walk every {seed}_{floor}.json snapshot and merge into a single dictionary.
     /// Used as a fallback when no _summary.json was written for the run.
     /// </summary>
-    private static IReadOnlyDictionary<string, ContributionAccum>? AssembleFromCombats(string seed)
+    public static IReadOnlyDictionary<string, ContributionAccum>? AssembleFromCombats(string seed)
     {
         var dir = ModConfig.ContributionsDir;
         if (!Directory.Exists(dir)) return null;
@@ -149,6 +169,12 @@ public static class ContributionPersistence
             // Skip the canonical summary file (already tried above and missing).
             var name = Path.GetFileNameWithoutExtension(path);
             if (name.EndsWith("_summary", StringComparison.Ordinal)) continue;
+            // Skip the live-state file (different schema: LiveContributionDoc).
+            if (name.EndsWith("_live", StringComparison.Ordinal)) continue;
+            // Skip the shop-offerings side-channel file — it's a plain JSON
+            // array, not a ContributionDoc, and trying to parse it triggers
+            // a JsonException warning on every upload.
+            if (name.EndsWith("_shop_offers", StringComparison.Ordinal)) continue;
 
             var combat = TryLoadDoc(path);
             if (combat == null) continue;

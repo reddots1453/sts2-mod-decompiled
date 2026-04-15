@@ -23,6 +23,10 @@ public static class UploadNotice
     /// </summary>
     public static void Show(string text)
     {
+        // Suppress while history import is streaming progress to the same
+        // top-right slot — otherwise the two labels stomp each other.
+        if (Api.HistoryImporter.IsRunning) return;
+
         Safe.Run(() =>
         {
             var tree = Engine.GetMainLoop() as SceneTree;

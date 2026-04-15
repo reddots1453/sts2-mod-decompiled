@@ -27,7 +27,13 @@ PRECOMPUTE_INTERVAL_MINUTES: int = int(os.getenv("PRECOMPUTE_INTERVAL_MINUTES", 
 CHARACTERS: list[str] = [
     "IRONCLAD", "SILENT", "DEFECT", "NECROBINDER", "REGENT",
 ]
+# Ranges that precompute pre-warms. The cache key now reflects the exact
+# range, so these are just "common queries to keep hot". The client's F9
+# panel defaults to min=0, max=10, so (0, 10) must be present. (0, 20)
+# covers "all ascensions" on the same page. The 5 narrow buckets are kept
+# as legacy (dashboard / analytics may query specific asc tiers).
 ASC_RANGES: list[tuple[int, int]] = [
+    (0, 10), (0, 20),
     (0, 4), (5, 9), (10, 14), (15, 19), (20, 20),
 ]
 

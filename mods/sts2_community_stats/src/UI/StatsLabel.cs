@@ -87,6 +87,18 @@ public partial class StatsLabel : Label
         return Create(text, DeathRateColor(stats.DeathRate));
     }
 
+    /// <summary>
+    /// Round 15: placeholder label for traveled combat nodes whose encounter
+    /// has no community samples yet. Shown in a muted grey so the player
+    /// sees "this elite was fought but nobody else has it" instead of a
+    /// silently missing overlay.
+    /// </summary>
+    public static StatsLabel ForEncounterNoData()
+    {
+        var label = Create(L.Get("stats.no_data"), new Color(0.55f, 0.55f, 0.6f));
+        return label;
+    }
+
     public static StatsLabel ForUpgradeRate(CardStats stats)
     {
         // PRD AC-15: percentages displayed with 1 decimal place.

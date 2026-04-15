@@ -35,6 +35,7 @@ public static class L
         ["chart.stars"] = "Stars",
         ["chart.healing"] = "Healing",
         ["chart.none"] = "  (none)",
+        ["chart.self_damage_suffix"] = "self-damage",
 
         // FilterPanel / Settings
         ["settings.title"] = "Stats the Spire — Settings",
@@ -323,6 +324,7 @@ public static class L
         ["chart.stars"] = "辉星",
         ["chart.healing"] = "治疗",
         ["chart.none"] = "  (无)",
+        ["chart.self_damage_suffix"] = "自伤",
 
         // FilterPanel / Settings
         ["settings.title"] = "Stats the Spire — 设置",

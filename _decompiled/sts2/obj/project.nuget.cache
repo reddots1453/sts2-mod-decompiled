@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "WZ8jFtFEP4M=",
+  "dgSpecHash": "L5JngZBnqFk=",
   "success": true,
-  "projectFilePath": "D:\\Games\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled\\_decompiled\\sts2\\sts2.csproj",
+  "projectFilePath": "D:\\game_backup\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled\\_decompiled\\sts2\\sts2.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\reddots\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.14\\microsoft.netcore.app.ref.9.0.14.nupkg.sha512",
-    "C:\\Users\\reddots\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.14\\microsoft.windowsdesktop.app.ref.9.0.14.nupkg.sha512",
-    "C:\\Users\\reddots\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.14\\microsoft.aspnetcore.app.ref.9.0.14.nupkg.sha512"
+    "C:\\Users\\wilson\\.nuget\\packages\\microsoft.netcore.app.ref\\9.0.14\\microsoft.netcore.app.ref.9.0.14.nupkg.sha512",
+    "C:\\Users\\wilson\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\9.0.14\\microsoft.windowsdesktop.app.ref.9.0.14.nupkg.sha512",
+    "C:\\Users\\wilson\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\9.0.14\\microsoft.aspnetcore.app.ref.9.0.14.nupkg.sha512"
   ],
   "logs": []
 }

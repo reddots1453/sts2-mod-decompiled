@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -121,9 +122,18 @@ public sealed class ApiClient : IDisposable
     public async Task<BulkStatsBundle?> GetBulkStatsAsync(string character, FilterSettings filter)
     {
         var version = VersionManager.GetEffectiveVersion(filter);
+        // filter.ToQueryString() already emits char= from ResolveCharacter(); strip
+        // it so we don't send the parameter twice (server takes the first, but some
+        // intermediaries reject the dup).
         var qs = filter.ToQueryString();
-        var sep = qs.Length > 0 ? "&" : "?";
-        var url = $"stats/bulk?char={Uri.EscapeDataString(character)}&ver={Uri.EscapeDataString(version)}{(qs.Length > 0 ? "&" + qs[1..] : "")}";
+        var aux = qs.Length > 0 ? qs[1..] : "";
+        var auxParts = aux.Length > 0
+            ? aux.Split('&').Where(p => !p.StartsWith("char=", StringComparison.Ordinal)
+                                     && !p.StartsWith("ver=", StringComparison.Ordinal))
+            : System.Array.Empty<string>();
+        var auxJoined = string.Join("&", auxParts);
+        var url = $"stats/bulk?char={Uri.EscapeDataString(character)}&ver={Uri.EscapeDataString(version)}"
+                + (auxJoined.Length > 0 ? "&" + auxJoined : "");
 
         return await GetAsync<BulkStatsBundle>(url);
     }
@@ -192,7 +202,15 @@ public sealed class ApiClient : IDisposable
         }
         catch (Exception ex)
         {
-            Safe.Warn($"Query error: GET {url} → {ex.Message}");
+            Safe.Warn($"Query error: GET {url} → {ex.GetType().Name}: {ex.Message}");
+            var inner = ex.InnerException;
+            int depth = 0;
+            while (inner != null && depth < 5)
+            {
+                Safe.Warn($"  [Inner{depth}] {inner.GetType().FullName}: {inner.Message}");
+                inner = inner.InnerException;
+                depth++;
+            }
             return null;
         }
     }

@@ -18,9 +18,16 @@ public static class MapPointOverlay
     public static void AttachTo(Control mapPointNode, EncounterStats? stats)
     {
         if (mapPointNode.HasMeta(OverlayMeta)) return;
-        if (stats == null) return;
 
-        var label = StatsLabel.ForEncounter(stats);
+        // Round 15: when stats are missing (the player fought a traveled
+        // encounter that has no community samples yet, e.g. a rare elite
+        // that the current filter slice's runs haven't hit), still attach
+        // a muted "no data" pill so the node visually matches other
+        // traveled combat nodes. Without this branch the elite/boss nodes
+        // silently drop the overlay.
+        var label = stats != null
+            ? StatsLabel.ForEncounter(stats)
+            : StatsLabel.ForEncounterNoData();
         label.Position = new Vector2(-30, mapPointNode.Size.Y + 2);
         // Round 9 round 49: previously ZIndex = 10 — that punches above any
         // later sibling Control in the same CanvasLayer, so opening the

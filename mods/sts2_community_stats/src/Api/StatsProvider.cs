@@ -141,10 +141,16 @@ public sealed class StatsProvider
             return;
         }
 
-        if (character != null)
-            await PreloadForRunAsync(character, newFilter);
-        else
-            EnsureTestDataLoaded();
+        // Main menu / no active run: ResolveCharacter() returns null for
+        // "all" and for "auto" outside a run. Still hit the API — pass "all"
+        // so the user sees community aggregate data instead of test bundle.
+        var charForApi = character;
+        if (charForApi == null)
+        {
+            var mode = newFilter.CharacterFilterMode ?? "auto";
+            charForApi = (mode == "all" || mode == "auto") ? "all" : mode;
+        }
+        await PreloadForRunAsync(charForApi, newFilter);
 
         FireDataRefreshed();
     }

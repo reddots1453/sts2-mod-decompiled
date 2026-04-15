@@ -441,6 +441,167 @@ public static class RelicHookContextPatcher
         TryPatch(harmony, typeof(PaelsWing), "OnSacrifice", prefix, postfix);
         // Pickup: PunchDagger enchants card with Momentum.
         TryPatch(harmony, typeof(PunchDagger), "AfterObtained", prefix, postfix);
+
+        // ── Round 14 v5+ audit: starter + common relics missed by earlier batches ──
+        // Necrobinder starter: soul-bind on combat start, energy refund on reset.
+        TryPatch(harmony, typeof(BoundPhylactery), "BeforeCombatStart", prefix, postfix);
+        TryPatch(harmony, typeof(BoundPhylactery), "AfterEnergyResetLate", prefix, postfix);
+        TryPatch(harmony, typeof(PhylacteryUnbound), "BeforeCombatStart", prefix, postfix);
+        TryPatch(harmony, typeof(PhylacteryUnbound), "AfterSideTurnStart", prefix, postfix);
+        // Defect starter: channels Lightning on combat start.
+        TryPatch(harmony, typeof(CrackedCore), "BeforeSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(InfusedCore), "AfterSideTurnStart", prefix, postfix);
+        // Block: Gorget grants block on first room enter.
+        TryPatch(harmony, typeof(Gorget), "AfterRoomEntered", prefix, postfix);
+        // Rest heal boost.
+        TryPatch(harmony, typeof(RegalPillow), "AfterRestSiteHeal", prefix, postfix);
+        TryPatch(harmony, typeof(RegalPillow), "AfterRoomEntered", prefix, postfix);
+        // Energy refund + room enter charge.
+        TryPatch(harmony, typeof(VenerableTeaSet), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(VenerableTeaSet), "AfterEnergyReset", prefix, postfix);
+        TryPatch(harmony, typeof(FakeVenerableTeaSet), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(FakeVenerableTeaSet), "AfterEnergyReset", prefix, postfix);
+
+        // ── Round 15 relic coverage sweep (relics.md) ──
+        // Large batch covering remaining tracked-in-combat relics. Each entry
+        // sets _activeRelicId for the duration of the hook so any damage /
+        // block / heal / draw side-effect the hook produces attributes back
+        // to the relic. Hooks that don't produce combat effects are patched
+        // defensively (harmless no-op).
+
+        // Card-pile movement triggers.
+        TryPatch(harmony, typeof(BookOfFiveRings), "AfterCardChangedPiles", prefix, postfix);
+        TryPatch(harmony, typeof(DarkstonePeriapt), "AfterCardChangedPiles", prefix, postfix);
+
+        // Combat-start / room-enter passives.
+        TryPatch(harmony, typeof(OddlySmoothStone), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(Planisphere), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(StoneCracker), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(Pantograph), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(SwordOfJade), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(PumpkinCandle), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(PumpkinCandle), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(BigMushroom), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(BigMushroom), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(LoomingFruit), "AfterObtained", prefix, postfix);
+
+        // Power amount modifiers.
+        TryPatch(harmony, typeof(SneckoSkull), "AfterModifyingPowerAmountGiven", prefix, postfix);
+        TryPatch(harmony, typeof(RuinedHelmet), "AfterModifyingPowerAmountReceived", prefix, postfix);
+        TryPatch(harmony, typeof(RuinedHelmet), "AfterCombatEnd", prefix, postfix);
+
+        // Per-attack proc.
+        TryPatch(harmony, typeof(BoneFlute), "AfterAttack", prefix, postfix);
+
+        // Vambrace: block bonus on first card each turn.
+        TryPatch(harmony, typeof(Vambrace), "BeforeCombatStart", prefix, postfix);
+        TryPatch(harmony, typeof(Vambrace), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(Vambrace), "AfterCombatEnd", prefix, postfix);
+        TryPatch(harmony, typeof(Vambrace), "AfterModifyingBlockAmount", prefix, postfix);
+
+        // Potion synergy.
+        TryPatch(harmony, typeof(ReptileTrinket), "AfterPotionUsed", prefix, postfix);
+        TryPatch(harmony, typeof(BeltBuckle), "AfterPotionUsed", prefix, postfix);
+        TryPatch(harmony, typeof(BeltBuckle), "AfterPotionProcured", prefix, postfix);
+        TryPatch(harmony, typeof(BeltBuckle), "AfterObtained", prefix, postfix);
+
+        // Block-clear trigger.
+        TryPatch(harmony, typeof(SparklingRouge), "AfterBlockCleared", prefix, postfix);
+
+        // Damage-received triggers.
+        TryPatch(harmony, typeof(SelfFormingClay), "AfterDamageReceived", prefix, postfix);
+        TryPatch(harmony, typeof(BeatingRemnant), "AfterDamageReceived", prefix, postfix);
+        TryPatch(harmony, typeof(BeatingRemnant), "AfterModifyingHpLostAfterOsty", prefix, postfix);
+        TryPatch(harmony, typeof(BeatingRemnant), "BeforeSideTurnStart", prefix, postfix);
+
+        // Turn start / side turn start triggers.
+        TryPatch(harmony, typeof(TwistedFunnel), "BeforeSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(FuneraryMask), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(SymbioticVirus), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(OrangeDough), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(BigHat), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(Sai), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(Crossbow), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(SealOfGold), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(PollinousCore), "BeforeSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(PollinousCore), "AfterCombatEnd", prefix, postfix);
+        TryPatch(harmony, typeof(GamblingChip), "AfterPlayerTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(VexingPuzzlebox), "AfterPlayerTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(ChoicesParadox), "AfterPlayerTurnStart", prefix, postfix);
+
+        // After-card-played triggers.
+        TryPatch(harmony, typeof(MummifiedHand), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(RazorTooth), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(HelicalDart), "AfterCardPlayed", prefix, postfix);
+
+        // Before-card-played triggers.
+        TryPatch(harmony, typeof(ChemicalX), "BeforeCardPlayed", prefix, postfix);
+
+        // Osty-related modifiers.
+        TryPatch(harmony, typeof(TungstenRod), "AfterModifyingHpLostAfterOsty", prefix, postfix);
+        TryPatch(harmony, typeof(TheBoot), "AfterModifyingHpLostBeforeOsty", prefix, postfix);
+
+        // Turn-end / shuffle triggers.
+        TryPatch(harmony, typeof(Bookmark), "AfterTurnEnd", prefix, postfix);
+        TryPatch(harmony, typeof(TheAbacus), "AfterShuffle", prefix, postfix);
+
+        // Hand draw triggers.
+        TryPatch(harmony, typeof(Toolbox), "BeforeHandDraw", prefix, postfix);
+        TryPatch(harmony, typeof(NinjaScroll), "BeforeHandDraw", prefix, postfix);
+        TryPatch(harmony, typeof(RadiantPearl), "BeforeHandDraw", prefix, postfix);
+        TryPatch(harmony, typeof(ToastyMittens), "BeforeHandDraw", prefix, postfix);
+        TryPatch(harmony, typeof(JeweledMask), "BeforeHandDraw", prefix, postfix);
+
+        // Stars relic: MiniRegent.
+        TryPatch(harmony, typeof(MiniRegent), "AfterStarsSpent", prefix, postfix);
+        TryPatch(harmony, typeof(MiniRegent), "BeforeSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(MiniRegent), "AfterCombatEnd", prefix, postfix);
+
+        // Orb / magnitude modifiers.
+        TryPatch(harmony, typeof(GoldPlatedCables), "AfterModifyingOrbPassiveTriggerCount", prefix, postfix);
+
+        // BurningSticks: exhaust synergy.
+        TryPatch(harmony, typeof(BurningSticks), "AfterCardExhausted", prefix, postfix);
+        TryPatch(harmony, typeof(BurningSticks), "AfterRoomEntered", prefix, postfix);
+        TryPatch(harmony, typeof(BurningSticks), "AfterCombatEnd", prefix, postfix);
+
+        // Rest-site heal modifiers.
+        TryPatch(harmony, typeof(StoneHumidifier), "AfterRestSiteHeal", prefix, postfix);
+
+        // PaelsLegion: minion-class Regent relic.
+        TryPatch(harmony, typeof(MegaCrit.Sts2.Core.Models.Relics.PaelsLegion), "BeforeCombatStart", prefix, postfix);
+        TryPatch(harmony, typeof(MegaCrit.Sts2.Core.Models.Relics.PaelsLegion), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(MegaCrit.Sts2.Core.Models.Relics.PaelsLegion), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(MegaCrit.Sts2.Core.Models.Relics.PaelsLegion), "AfterCombatEnd", prefix, postfix);
+
+        // BrilliantScarf / DiamondDiadem / MusicBox / UnsettlingLamp — card-play listeners.
+        TryPatch(harmony, typeof(BrilliantScarf), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(BrilliantScarf), "BeforeSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(BrilliantScarf), "AfterCombatEnd", prefix, postfix);
+        TryPatch(harmony, typeof(DiamondDiadem), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(DiamondDiadem), "AfterSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(DiamondDiadem), "BeforeTurnEnd", prefix, postfix);
+        TryPatch(harmony, typeof(DiamondDiadem), "AfterCombatEnd", prefix, postfix);
+        TryPatch(harmony, typeof(MusicBox), "BeforeCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(MusicBox), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(MusicBox), "BeforeSideTurnStart", prefix, postfix);
+        TryPatch(harmony, typeof(MusicBox), "AfterCombatEnd", prefix, postfix);
+        TryPatch(harmony, typeof(UnsettlingLamp), "BeforeCombatStart", prefix, postfix);
+        TryPatch(harmony, typeof(UnsettlingLamp), "AfterCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(UnsettlingLamp), "AfterCombatEnd", prefix, postfix);
+
+        // Regalite: combat enter / card spawn.
+        TryPatch(harmony, typeof(Regalite), "AfterCardEnteredCombat", prefix, postfix);
+
+        // BookRepairKnife: Doom resurrection heal.
+        TryPatch(harmony, typeof(BookRepairKnife), "AfterDiedToDoom", prefix, postfix);
+
+        // SneckoEye / FakeSneckoEye / FakeAnchor: combat start passives.
+        TryPatch(harmony, typeof(SneckoEye), "BeforeCombatStart", prefix, postfix);
+        TryPatch(harmony, typeof(SneckoEye), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(FakeSneckoEye), "BeforeCombatStart", prefix, postfix);
+        TryPatch(harmony, typeof(FakeSneckoEye), "AfterObtained", prefix, postfix);
+        TryPatch(harmony, typeof(FakeAnchor), "BeforeCombatStart", prefix, postfix);
     }
 
     private static void TryPatch(Harmony harmony, Type type, string methodName,
@@ -942,7 +1103,8 @@ public static class EnemyDamageIntentPatch
     [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyDamage))]
     [HarmonyPostfix]
     public static void AfterModifyDamage_Enemy(decimal __result, decimal __state,
-        Creature? target, Creature? dealer, IEnumerable<AbstractModel> modifiers)
+        Creature? target, Creature? dealer, ValueProp props, CardModel? cardSource,
+        IEnumerable<AbstractModel> modifiers)
     {
         Safe.Run(() =>
         {
@@ -976,6 +1138,27 @@ public static class EnemyDamageIntentPatch
                         if (prevented > 0)
                             CombatTracker.Instance.OnColossusMitigation(prevented, target.GetHashCode());
                     }
+                }
+                else if (mod is RelicModel relic)
+                {
+                    // Round 15: player relic that reduced incoming damage via
+                    // a ModifyDamageMultiplicative override (UndyingSigil 0.5x
+                    // when at low HP, etc.). Per PRD §防御归因, credit the
+                    // prevented damage as MitigatedByBuff on the relic.
+                    var relicId = relic.Id.Entry;
+                    if (string.IsNullOrEmpty(relicId)) continue;
+
+                    decimal multiplicative = relic.ModifyDamageMultiplicative(
+                        target, baseDmg, props, dealer, cardSource);
+                    // Only reductions (< 1m) count as defense here.
+                    if (multiplicative >= 1m || multiplicative <= 0) continue;
+
+                    // Per PRD: contribution = finalDmg * (1 - multiplicative) / multiplicative
+                    // equivalent to finalDmg_pre_this_mod - finalDmg_post = baseDmg*(1-mult).
+                    // Approximate with the post-all-mods finalDmg to stay conservative.
+                    int prevented = (int)(finalDmg * (1m - multiplicative) / multiplicative);
+                    if (prevented > 0)
+                        CombatTracker.Instance.OnRelicIncomingDamageMitigation(relicId, prevented);
                 }
             }
         });
@@ -1088,6 +1271,32 @@ public static class BlockModifierPatch
                     var multDistributed = ContributionMap.Instance.DistributeByPowerSources(powerId, contribution);
                     foreach (var (psId, psType, share) in multDistributed)
                         modList.Add(new ContributionMap.ModifierContribution(psId, psType, share));
+                }
+                else if (mod is RelicModel relic)
+                {
+                    // Round 15: relic that boosts block via a ModifyBlock*
+                    // override (e.g. VitruvianMinion 2x on Minion cards).
+                    // Mirrors the RelicModel branch in AfterModifyDamage.
+                    var relicId = relic.Id.Entry;
+                    if (string.IsNullOrEmpty(relicId)) continue;
+
+                    decimal additive = relic.ModifyBlockAdditive(target, baseBlock, props, cardSource, cardPlay);
+                    if (additive > 0)
+                    {
+                        modList.Add(new ContributionMap.ModifierContribution(
+                            relicId, "relic", (int)additive));
+                        continue;
+                    }
+
+                    decimal multiplicative = relic.ModifyBlockMultiplicative(
+                        target, baseBlock + additive, props, cardSource, cardPlay);
+                    if (multiplicative == 1m || multiplicative <= 0) continue;
+                    if (multiplicative < 1m) continue;
+
+                    int contribution = (int)(finalBlock - finalBlock / multiplicative);
+                    if (contribution > 0)
+                        modList.Add(new ContributionMap.ModifierContribution(
+                            relicId, "relic", contribution));
                 }
             }
         });
@@ -2036,6 +2245,28 @@ public static class HandDrawBonusPatch
                     // tracked play): credit under the power's own ID.
                     CombatTracker.Instance.AddEnergyBonusDirect(powerId, "power", bonus);
             }
+
+            // Round 15: relics with ModifyMaxEnergy override (SOZU, ECTOPLASM,
+            // PRISMATIC_GEM, SPIKED_GAUNTLETS, WHISPERING_EARRING,
+            // BLOOD_SOAKED_ROSE, PUMPKIN_CANDLE). Call the virtual
+            // ModifyMaxEnergy(player, 0) — relics that override it return
+            // (0 + bonus) = bonus; the default base implementation just
+            // returns amount (0). This lets us pick up any current or future
+            // relic that adds to max energy without a hardcoded list, and
+            // also correctly respects PumpkinCandle's act-guard (it returns 0
+            // when on the wrong act).
+            foreach (var relic in player.Relics)
+            {
+                if (relic == null) continue;
+                int relicBonus;
+                try { relicBonus = (int)relic.ModifyMaxEnergy(player, 0m); }
+                catch { continue; }
+                if (relicBonus <= 0) continue;
+
+                var relicId = relic.Id.Entry;
+                if (string.IsNullOrEmpty(relicId)) continue;
+                CombatTracker.Instance.AddEnergyBonusDirect(relicId, "relic", relicBonus);
+            }
         });
     }
 
@@ -2159,6 +2390,40 @@ public static class RelicHandDrawBonusPatch
     [HarmonyPatch(typeof(SneckoEye), nameof(SneckoEye.ModifyHandDraw))]
     [HarmonyPostfix]
     public static void AfterSneckoEye(decimal __result, SneckoEye __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    // ── Round 15: remaining relic draw modifiers (relics.md sweep) ──
+
+    [HarmonyPatch(typeof(BoomingConch), nameof(BoomingConch.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterBoomingConch(decimal __result, BoomingConch __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    [HarmonyPatch(typeof(BigMushroom), nameof(BigMushroom.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterBigMushroom(decimal __result, BigMushroom __instance,
+        Player player, decimal cardsToDraw)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, cardsToDraw);
+    }
+
+    [HarmonyPatch(typeof(PollinousCore), nameof(PollinousCore.ModifyHandDraw))]
+    [HarmonyPostfix]
+    public static void AfterPollinousCore(decimal __result, PollinousCore __instance,
+        Player player, decimal count)
+    {
+        if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);
+    }
+
+    [HarmonyPatch(typeof(Fiddle), nameof(Fiddle.ModifyHandDrawLate))]
+    [HarmonyPostfix]
+    public static void AfterFiddle(decimal __result, Fiddle __instance,
         Player player, decimal count)
     {
         if (player == __instance.Owner) RecordRelicDrawBonus(__instance, __result, count);

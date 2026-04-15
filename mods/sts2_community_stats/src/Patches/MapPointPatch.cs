@@ -44,21 +44,73 @@ public static class MapPointPatch
                 return;
             }
 
-            // Only show stats on nodes the player has already visited
+            // Only show stats on nodes the player has already visited.
             if (__instance.State != MapPointState.Traveled)
             {
-                // Remove overlay if node reverts to non-traveled state (e.g., filter change)
                 MapPointOverlay.DetachFrom(__instance);
                 return;
             }
 
-            // Use the point type as a general encounter category for stats lookup
-            var encounterType = point.PointType.ToString().ToLowerInvariant();
+            // Round 15 fix: previously this looked up the bundle by
+            // `point.PointType.ToString().ToLowerInvariant()` (e.g. "monster")
+            // — but bundle keys are real encounter IDs (SLIMES_NORMAL,
+            // KNIGHTS_ELITE, KAISER_CRAB_BOSS, ...). The lookup never matched
+            // and the overlay never showed. Resolve the actual encounter ID
+            // for this traveled node from RunState.MapPointHistory, then look
+            // it up by ID.
+            var encounterId = ResolveEncounterIdForPoint(point);
+            if (encounterId == null)
+            {
+                MapPointOverlay.DetachFrom(__instance);
+                return;
+            }
 
-            // Try to get encounter stats from the bulk bundle
-            var stats = StatsProvider.Instance.GetEncounterStats(encounterType);
+            var stats = StatsProvider.Instance.GetEncounterStats(encounterId);
             MapPointOverlay.AttachTo(__instance, stats);
         });
+    }
+
+    /// <summary>
+    /// Round 15: derive the actual encounter ModelId for a traveled map
+    /// point by indexing into <see cref="RunState.MapPointHistory"/>. The
+    /// game's own <c>RunState.GetHistoryEntryFor</c> uses
+    /// <c>history[actIndex][coord.row]</c>, so we mirror that. We try the
+    /// current act first (covers the common map screen case); if the row
+    /// doesn't fit, we fall back to scanning all acts for a Rooms entry on
+    /// that row. Returns the first room's ModelId (combat / elite / boss
+    /// rooms always have a single room).
+    /// </summary>
+    private static string? ResolveEncounterIdForPoint(MapPoint point)
+    {
+        try
+        {
+            var runState = RunManager.Instance?.DebugOnlyGetState();
+            if (runState == null) return null;
+
+            var hist = runState.MapPointHistory;
+            if (hist == null || hist.Count == 0) return null;
+
+            int row = point.coord.row;
+
+            // Walk acts newest → oldest so re-visited rows from older acts
+            // don't shadow the current act when both happen to share an index.
+            for (int act = hist.Count - 1; act >= 0; act--)
+            {
+                var actHist = hist[act];
+                if (actHist == null || row >= actHist.Count) continue;
+                var entry = actHist[row];
+                if (entry?.Rooms == null || entry.Rooms.Count == 0) continue;
+                if (entry.MapPointType != point.PointType) continue;
+                var room = entry.Rooms[0];
+                var id = room.ModelId?.Entry;
+                if (!string.IsNullOrEmpty(id)) return id;
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Safe.Warn($"[MapPointPatch] ResolveEncounterIdForPoint failed: {ex.Message}");
+        }
+        return null;
     }
 
     // ── Hover panels (PRD 3.8 unknown room + 3.16 shop prices) ─

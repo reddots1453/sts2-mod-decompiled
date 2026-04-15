@@ -27,6 +27,13 @@ public static class HistoryImporter
     private static ImportProgressLabel? _progressLabel;
 
     /// <summary>
+    /// True while the history import worker is actively running. UploadNotice
+    /// uses this to suppress its own top-right toast so the two labels do not
+    /// overlap at the same screen coordinates.
+    /// </summary>
+    public static bool IsRunning { get; private set; }
+
+    /// <summary>
     /// Checks whether import has already been completed. If not, waits for
     /// the scene tree, shows a consent dialog, and kicks off background import.
     /// </summary>
@@ -84,7 +91,15 @@ public static class HistoryImporter
                 // Attach progress label
                 AttachProgressLabel(tree.Root);
 
-                await ImportAllAsync();
+                IsRunning = true;
+                try
+                {
+                    await ImportAllAsync();
+                }
+                finally
+                {
+                    IsRunning = false;
+                }
 
                 // Mark completed
                 ModConfig.HistoryImportCompleted = true;
@@ -272,197 +287,11 @@ public static class HistoryImporter
         };
 
         // ── Walk map_point_history ─────────────────────────
-        int floor = 0;
-        var mapHistory = history.MapPointHistory;
-
-        if (mapHistory != null)
-        {
-            foreach (var act in mapHistory)
-            {
-                if (act == null) continue;
-                foreach (var node in act)
-                {
-                    if (node == null) continue;
-                    floor++;
-
-                    var ps = node.PlayerStats?.Count > 0 ? node.PlayerStats[0] : null;
-
-                    // ── Card choices ────────────────────
-                    if (ps?.CardChoices != null)
-                    {
-                        foreach (var cc in ps.CardChoices)
-                        {
-                            var cardId = cc.Card.Id?.Entry;
-                            if (string.IsNullOrEmpty(cardId)) continue;
-                            payload.CardChoices.Add(new CardChoiceUpload
-                            {
-                                CardId = cardId!,
-                                UpgradeLevel = cc.Card.CurrentUpgradeLevel,
-                                WasPicked = cc.wasPicked,
-                                Floor = Math.Min(cc.Card.FloorAddedToDeck ?? floor, 200),
-                            });
-                        }
-                    }
-
-                    // ── Event choices (regular events) ──
-                    if (ps?.EventChoices != null)
-                    {
-                        foreach (var ec in ps.EventChoices)
-                        {
-                            var locKey = ec.Title?.LocEntryKey;
-                            if (string.IsNullOrEmpty(locKey)) continue;
-
-                            var eventId = ExtractEventId(locKey);
-                            if (string.IsNullOrEmpty(eventId)) continue;
-
-                            // COLORFUL_PHILOSOPHERS: flat option tracking (方案A)
-                            if (eventId == "COLORFUL_PHILOSOPHERS")
-                            {
-                                var color = ExtractOptionName(locKey!);
-                                if (!string.IsNullOrEmpty(color))
-                                {
-                                    payload.EventChoices.Add(new EventChoiceUpload
-                                    {
-                                        EventId = eventId,
-                                        OptionIndex = -1,
-                                        TotalOptions = 0,
-                                        ChosenOptionId = color!,
-                                    });
-                                }
-                                continue;
-                            }
-
-                            // Skip events with no meaningful option distinction
-                            if (SkippedEvents.Contains(eventId))
-                                continue;
-
-                            var pageName = ExtractPageName(locKey!);
-                            var optionName = ExtractOptionName(locKey!);
-                            if (string.IsNullOrEmpty(pageName) || string.IsNullOrEmpty(optionName))
-                                continue;
-
-                            var resolved = ResolveEventOption(eventId!, pageName!, optionName!);
-                            if (resolved != null)
-                            {
-                                payload.EventChoices.Add(new EventChoiceUpload
-                                {
-                                    EventId = eventId!,
-                                    OptionIndex = resolved.Value.index,
-                                    TotalOptions = resolved.Value.total,
-                                });
-                            }
-                        }
-                    }
-
-                    // ── Ancient event choices (combo-based) ──
-                    if (ps?.AncientChoices != null && ps.AncientChoices.Count >= 2)
-                    {
-                        ProcessAncientChoices(ps.AncientChoices, payload);
-                    }
-
-                    // ── Card upgrades ──────────────────
-                    if (ps?.UpgradedCards != null)
-                    {
-                        foreach (var upgraded in ps.UpgradedCards)
-                        {
-                            var cardId = upgraded?.Entry;
-                            if (string.IsNullOrEmpty(cardId)) continue;
-
-                            var mpt = node.MapPointType;
-                            string source = mpt == MapPointType.RestSite ? "campfire"
-                                          : mpt == MapPointType.Unknown ? "event"
-                                          : "other";
-
-                            payload.CardUpgrades.Add(new CardUpgradeUpload
-                            {
-                                CardId = cardId!,
-                                Source = source,
-                            });
-                        }
-                    }
-
-                    // ── Card removals ──────────────────
-                    if (ps?.CardsRemoved != null)
-                    {
-                        foreach (var removed in ps.CardsRemoved)
-                        {
-                            var cardId = removed.Id?.Entry;
-                            if (string.IsNullOrEmpty(cardId)) continue;
-
-                            var mpt = node.MapPointType;
-                            string source = mpt == MapPointType.Shop ? "shop" : "event";
-
-                            payload.CardRemovals.Add(new CardRemovalUpload
-                            {
-                                CardId = cardId!,
-                                Source = source,
-                                Floor = floor,
-                            });
-                        }
-                    }
-
-                    // ── Shop purchases ─────────────────
-                    if (ps?.BoughtRelics != null)
-                    {
-                        foreach (var relicId in ps.BoughtRelics)
-                        {
-                            var rid = relicId?.Entry;
-                            if (!string.IsNullOrEmpty(rid))
-                                payload.ShopPurchases.Add(new ShopPurchaseUpload
-                                    { ItemId = rid!, ItemType = "relic", Cost = 0, Floor = floor });
-                        }
-                    }
-                    if (ps?.BoughtPotions != null)
-                    {
-                        foreach (var potionId in ps.BoughtPotions)
-                        {
-                            var pid = potionId?.Entry;
-                            if (!string.IsNullOrEmpty(pid))
-                                payload.ShopPurchases.Add(new ShopPurchaseUpload
-                                    { ItemId = pid!, ItemType = "potion", Cost = 0, Floor = floor });
-                        }
-                    }
-                    if (ps?.BoughtColorless != null)
-                    {
-                        foreach (var cardId in ps.BoughtColorless)
-                        {
-                            var cid = cardId?.Entry;
-                            if (!string.IsNullOrEmpty(cid))
-                                payload.ShopPurchases.Add(new ShopPurchaseUpload
-                                    { ItemId = cid!, ItemType = "card", Cost = 0, Floor = floor });
-                        }
-                    }
-
-                    // ── Encounters ─────────────────────
-                    if (node.Rooms != null)
-                    {
-                        foreach (var room in node.Rooms)
-                        {
-                            var encType = RoomTypeToEncounterType(room.RoomType);
-                            if (encType == null) continue;
-
-                            var encId = room.ModelId?.Entry;
-                            if (string.IsNullOrEmpty(encId)) continue;
-
-                            var killedBy = history.KilledByEncounter?.Entry;
-                            bool died = !history.Win
-                                        && !string.IsNullOrEmpty(killedBy)
-                                        && killedBy == encId;
-
-                            payload.Encounters.Add(new EncounterUpload
-                            {
-                                EncounterId = encId!,
-                                EncounterType = encType,
-                                DamageTaken = Math.Min(ps?.DamageTaken ?? 0, 999999),
-                                TurnsTaken = Math.Min(room.TurnsTaken, 999),
-                                PlayerDied = died,
-                                Floor = floor,
-                            });
-                        }
-                    }
-                }
-            }
-        }
+        int floor = PopulateFromMapHistory(
+            history.MapPointHistory,
+            history.KilledByEncounter?.Entry,
+            history.Win,
+            payload);
 
         payload.FloorReached = floor;
 
@@ -493,6 +322,225 @@ public static class HistoryImporter
         }
 
         return payload;
+    }
+
+    /// <summary>
+    /// Walk a `List&lt;List&lt;MapPointHistoryEntry&gt;&gt;` and populate the
+    /// CardChoices / EventChoices / CardUpgrades / CardRemovals /
+    /// ShopPurchases / Encounters sections of the supplied payload. Returns
+    /// the total floor count (sum of visited map points across all acts).
+    ///
+    /// Round 14 v5+: shared between <see cref="ConvertRun"/> (historical
+    /// imports) and <see cref="CommunityStats.Collection.RunDataCollector"/>
+    /// (live run upload). Live runs previously relied on in-memory lists
+    /// populated by Harmony Record*() patches, but those lists are lost on
+    /// save+quit reload; the game's own MapPointHistory survives reload and
+    /// is the authoritative source.
+    /// </summary>
+    public static int PopulateFromMapHistory(
+        List<List<MapPointHistoryEntry>>? mapHistory,
+        string? killedByEncounter,
+        bool wasWin,
+        RunUploadPayload payload)
+    {
+        int floor = 0;
+        int diagNodes = 0, diagPlayerStats = 0, diagBoughtRelics = 0,
+            diagBoughtPotions = 0, diagBoughtColorless = 0;
+        if (mapHistory == null) return 0;
+
+        foreach (var act in mapHistory)
+        {
+            if (act == null) continue;
+            foreach (var node in act)
+            {
+                if (node == null) continue;
+                floor++;
+                diagNodes++;
+
+                var ps = node.PlayerStats?.Count > 0 ? node.PlayerStats[0] : null;
+                if (ps != null) diagPlayerStats++;
+                if (ps?.BoughtRelics != null) diagBoughtRelics += ps.BoughtRelics.Count;
+                if (ps?.BoughtPotions != null) diagBoughtPotions += ps.BoughtPotions.Count;
+                if (ps?.BoughtColorless != null) diagBoughtColorless += ps.BoughtColorless.Count;
+
+                // ── Card choices ────────────────────
+                if (ps?.CardChoices != null)
+                {
+                    foreach (var cc in ps.CardChoices)
+                    {
+                        var cardId = cc.Card.Id?.Entry;
+                        if (string.IsNullOrEmpty(cardId)) continue;
+                        payload.CardChoices.Add(new CardChoiceUpload
+                        {
+                            CardId = cardId!,
+                            UpgradeLevel = cc.Card.CurrentUpgradeLevel,
+                            WasPicked = cc.wasPicked,
+                            Floor = Math.Min(cc.Card.FloorAddedToDeck ?? floor, 200),
+                        });
+                    }
+                }
+
+                // ── Event choices (regular events) ──
+                if (ps?.EventChoices != null)
+                {
+                    foreach (var ec in ps.EventChoices)
+                    {
+                        var locKey = ec.Title?.LocEntryKey;
+                        if (string.IsNullOrEmpty(locKey)) continue;
+
+                        var eventId = ExtractEventId(locKey);
+                        if (string.IsNullOrEmpty(eventId)) continue;
+
+                        if (eventId == "COLORFUL_PHILOSOPHERS")
+                        {
+                            var color = ExtractOptionName(locKey!);
+                            if (!string.IsNullOrEmpty(color))
+                            {
+                                payload.EventChoices.Add(new EventChoiceUpload
+                                {
+                                    EventId = eventId,
+                                    OptionIndex = -1,
+                                    TotalOptions = 0,
+                                    ChosenOptionId = color!,
+                                });
+                            }
+                            continue;
+                        }
+
+                        if (SkippedEvents.Contains(eventId))
+                            continue;
+
+                        var pageName = ExtractPageName(locKey!);
+                        var optionName = ExtractOptionName(locKey!);
+                        if (string.IsNullOrEmpty(pageName) || string.IsNullOrEmpty(optionName))
+                            continue;
+
+                        var resolved = ResolveEventOption(eventId!, pageName!, optionName!);
+                        if (resolved != null)
+                        {
+                            payload.EventChoices.Add(new EventChoiceUpload
+                            {
+                                EventId = eventId!,
+                                OptionIndex = resolved.Value.index,
+                                TotalOptions = resolved.Value.total,
+                            });
+                        }
+                    }
+                }
+
+                // ── Ancient event choices (combo-based) ──
+                if (ps?.AncientChoices != null && ps.AncientChoices.Count >= 2)
+                {
+                    ProcessAncientChoices(ps.AncientChoices, payload);
+                }
+
+                // ── Card upgrades ──────────────────
+                if (ps?.UpgradedCards != null)
+                {
+                    foreach (var upgraded in ps.UpgradedCards)
+                    {
+                        var cardId = upgraded?.Entry;
+                        if (string.IsNullOrEmpty(cardId)) continue;
+
+                        var mpt = node.MapPointType;
+                        string source = mpt == MapPointType.RestSite ? "campfire"
+                                      : mpt == MapPointType.Unknown ? "event"
+                                      : "other";
+
+                        payload.CardUpgrades.Add(new CardUpgradeUpload
+                        {
+                            CardId = cardId!,
+                            Source = source,
+                        });
+                    }
+                }
+
+                // ── Card removals ──────────────────
+                if (ps?.CardsRemoved != null)
+                {
+                    foreach (var removed in ps.CardsRemoved)
+                    {
+                        var cardId = removed.Id?.Entry;
+                        if (string.IsNullOrEmpty(cardId)) continue;
+
+                        var mpt = node.MapPointType;
+                        string source = mpt == MapPointType.Shop ? "shop" : "event";
+
+                        payload.CardRemovals.Add(new CardRemovalUpload
+                        {
+                            CardId = cardId!,
+                            Source = source,
+                            Floor = floor,
+                        });
+                    }
+                }
+
+                // ── Shop purchases ─────────────────
+                if (ps?.BoughtRelics != null)
+                {
+                    foreach (var relicId in ps.BoughtRelics)
+                    {
+                        var rid = relicId?.Entry;
+                        if (!string.IsNullOrEmpty(rid))
+                            payload.ShopPurchases.Add(new ShopPurchaseUpload
+                                { ItemId = rid!, ItemType = "relic", Cost = 0, Floor = floor });
+                    }
+                }
+                if (ps?.BoughtPotions != null)
+                {
+                    foreach (var potionId in ps.BoughtPotions)
+                    {
+                        var pid = potionId?.Entry;
+                        if (!string.IsNullOrEmpty(pid))
+                            payload.ShopPurchases.Add(new ShopPurchaseUpload
+                                { ItemId = pid!, ItemType = "potion", Cost = 0, Floor = floor });
+                    }
+                }
+                if (ps?.BoughtColorless != null)
+                {
+                    foreach (var cardId in ps.BoughtColorless)
+                    {
+                        var cid = cardId?.Entry;
+                        if (!string.IsNullOrEmpty(cid))
+                            payload.ShopPurchases.Add(new ShopPurchaseUpload
+                                { ItemId = cid!, ItemType = "card", Cost = 0, Floor = floor });
+                    }
+                }
+
+                // ── Encounters ─────────────────────
+                if (node.Rooms != null)
+                {
+                    foreach (var room in node.Rooms)
+                    {
+                        var encType = RoomTypeToEncounterType(room.RoomType);
+                        if (encType == null) continue;
+
+                        var encId = room.ModelId?.Entry;
+                        if (string.IsNullOrEmpty(encId)) continue;
+
+                        bool died = !wasWin
+                                    && !string.IsNullOrEmpty(killedByEncounter)
+                                    && killedByEncounter == encId;
+
+                        payload.Encounters.Add(new EncounterUpload
+                        {
+                            EncounterId = encId!,
+                            EncounterType = encType,
+                            DamageTaken = Math.Min(ps?.DamageTaken ?? 0, 999999),
+                            TurnsTaken = Math.Min(room.TurnsTaken, 999),
+                            PlayerDied = died,
+                            Floor = floor,
+                        });
+                    }
+                }
+            }
+        }
+
+        Safe.Info($"[PopulateFromMapHistory] nodes={diagNodes} playerStats={diagPlayerStats} " +
+                  $"boughtRelics={diagBoughtRelics} boughtPotions={diagBoughtPotions} boughtColorless={diagBoughtColorless} " +
+                  $"→ payload.ShopPurchases={payload.ShopPurchases.Count}");
+
+        return floor;
     }
 
     // ── Helpers ─────────────────────────────────────────────

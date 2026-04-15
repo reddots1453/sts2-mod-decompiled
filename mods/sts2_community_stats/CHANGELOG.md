@@ -1,5 +1,106 @@
 # Changelog
 
+## v0.13.1 (2026-04-15) — Map/TopBar UI 回归修复
+
+> v0.13.0 发布后用户报告两个 UI 功能丢失，以及相关的边界 case。本 patch 版本定位并修复。
+
+### 地图节点危险度 — 用真实 encounter ID 查询
+
+[MapPointPatch.cs](src/Patches/MapPointPatch.cs) 之前在 postfix 中用 `point.PointType.ToString().ToLowerInvariant()` 作为 bundle 查询 key（返回 `"monster"` / `"elite"` / `"boss"`），但 bundle 的 encounter 字段 key 是真实的 encounter ModelId（`SLIMES_NORMAL` / `BYRDONIS_ELITE` / `KAISER_CRAB_BOSS` / ...），两者**永远不可能匹配**，所以 traveled 节点从未显示过死亡率 / 平均伤害 pill。
+
+**修复**：新增 `ResolveEncounterIdForPoint(point)` helper，走 `RunState.MapPointHistory[act][coord.row]` 拿到该 traveled 节点的真实 encounter ModelId，然后按 ID 查 bundle。同时校验 `entry.MapPointType == point.PointType` 防止 row index 错位。
+
+### Elite / rare encounter "No Data" 兜底
+
+[MapPointOverlay.cs](src/UI/MapPointOverlay.cs) 之前 `if (stats == null) return;` 会在 bundle 没有该 encounter 条目时（例如稀有 elite，社区样本量 = 0）静默跳过 overlay，看起来跟 "完全没修" 一样。
+
+**修复**：新增 [StatsLabel.cs](src/UI/StatsLabel.cs) `ForEncounterNoData()` — 灰色 "无数据 / No data" label。Bundle 没数据时 fallback 到这个 pill，让玩家知道节点已被识别但社区无样本。
+
+### Top bar 药水/卡牌掉落概率 — 地图入场立即显示
+
+[CombatUiOverlayPatch.cs](src/Patches/CombatUiOverlayPatch.cs) 之前 attach 时机：
+- `OnRunStarted`（`SetUpSavedSinglePlayer` postfix，TopBar 未必初始化完成）
+- `AfterSetUpCombat` fallback（必须先进入一场战斗才会 attach）
+
+结果：玩家读档继续一局 → 从地图界面开始 → indicators 缺失，直到进第一场战斗。
+
+**修复**：新增 `[HarmonyPatch(typeof(NMapScreen), nameof(NMapScreen.Open))]` postfix，玩家每次进入 map screen 都立即调用 `EnsureAttachedToTopBar() + ShowAll() + RefreshValuesFromPlayer`，不依赖战斗发生。
+
+### Osty hook 名字纠错
+
+v0.13.0 的 `RelicHookContextPatcher.PatchAll` 新增 3 条 Osty 相关 patch 用了错误的方法名，客户端日志持续输出 3 条 `[RelicPatch] Method not found` warning：
+- `BeatingRemnant.AfterOsty` → `AfterModifyingHpLostAfterOsty`
+- `TungstenRod.AfterOsty` → `AfterModifyingHpLostAfterOsty`
+- `TheBoot.BeforeOsty` → `AfterModifyingHpLostBeforeOsty`
+
+基于 `_decompiled/sts2/MegaCrit.Sts2.Core.Models.Relics/` 实际方法签名核对后纠正。
+
+---
+
+## v0.13.0 (2026-04-15) — 遗物贡献全覆盖 + 自伤独立行 + HTTP API fallback
+
+> 主要工作：按 `DesignDoc/relics.md` 清单把遗物贡献追踪从 ~77 个扩充到 ~150+ 个；把同时提供正防御和自伤的卡牌拆成两行显示；给服务端加一条 HTTP/80 的 `/v1/*` fallback 绕过 GFW SNI 封锁。
+
+### 战斗贡献 — 遗物覆盖扩展
+
+- **`RelicHookContextPatcher.PatchAll` 新增 ~55 条 async hook**，覆盖 relics.md 清单中所有尚未被 patch 的战斗内生效/能治疗的遗物。按类别分组：
+  - **房间/战斗开始**: OddlySmoothStone / Planisphere / StoneCracker / Pantograph / SwordOfJade / PumpkinCandle / BigMushroom / LoomingFruit / SneckoEye / FakeSneckoEye / FakeAnchor
+  - **回合事件**: FuneraryMask / SymbioticVirus / OrangeDough / BigHat / Sai / Crossbow / SealOfGold / TwistedFunnel / PollinousCore / GamblingChip / VexingPuzzlebox / ChoicesParadox / Bookmark
+  - **打牌前后**: MummifiedHand / RazorTooth / HelicalDart / ChemicalX / Vambrace / UnsettlingLamp / MusicBox / DiamondDiadem / BrilliantScarf / PaelsLegion
+  - **抽牌**: Toolbox / NinjaScroll / RadiantPearl / ToastyMittens / JeweledMask
+  - **Osty / 受伤 / 格挡清空**: TungstenRod / TheBoot / BeatingRemnant / SelfFormingClay / SparklingRouge
+  - **Power 加成/减免**: SneckoSkull / RuinedHelmet
+  - **Orb / 卡堆变动 / 攻击后 / 洗牌 / 休息治疗**: GoldPlatedCables / BookOfFiveRings / DarkstonePeriapt / BoneFlute / TheAbacus / StoneHumidifier
+  - **药水协同 / Exhaust 串联**: ReptileTrinket / BeltBuckle / BurningSticks
+  - **Card 进战斗 / Doom 复活治疗**: Regalite / BookRepairKnife (AfterDiedToDoom)
+  - **星星**: MiniRegent
+
+- **`RelicHandDrawBonusPatch` 新增 4 条** — BoomingConch / Fiddle (`ModifyHandDrawLate`) / BigMushroom / PollinousCore 的 `ModifyHandDraw` 被动加成。
+
+- **`EnemyDamageIntentPatch.AfterModifyDamage_Enemy` 新增 RelicModel 分支**。对玩家侧遗物调用 `ModifyDamageMultiplicative`，检测 `< 1m` 的减免系数并按 PRD §防御归因公式 `finalDmg * (1 - m) / m` 拆分被减免的伤害，走新增的 `CombatTracker.OnRelicIncomingDamageMitigation(relicId, prevented)` → `MitigatedByBuff`。自动覆盖 **UndyingSigil** 低血量 0.5× 减伤。
+
+- **`BlockModifierPatch.AfterModifyBlock` 新增 RelicModel 分支**。对玩家侧遗物同时支持 `ModifyBlockAdditive`（直接记 `ModifierBlock`）和 `ModifyBlockMultiplicative`（按 PRD §格挡修正拆分公式 `finalBlock - finalBlock / multiplicative` 计算 delta）。自动覆盖 **VitruvianMinion** 2× 小怪卡格挡加成。
+
+- **`AfterEnergyResetAttribution` 扩展遗物最大能量归因**。遵循 Demesne/Friendship/Pyre 的 `Hook.AfterEnergyReset` postfix 模式，在迭代玩家 Powers 之后追加 `foreach (var relic in player.Relics)` 块：对每个遗物调用 `relic.ModifyMaxEnergy(player, 0m)`，结果 > 0 即为该遗物提供的每回合能量加成，通过 `AddEnergyBonusDirect(relicId, "relic", N)` 记到 `EnergyGained`。自动覆盖 **SOZU / ECTOPLASM / PRISMATIC_GEM / SPIKED_GAUNTLETS / WHISPERING_EARRING / BLOOD_SOAKED_ROSE / PUMPKIN_CANDLE**（PumpkinCandle 的 ActiveAct 守卫会自己返回 0 在错误 Act 上）。
+
+### 贡献面板 UI
+
+- **自伤独立行显示**。绯红披风 / 血墙 / 祭献等同时提供正防御和自伤的卡牌不再混在一行。[ContributionChart.cs](src/UI/ContributionChart.cs) 新增 `RowMode { Normal, PositiveOnly, NegativeOnly }` 枚举 + `PositiveDefense(accum)` helper。`BuildSection` 检测 Defense 类别下 `SelfDamage > 0 && PositiveDefense > 0` 时拆为两行：
+  - 第一行 `PositiveOnly`：卡名 + 播放次数 + 纯正防御 bar（不含 SelfDamage）+ 正百分比
+  - 第二行 `NegativeOnly`：缩进 `└ 自伤` 标签 + 纯红色自伤 bar + `-N` 值，无播放次数、无百分比
+
+### 服务端部署
+
+- **HTTP/80 fallback**：nginx 配置增加 `/health` 和 `/v1/` 的 HTTP 直通 location（其他路径仍 301→HTTPS）。解决 GFW 按 SNI 阻断 `duckdns.org` 的 TLS 握手问题（客户端 `api_base_url` 从 `https://statsthespire.duckdns.org/v1` 切到 `http://64.176.85.164/v1`）。
+- **rate limit 上调**：upload 限制从 `10/minute` 提升到 `300/minute`，避免历史记录批量上传触发 429。
+- **DB 密码同步修复**：镜像 rebuild 后 pg 用户密码与 .env 分歧，通过 `ALTER USER sts2stats WITH PASSWORD` 重置。
+
+### 客户端 UX
+
+- **F9 `resolvedChar=null` UX 漏洞**：主菜单打开 F9 时 `CharacterFilterMode="auto"` 且无当前 run → `ResolveCharacter()` 返回 null → 原代码直接落回 test bundle 显示 42,850 局。现在 `OnFilterChangedAsync` 在 character null 时会向 API 传 `"all"` 拉取聚合数据。
+- **历史导入与实时上传 UI 重叠**：`HistoryImporter` 暴露 `IsRunning` 标志，`UploadNotice.Show()` 在导入期间静默。
+- **上传 URL 重复 `char=` 参数**：`GetBulkStatsAsync` strip 掉 query string 里的 char/ver 再拼接，避免 `char=X&ver=Y&char=X&...`。
+
+### 数据完整性修复
+
+- **Live run save+quit 数据丢失**：`RunDataCollector.BuildPayload` 之前依赖 6 个 in-memory list（`_cardChoices / _eventChoices / _shopPurchases / _shopCardOfferings / _cardRemovals / _cardUpgrades`）由 Record\*() patches 在打牌/选卡/进商店时填充。save+quit+reload 后这些 list 清空，造成上传 payload 中 6 张表全为空。
+  **修复**：抽出 `HistoryImporter.PopulateFromMapHistory(mapHistory, ...)` 共用 walker，`BuildPayload` 改为从 `SerializableRun.MapPointHistory`（游戏自带的权威持久化，save+quit 不丢）直接 walk 填充 card/event/shop/encounter 等字段。历史导入也走同一个 helper。
+- **Contributions 磁盘兜底**：`OnMetricsUpload` 上传前先调用新增的 `ContributionPersistence.AssembleAndHydrateRunTotals(seed)`，从所有 `{seed}_{floor}.json` per-combat 磁盘文件重建 `RunContributionAggregator._runTotals`，兜底 save+quit+Reset 清空内存 + live.json hydration 失败的场景。
+- **ShopCardOfferings 持久化**：新增 [ShopOfferingPersistence.cs](src/Util/ShopOfferingPersistence.cs)，`RecordShopCardOffering` 时写 `{seed}_shop_offers.json`，`OnRunStart` 时 load 回 in-memory list，`OnMetricsUpload` 时删除。因为 `MapPointHistory` 只记录 `BoughtRelics/BoughtPotions/BoughtColorless`（购买），不记录 shop 的卡牌池展示内容，而后者是 `ShopPatch.AfterMerchantRoomEnter` 从活动 shop 实例读的瞬时数据。
+- **AssembleFromCombats glob 过滤**：之前 `{seed}_*.json` 匹配会扫到 `{seed}_live.json` 和新增的 `{seed}_shop_offers.json`，尝试按 `ContributionDoc` schema 反序列化失败并 warning spam。现在跳过以 `_live` / `_shop_offers` 结尾的文件。
+
+### 新增文件
+
+- [ShopOfferingPersistence.cs](src/Util/ShopOfferingPersistence.cs) — Shop card 池展示的 per-seed JSON 持久化
+
+### 兼容性
+
+- 数据库 schema 无变化
+- API payload schema 无变化
+- 历史存档兼容（live.json / _shop_offers.json 向后兼容，旧版客户端读不到 shop_offers 无影响）
+
+---
+
 ## v0.12.1 (2026-04-15) — 贡献归因四连修（Round 14 v6）
 
 > 在 v0.12.0 master 基础上对 contribution test 套件暴露的 4 类归因 bug 做定点修复。

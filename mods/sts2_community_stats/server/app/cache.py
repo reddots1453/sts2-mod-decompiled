@@ -38,14 +38,15 @@ def bulk_key(character: str, asc_range: str, version: str) -> str:
 
 
 def map_asc_range(min_asc: int, max_asc: int) -> str:
-    """Map arbitrary ascension range to nearest precomputed bucket."""
-    for lo, hi in config.ASC_RANGES:
-        if lo <= min_asc and max_asc <= hi:
-            return f"{lo}-{hi}"
-    # fallback: pick the bucket whose midpoint is closest
-    mid = (min_asc + max_asc) / 2
-    best = config.ASC_RANGES[0]
-    for lo, hi in config.ASC_RANGES:
-        if abs((lo + hi) / 2 - mid) < abs((best[0] + best[1]) / 2 - mid):
-            best = (lo, hi)
-    return f"{best[0]}-{best[1]}"
+    """Return the EXACT ascension range as a cache key.
+
+    Previously this mapped arbitrary ranges to the "nearest precomputed
+    bucket" — but that was semantically broken. Client queries for 0-10
+    were mapped to bucket "5-9" and got empty bundles back because the
+    actual aggregation ran against an unrelated slice of the data. Now
+    the cache key reflects the exact query range; precompute pre-warms
+    the common client defaults (see config.ASC_RANGES). Any range not
+    in ASC_RANGES still works — it just misses cache and recomputes on
+    the fly (then caches under its own key for subsequent hits).
+    """
+    return f"{min_asc}-{max_asc}"

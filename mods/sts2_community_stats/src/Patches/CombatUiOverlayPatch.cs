@@ -11,6 +11,7 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
@@ -243,6 +244,32 @@ public static class CombatUiOverlayPatch
             }
             var me = ResolveLocalPlayer(state);
             if (me != null) RefreshValuesFromPlayer(me);
+        });
+    }
+
+    /// <summary>
+    /// Round 15: attach indicators the moment the player opens the map
+    /// screen, so they appear before the first combat (previously the only
+    /// fallback was <see cref="AfterSetUpCombat"/>, which ran on combat
+    /// entry and left the indicators missing while the player was still
+    /// browsing the map). NMapScreen.Open is called every time the player
+    /// transitions to the map view (fresh run, between combats, after
+    /// shop / event / rest, resume from save). Idempotent — the
+    /// EnsureAttachedToTopBar / IsAlive guards skip work when the wrappers
+    /// are already attached.
+    /// </summary>
+    [HarmonyPatch(typeof(MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen),
+        nameof(MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen.Open))]
+    [HarmonyPostfix]
+    public static void AfterMapScreenOpen()
+    {
+        Safe.Run(() =>
+        {
+            EnsureAttachedToTopBar();
+            ShowAll();
+            var runState = RunManager.Instance?.DebugOnlyGetState();
+            var player = runState?.Players?.FirstOrDefault();
+            if (player != null) RefreshValuesFromPlayer(player);
         });
     }
 

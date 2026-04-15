@@ -59,9 +59,11 @@ public static class CombatLifecyclePatch
             CombatTracker.Instance.OnCombatEnd();
 
             // Persist this combat snapshot for future Run History replay (PRD §3.12).
+            var lastData = CombatTracker.Instance.LastCombatData;
+            Safe.Info($"[CombatLifecycle] AfterCombatEnded floor={RunDataCollector.CurrentFloor} lastCombatData.Count={lastData?.Count ?? 0}");
             ContributionPersistence.SaveCombat(
                 RunDataCollector.CurrentFloor,
-                CombatTracker.Instance.LastCombatData);
+                lastData);
 
             // Show contribution panel after combat (respect feature toggle)
             if (Config.ModConfig.Toggles.ContributionPanel)

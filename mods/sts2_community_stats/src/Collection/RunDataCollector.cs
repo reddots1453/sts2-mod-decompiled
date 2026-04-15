@@ -109,6 +109,10 @@ public static class RunDataCollector
             CardId = cardId,
             Floor = floor
         });
+        // Round 14 v5+: shop offerings are not present in the game's
+        // MapPointHistory (only purchases are), so persist them to disk so
+        // save+quit+resume doesn't drop them.
+        ShopOfferingPersistence.Save(_shopCardOfferings);
     }
 
     // ── Run lifecycle ───────────────────────────────────────
@@ -122,6 +126,11 @@ public static class RunDataCollector
         _cardRemovals.Clear();
         _cardUpgrades.Clear();
         RunContributionAggregator.Instance.Reset();
+
+        // Round 14 v5+: reload previously-recorded shop card offerings for
+        // this seed (lost from in-memory list by the Clear above).
+        var saved = ShopOfferingPersistence.Load();
+        if (saved != null) _shopCardOfferings.AddRange(saved);
     }
 
     /// <summary>
@@ -136,12 +145,20 @@ public static class RunDataCollector
             var seed = run?.SerializableRng?.Seed;
             if (!string.IsNullOrEmpty(seed))
             {
+                // Round 14 v5+ post-test fix: save+quit+resume between combats
+                // can clear in-memory run totals (OnRunStart → Reset, live.json
+                // hydration is best-effort). Every combat end DOES write a
+                // per-combat snapshot to disk, so reassemble the run totals
+                // from those authoritative files before serializing.
+                ContributionPersistence.AssembleAndHydrateRunTotals(seed!);
+
                 ContributionPersistence.SaveRunSummary(
                     seed!,
                     RunContributionAggregator.Instance.RunTotals);
                 // Round 8 §3.6.1: live snapshot is no longer needed after the
                 // run finishes — the per-combat and summary files cover replay.
                 ContributionPersistence.DeleteLiveState(seed!);
+                ShopOfferingPersistence.Delete(seed!);
             }
 
             // New run finished: invalidate the cached career snapshot so the
@@ -182,15 +199,24 @@ public static class RunDataCollector
             PlayerWinRate = 0f, // Populated server-side from historical data
             NumPlayers = run.Players?.Count ?? 1,
             FloorReached = CurrentFloor,
-            CardChoices = new List<CardChoiceUpload>(_cardChoices),
-            EventChoices = new List<EventChoiceUpload>(_eventChoices),
-            ShopPurchases = new List<ShopPurchaseUpload>(_shopPurchases),
             ShopCardOfferings = new List<ShopCardOfferingUpload>(_shopCardOfferings),
-            CardRemovals = new List<CardRemovalUpload>(_cardRemovals),
-            CardUpgrades = new List<CardUpgradeUpload>(_cardUpgrades),
-            Encounters = RunContributionAggregator.Instance.BuildEncounterUploads(),
             Contributions = RunContributionAggregator.Instance.BuildContributionUploads(),
         };
+
+        // Round 14 v5+: walk SerializableRun.MapPointHistory (authoritative,
+        // survives save+quit reload) to populate card/event/shop/encounter
+        // sections. Previously these lived in in-memory lists populated by
+        // Record*() patches — but a mid-run save+quit drops the in-memory
+        // state and the game's own MapPointHistory is the only reliable source.
+        // The encounter list produced by RunContributionAggregator is
+        // redundant with (and lossier than) the MapPointHistory walk, so we
+        // overwrite it here.
+        int floor = Api.HistoryImporter.PopulateFromMapHistory(
+            run.MapPointHistory,
+            killedByEncounter: null,
+            wasWin: isVictory,
+            payload);
+        if (floor > 0) payload.FloorReached = floor;
 
         // Final deck
         if (player?.Deck != null)
