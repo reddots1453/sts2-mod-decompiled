@@ -1,7 +1,46 @@
 # 第二轮迭代 — 进度与上下文
 
-> 最后更新：2026-04-14（**Round 14 v5 — 贡献归因深度修复 + 服务端部署上线 + 跨客户端测试包发布**）
+> 最后更新：2026-04-15（**Round 14 v6 — 贡献归因四连修（Frail / 同名卡 origin / Upgrade origin / Doom FIFO）**）
 > 此文件供跨设备会话使用，确保新会话能完整理解当前状态
+
+---
+
+## Round 14 v6（2026-04-15）— 贡献归因四连修
+
+> 在 master Round 14 v5 基础上，针对 contribution test 套件暴露的 4 类归因 bug 做定点修复。Build 通过 0 错误；等待 in-game 回归 + 自动化测试复跑。
+
+### 背景与决策
+
+- 开工前 stash 了 v0.12.0 之前的 origin 重构 WIP（21 文件），但发现 master 已独立落地大部分 v5 修复，合并会产生大量冲突且 master 的 block 模型更优（`OriginalTotal`/`Modifiers`/`ConsumedBlockSlice`）
+- 决策：**放弃 stash 硬合并**，改为把原始 diff 和意图归档为 [DesignDoc/FIX_INTENT_upgrade_origin.md](FIX_INTENT_upgrade_origin.md) + `FIX_INTENT_upgrade_origin.patch`（1346 行），作为审计基线
+- 在 master HEAD 上重新 review 4 类 bug 的 gap，按最小侵入原则定点补齐
+
+### 四条修复（全部 build 通过）
+
+| # | 问题 | 修法 | 关键文件 |
+|---|---|---|---|
+| **A** | Frail 把 `power.Amount`（回合计数）当成 +2 block 计入 debuff 的 `ModifierBlock` | `AfterModifyBlock` 照 `AfterModifyDamage` 三段式：`ModifyBlockAdditive` → `ModifyBlockMultiplicative`（`<1m` skip）→ `>1m` 折算 | [CombatHistoryPatch.cs:1034-1094](../src/Patches/CombatHistoryPatch.cs#L1034-L1094) |
+| **C** | 同名卡按扁平 `cardId` 聚合导致 origin last-writer-wins 污染（BATTLE_TRANCE 牌库 vs 技能药水、双生成器 Shiv） | `_currentCombat` 改 `MakeBucketKey(sourceId, \u0001, origin)` composite key；`_activeCardOriginAL` 在 `OnCardPlayStarted` 一次捕获；`GetOrCreate` 新 `originOverride` 参数；`TagCardOrigin` 降 no-op | [CombatTracker.cs](../src/Collection/CombatTracker.cs) |
+| **D** | `UpgradeDelta` 缺 origin → SKILL_POTION Armaments 与牌库 Armaments 坍缩到同一 ARMAMENTS 桶 | `UpgradeDelta` record 加 `UpgraderOrigin`；`AfterUpgrade` 传 `tracker.ActiveCardOrigin`；伤害/块分流路径用 `_pendingUpgradeSourceOrigin` 作 `originOverride` | [ContributionMap.cs:702-707](../src/Collection/ContributionMap.cs#L702-L707)、[CombatHistoryPatch.cs:1195-1208](../src/Patches/CombatHistoryPatch.cs#L1195-L1208)、[CombatTracker.cs](../src/Collection/CombatTracker.cs) |
+| **B** | Doom 多源/多目标归因扁平化 + BorrowedTime/Neurosurge self-doom 污染 `_powerSources["DOOM_POWER"]` | 新增 `DoomLayer` record + `_doomStacks` per-enemy FIFO 栈 + `RecordDoomLayer`/`ConsumeDoomLayers`；`OnPowerApplied` DOOM_POWER 分支 self-doom `return`、enemy-doom 记 layer 带 origin；`OnDoomKillsCompleted` 循环每敌人 FIFO 消费 | [ContributionMap.cs](../src/Collection/ContributionMap.cs)、[CombatTracker.cs](../src/Collection/CombatTracker.cs) |
+
+### 实施顺序与依赖
+
+> A 独立；C → D → B（B 和 D 的 origin 传播依赖 C 的 `_activeCardOrigin` 基础设施）
+
+每步独立 `dotnet build` gate，全部 0 错误。
+
+### 验证状态
+
+- [x] Build 通过（`dotnet build` 0 errors / 7 pre-existing warnings）
+- [ ] `sts2_contrib_tests` 套件回归复跑（特别关注 CAT-PWR-* Frail 污染相关 / NB-DOOM-Deathbringer / 同名卡生成场景，参见 [FAIL_LIST_R14v4.md](../../sts2_contrib_tests/FAIL_LIST_R14v4.md)）
+- [ ] In-game 手动验收：Armaments+Strike / Armaments+Defend / 两张未升级 Strike / Whetstone 遗物升级 / 旧存档加载 5 个场景
+
+### 下次开机续作
+
+1. 跑 `sts2_contrib_tests` 回归。若有新 fail，先确认是不是原本就 fail 的 33 条（v4 baseline），再看是否被本轮修复引入或顺带解决
+2. Self-doom 的 SelfDamage 计入问题：当前是完全忽略，若需要作为 cost 显示到出处卡 SelfDamage 段，需新开一条通道（本轮未做，属 scope 外）
+3. 非卡升级路径（Whetstone / 事件）的 upgrader 桶现在落到 `"upgrade" / "unknown"`，UI 显示偏丑 —— 如用户反馈再追加触发点包裹
 
 ---
 

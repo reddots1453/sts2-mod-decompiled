@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.12.1 (2026-04-15) — 贡献归因四连修（Round 14 v6）
+
+> 在 v0.12.0 master 基础上对 contribution test 套件暴露的 4 类归因 bug 做定点修复。
+> 设计文档：[DesignDoc/FIX_INTENT_upgrade_origin.md](DesignDoc/FIX_INTENT_upgrade_origin.md)
+
+### Bug 修复
+
+- **Fix A — 脆弱（Frail）产生伪正防御贡献**  
+  `BlockModifierPatch.AfterModifyBlock` 之前读 `Math.Abs(power.Amount)` 作为 modifier 贡献值，而 Frail 的 `Amount` 其实是回合计数器（例：2 turns），被错误地当成 +2 block 计入 debuff 的 `ModifierBlock` 桶。现改为完整复刻伤害侧 `AfterModifyDamage` 的三段式：先查 `ModifyBlockAdditive`（正值直接取）→ 否则查 `ModifyBlockMultiplicative`（`< 1m` 直接 skip，这条过滤所有减少玩家格挡的负贡献，例如 Frail 0.75×、NoBlock、Shadowmeld、Unmovable）→ `> 1m` 按 `finalBlock - finalBlock/multiplicative` 折算。文件：[CombatHistoryPatch.cs:1034-1094](src/Patches/CombatHistoryPatch.cs#L1034-L1094)。
+
+- **Fix C — 同名卡 origin 污染（composite bucket key）**  
+  `CombatTracker._currentCombat` 之前按扁平 `cardId` 聚合，`TagCardOrigin` 在 bucket 创建**之后**回填 `OriginSourceId`，导致 last-writer-wins：牌库原生 Battle Trance 先打、技能药水生成的 Battle Trance 后打，所有 `BATTLE_TRANCE` 条目被共同的桶吞掉并覆写成 `SKILL_POTION` origin。双生成器 Shiv 场景同理。现新增 `_activeCardOriginAL` AsyncLocal 在 `OnCardPlayStarted` 从 `GetCardOrigin(cardHash)` 一次捕获，`GetOrCreate(sourceId, type, originOverride=null)` 通过 `MakeBucketKey(id, \u0001, origin)` 合成复合 key —— `(BATTLE_TRANCE, null)` 与 `(BATTLE_TRANCE, SKILL_POTION)` 成为两个独立 accum，OriginSourceId 在 bucket 创建时锁死，事后不再回填。`TagCardOrigin` 降为 no-op shim（保留签名以兼容任何外部调用）。文件：[CombatTracker.cs](src/Collection/CombatTracker.cs)。
+
+- **Fix D — Upgrade 增量归因 origin 丢失**  
+  `UpgradeDelta` record 之前只记 `SourceId/SourceType`（master Fix 6 已把升级增量归到 upgrader 桶而非被升级卡）。但这步忽略了 upgrader 自己的 origin —— 技能药水生成的 Armaments 升级 Strike 与牌库 Armaments 升级 Strike 会坍缩到同一个 `ARMAMENTS` 桶。现 `UpgradeDelta` 增 `UpgraderOrigin` 字段；`CardUpgradeTrackerPatch.AfterUpgrade` 通过 `tracker.ActiveCardOrigin` 捕获；伤害/块升级分流路径通过 `GetOrCreate(..., originOverride: _pendingUpgradeSourceOrigin)` 路由到 upgrader 的 origin 桶。文件：[ContributionMap.cs:702-707](src/Collection/ContributionMap.cs#L702-L707)、[CombatHistoryPatch.cs:1195-1208](src/Patches/CombatHistoryPatch.cs#L1195-L1208)、[CombatTracker.cs](src/Collection/CombatTracker.cs)。
+
+- **Fix B — Doom 归因错位（per-enemy FIFO 栈 + self-doom 过滤）**  
+  `OnDoomKillsCompleted` 之前把**所有**被 Doom 杀掉的敌人 HP 加总，整坨挂到 `GetPowerSource("DOOM_POWER")` 单一源（加 5 级 active-context fallback）。三类问题：(a) 多源 Doom 在同一敌人身上坍缩到一个 source；(b) BorrowedTime / Neurosurge 的 self-doom 经 `_powerSources["DOOM_POWER"]` 覆写，污染后续 enemy-Doom 的 source lookup；(c) 多目标场景下归因完全扁平。现新增 `ContributionMap.DoomLayer(SourceId, SourceType, OriginId, Amount)` record + `_doomStacks : Dictionary<int, List<DoomLayer>>`（per-enemy FIFO 栈）；`OnPowerApplied` 对 `DOOM_POWER` 分支：self-doom `return` 完全忽略，enemy-doom 走 `RecordDoomLayer` 并携带 upgrader origin；`OnDoomKillsCompleted` 按敌人循环调用 `ConsumeDoomLayers(hash, hp)` FIFO-consume 每层 `Math.Min(layer.Amount, remainingHp)` 分配 AttributedDamage 到各自 source 的 origin 桶。层无记录时回退到原 active-context 5 级 fallback。文件：[ContributionMap.cs](src/Collection/ContributionMap.cs)、[CombatTracker.cs](src/Collection/CombatTracker.cs)。
+
+### 数据结构变更
+
+- `ContributionMap.UpgradeDelta` record 加 `UpgraderOrigin` 字段（nullable string，旧存档反序列化到 null 保持兼容）
+- `ContributionMap` 新增 `DoomLayer` record + `_doomStacks` dict + `RecordDoomLayer` / `ConsumeDoomLayers` / `ClearDoomStacks` API
+- `CombatTracker` 新增 `_activeCardOriginAL` AsyncLocal 字段 + `ActiveCardOrigin` 公共访问器 + `_pendingUpgradeSourceOriginAL` + `MakeBucketKey` / `ResolveOriginFor` helpers
+- `CombatTracker.GetOrCreate` 新增 `originOverride` 可选参数
+- `TagCardOrigin` 降为 no-op shim
+
+### 兼容性
+
+- 旧存档 plain-key 快照仍可加载：`MakeBucketKey(id, null) == id`，key 形态一致
+- `UpgradeDelta` 新字段 nullable，旧序列化数据自动映射到 null origin
+- UI `ContributionChart` 遍历 `data.Values` 用 `accum.OriginSourceId` 分类子条，无 API 变更
+- 遗物归因路径完全中性：relic sourceId 永不带 origin（`ResolveOriginFor("VAJRA") == null`），桶 key 形态不变
+
 ## v0.12.0 (2026-04-12) — 第二轮迭代发布版
 
 ### 新功能 — 个人生涯统计

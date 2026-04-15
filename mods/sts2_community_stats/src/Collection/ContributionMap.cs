@@ -628,6 +628,57 @@ public class ContributionMap
         return result;
     }
 
+    // Fix B: per-enemy FIFO Doom attribution stack. Replaces the shared _powerSources
+    // lookup for DOOM_POWER so multi-source Doom on a single target credits each
+    // application proportionally, and self-doom (BorrowedTime / Neurosurge) never
+    // pollutes the attribution.
+    public sealed record DoomLayer(string SourceId, string SourceType, string? OriginId, int Amount);
+
+    private readonly Dictionary<int, List<DoomLayer>> _doomStacks = new();
+
+    public void RecordDoomLayer(int creatureHash, string sourceId, string sourceType, int amount, string? originId = null)
+    {
+        if (amount <= 0) return;
+        if (!_doomStacks.TryGetValue(creatureHash, out var list))
+        {
+            list = new List<DoomLayer>();
+            _doomStacks[creatureHash] = list;
+        }
+        list.Add(new DoomLayer(sourceId, sourceType, originId, amount));
+    }
+
+    /// <summary>
+    /// FIFO-consume doom layers for a killed enemy. Returns one entry per
+    /// layer slice with the portion of `hpAtKill` attributed to that source.
+    /// Remaining layers (if any) are kept — the enemy survived unused doom.
+    /// </summary>
+    public List<(string SourceId, string SourceType, string? OriginId, int Share)> ConsumeDoomLayers(int creatureHash, int hpAtKill)
+    {
+        var result = new List<(string, string, string?, int)>();
+        if (hpAtKill <= 0) return result;
+        if (!_doomStacks.TryGetValue(creatureHash, out var list) || list.Count == 0)
+            return result;
+
+        int remaining = hpAtKill;
+        while (remaining > 0 && list.Count > 0)
+        {
+            var head = list[0];
+            int take = Math.Min(head.Amount, remaining);
+            result.Add((head.SourceId, head.SourceType, head.OriginId, take));
+            remaining -= take;
+            if (take >= head.Amount)
+                list.RemoveAt(0);
+            else
+                list[0] = head with { Amount = head.Amount - take };
+        }
+
+        if (list.Count == 0)
+            _doomStacks.Remove(creatureHash);
+        return result;
+    }
+
+    public void ClearDoomStacks() => _doomStacks.Clear();
+
     // ── Orb Source Tracking ────────────────────────────────
     // Tracks which card/relic channeled each orb for indirect contribution attribution.
 
@@ -699,11 +750,14 @@ public class ContributionMap
 
     private readonly Dictionary<int, UpgradeDelta> _upgradeDeltaMap = new();
 
-    public record UpgradeDelta(int DamageDelta, int BlockDelta, string SourceId, string SourceType);
+    // Fix D: carry the upgrader's origin so a potion-generated Armaments upgrading
+    // Strike credits (ARMAMENTS, SKILL_POTION) distinctly from a deck-native Armaments
+    // upgrading Strike — otherwise both collapse into the same top-level ARMAMENTS bucket.
+    public record UpgradeDelta(int DamageDelta, int BlockDelta, string SourceId, string SourceType, string? UpgraderOrigin);
 
-    public void RecordUpgradeDelta(int cardHash, int damageDelta, int blockDelta, string sourceId, string sourceType)
+    public void RecordUpgradeDelta(int cardHash, int damageDelta, int blockDelta, string sourceId, string sourceType, string? upgraderOrigin = null)
     {
-        _upgradeDeltaMap[cardHash] = new UpgradeDelta(damageDelta, blockDelta, sourceId, sourceType);
+        _upgradeDeltaMap[cardHash] = new UpgradeDelta(damageDelta, blockDelta, sourceId, sourceType, upgraderOrigin);
     }
 
     public UpgradeDelta? GetUpgradeDelta(int cardHash)
@@ -738,6 +792,7 @@ public class ContributionMap
         _pendingHandDrawBonus.Clear();
         _ostyHpStack.Clear();
         _pendingDoomHp.Clear();
+        _doomStacks.Clear();
         _orbSources.Clear();
         _activeOrbContext = null;
         _pendingOrbFocusContrib = null;

@@ -25,6 +25,11 @@ public sealed class CombatTracker
     // does to the outer logical flow. This restores attribution for 20+ power-tick
     // and async relic hook tests (Panache, DemonForm, Juggernaut, CharonsAshes, etc.).
     private static readonly AsyncLocal<string?> _activeCardIdAL = new();
+    // Fix C: origin of the currently-playing card instance (e.g. SKILL_POTION for a
+    // potion-generated card). Captured at OnCardPlayStarted from GetCardOrigin(hash).
+    // Used by GetOrCreate to compose per-origin bucket keys so same-name cards from
+    // different sources don't collapse into a single bucket.
+    private static readonly AsyncLocal<string?> _activeCardOriginAL = new();
     private static readonly AsyncLocal<string?> _activeRelicIdAL = new();
     private static readonly AsyncLocal<string?> _activePotionIdAL = new();
     private static readonly AsyncLocal<string?> _activePowerSourceIdAL = new();
@@ -42,6 +47,8 @@ public sealed class CombatTracker
     private static readonly AsyncLocal<int> _pendingUpgradeBlockDeltaAL = new();
     private static readonly AsyncLocal<string?> _pendingUpgradeSourceIdAL = new();
     private static readonly AsyncLocal<string?> _pendingUpgradeSourceTypeAL = new();
+    // Fix D: upgrader origin pending for the currently-playing card.
+    private static readonly AsyncLocal<string?> _pendingUpgradeSourceOriginAL = new();
 
     // The card currently being played (set by CardPlayStarted, cleared by CardPlayFinished)
     private string? _activeCardId
@@ -49,6 +56,14 @@ public sealed class CombatTracker
         get => _activeCardIdAL.Value;
         set => _activeCardIdAL.Value = value;
     }
+
+    // Fix C: origin of the currently-playing card instance.
+    private string? _activeCardOrigin
+    {
+        get => _activeCardOriginAL.Value;
+        set => _activeCardOriginAL.Value = value;
+    }
+    public string? ActiveCardOrigin => _activeCardOrigin;
 
     // The relic currently executing a hook (set/cleared by relic hook tracking patch)
     private string? _activeRelicId
@@ -109,6 +124,11 @@ public sealed class CombatTracker
     {
         get => _pendingUpgradeSourceTypeAL.Value;
         set => _pendingUpgradeSourceTypeAL.Value = value;
+    }
+    private string? _pendingUpgradeSourceOrigin
+    {
+        get => _pendingUpgradeSourceOriginAL.Value;
+        set => _pendingUpgradeSourceOriginAL.Value = value;
     }
 
     // H3: Deferred Osty death negative defense — only applied when enemy next attacks player
@@ -239,6 +259,7 @@ public sealed class CombatTracker
         _pendingUpgradeBlockDelta = 0;
         _pendingUpgradeSourceId = null;
         _pendingUpgradeSourceType = null;
+        _pendingUpgradeSourceOrigin = null;
         _processedDamageResults.Clear();
         _forgeLog.Clear();
         ContributionMap.Instance.Clear();
@@ -286,10 +307,13 @@ public sealed class CombatTracker
         // Safety: clear stale potion context (shouldn't still be set, but guards against
         // edge cases where PotionUsed didn't fire, e.g. combat ended mid-potion)
         _activePotionId = null;
+        // Fix C: resolve origin BEFORE GetOrCreate so the bucket key routes correctly
+        // on first write. A deck-native BATTLE_TRANCE and a potion-generated BATTLE_TRANCE
+        // now land in distinct buckets instead of colliding by plain cardId.
+        var origin = ContributionMap.Instance.GetCardOrigin(cardHash);
+        _activeCardOrigin = origin?.originId;
         var accum = GetOrCreate(cardId, "card");
         accum.TimesPlayed++;
-        // Tag origin so generated/transformed cards display as sub-bars
-        TagCardOrigin(cardId, cardHash);
         // Reset orb first-trigger flag so first orb trigger during this card play
         // goes to channeling source, subsequent triggers go to this card.
         ContributionMap.Instance.ResetOrbFirstTrigger();
@@ -299,11 +323,13 @@ public sealed class CombatTracker
         _pendingUpgradeBlockDelta = upgDelta?.BlockDelta ?? 0;
         _pendingUpgradeSourceId = upgDelta?.SourceId;
         _pendingUpgradeSourceType = upgDelta?.SourceType;
+        _pendingUpgradeSourceOrigin = upgDelta?.UpgraderOrigin;
     }
 
     public void OnCardPlayFinished()
     {
         _activeCardId = null;
+        _activeCardOrigin = null;
         // Round 14 v5 review §9: defensive clear of pending upgrade state at end
         // of each card play. OnCardPlayStarted already overwrites these each time,
         // so this is strictly defense-in-depth for any future code path that might
@@ -312,6 +338,7 @@ public sealed class CombatTracker
         _pendingUpgradeBlockDelta = 0;
         _pendingUpgradeSourceId = null;
         _pendingUpgradeSourceType = null;
+        _pendingUpgradeSourceOrigin = null;
     }
 
     // ── Relic Context Tracking ──────────────────────────────
@@ -354,6 +381,7 @@ public sealed class CombatTracker
     public void ForceResetAllContext()
     {
         _activeCardId = null;
+        _activeCardOrigin = null;
         _activePotionId = null;
         _activeRelicId = null;
         _activePowerSourceId = null;
@@ -366,6 +394,7 @@ public sealed class CombatTracker
         _pendingUpgradeBlockDelta = 0;
         _pendingUpgradeSourceId = null;
         _pendingUpgradeSourceType = null;
+        _pendingUpgradeSourceOrigin = null;
         _processedDamageResults.Clear();
         _forgeLog.Clear();
         ContributionMap.Instance.Clear();
@@ -623,7 +652,9 @@ public sealed class CombatTracker
                 int upgSplit = Math.Min(_pendingUpgradeDamageDelta, directDamage);
                 string upgSrcId = _pendingUpgradeSourceId ?? sourceId2;
                 string upgSrcType = _pendingUpgradeSourceType ?? sourceType2;
-                GetOrCreate(upgSrcId, upgSrcType).UpgradeDamage += upgSplit;
+                // Fix D: route upgrade bonus to upgrader's origin bucket so SKILL_POTION
+                // Armaments and deck Armaments don't collide on a shared ARMAMENTS bucket.
+                GetOrCreate(upgSrcId, upgSrcType, originOverride: _pendingUpgradeSourceOrigin).UpgradeDamage += upgSplit;
                 directDamage -= upgSplit;
             }
 
@@ -781,7 +812,8 @@ public sealed class CombatTracker
                 int upgSplit = Math.Min(_pendingUpgradeBlockDelta, baseAmount);
                 string upgSrcId = _pendingUpgradeSourceId ?? sourceId;
                 string upgSrcType = _pendingUpgradeSourceType ?? sourceType;
-                GetOrCreate(upgSrcId, upgSrcType).UpgradeBlock += upgSplit;
+                // Fix D: route upgrade block to upgrader's origin bucket.
+                GetOrCreate(upgSrcId, upgSrcType, originOverride: _pendingUpgradeSourceOrigin).UpgradeBlock += upgSplit;
             }
         }
     }
@@ -816,6 +848,20 @@ public sealed class CombatTracker
         if (sourceId == null) return;
 
         int intAmount = (int)amount;
+
+        // Fix B: Doom uses a dedicated per-enemy FIFO attribution stack instead of
+        // the shared _powerSources map. Self-doom (BorrowedTime / Neurosurge) must
+        // NOT be recorded anywhere — it would pollute enemy-Doom kill attribution
+        // and leak into every unrelated Doom-kill source lookup.
+        if (powerId == "DOOM_POWER")
+        {
+            if (!isPlayerTarget && intAmount > 0)
+            {
+                string? origin = (sourceId == _activeCardId) ? _activeCardOrigin : null;
+                ContributionMap.Instance.RecordDoomLayer(creatureHash, sourceId, sourceType, intAmount, origin);
+            }
+            return;
+        }
 
         if (isPlayerTarget)
         {
@@ -1171,42 +1217,36 @@ public sealed class CombatTracker
         var targets = ContributionMap.Instance.ConsumeDoomTargetHp();
         if (targets.Count == 0) return;
 
-        int totalDamage = 0;
-        foreach (var (_, hp) in targets) totalDamage += hp;
+        // Fix B: walk each killed target individually and FIFO-consume its DoomLayer
+        // stack. Each source that contributed Doom to this enemy gets its proportional
+        // share of the enemy's HP as AttributedDamage, credited to its origin bucket.
+        foreach (var (creatureHash, hp) in targets)
+        {
+            if (hp <= 0) continue;
 
-        if (totalDamage <= 0) return;
+            var layers = ContributionMap.Instance.ConsumeDoomLayers(creatureHash, hp);
+            if (layers.Count > 0)
+            {
+                foreach (var (sid, stype, origin, share) in layers)
+                {
+                    if (share <= 0) continue;
+                    GetOrCreate(sid, stype, originOverride: origin).AttributedDamage += share;
+                }
+                continue;
+            }
 
-        // Find what card/relic applied the Doom power
-        var source = ContributionMap.Instance.GetPowerSource("DOOM_POWER");
-        if (source != null)
-        {
-            GetOrCreate(source.SourceId, source.SourceType).AttributedDamage += totalDamage;
-            return;
-        }
-
-        // P2-1 fallback: use active context if DOOM_POWER source was not recorded
-        // (ContributionMap miss). Priority: activeCard > activePotion > activeRelic
-        // > activePowerSource. Only if none available, bucket under generic "DOOM".
-        if (_activeCardId != null)
-        {
-            GetOrCreate(_activeCardId, "card").AttributedDamage += totalDamage;
-        }
-        else if (_activePotionId != null)
-        {
-            GetOrCreate(_activePotionId, "potion").AttributedDamage += totalDamage;
-        }
-        else if (_activeRelicId != null)
-        {
-            GetOrCreate(_activeRelicId, "relic").AttributedDamage += totalDamage;
-        }
-        else if (_activePowerSourceId != null)
-        {
-            GetOrCreate(_activePowerSourceId, _activePowerSourceType ?? "card")
-                .AttributedDamage += totalDamage;
-        }
-        else
-        {
-            GetOrCreate("DOOM", "card").AttributedDamage += totalDamage;
+            // No layer records for this target — fall back to active context.
+            // Priority: activeCard > activePotion > activeRelic > activePowerSource > "DOOM".
+            if (_activeCardId != null)
+                GetOrCreate(_activeCardId, "card").AttributedDamage += hp;
+            else if (_activePotionId != null)
+                GetOrCreate(_activePotionId, "potion").AttributedDamage += hp;
+            else if (_activeRelicId != null)
+                GetOrCreate(_activeRelicId, "relic").AttributedDamage += hp;
+            else if (_activePowerSourceId != null)
+                GetOrCreate(_activePowerSourceId, _activePowerSourceType ?? "card").AttributedDamage += hp;
+            else
+                GetOrCreate("DOOM", "card").AttributedDamage += hp;
         }
     }
 
@@ -1218,17 +1258,12 @@ public sealed class CombatTracker
     }
 
     /// <summary>
-    /// If a card has a known origin (generated/transformed by another card),
-    /// tag its ContributionAccum so the UI can display it as a sub-bar.
+    /// Fix C: No-op shim. Origin is now resolved at GetOrCreate time using the
+    /// composite bucket key, so post-hoc retrofit is both unnecessary and wrong
+    /// (last-writer-wins used to overwrite deck-native buckets with potion origins).
+    /// Retained only for ABI compatibility with any remaining external callers.
     /// </summary>
-    public void TagCardOrigin(string cardId, int cardHash)
-    {
-        var origin = ContributionMap.Instance.GetCardOrigin(cardHash);
-        if (origin != null && _currentCombat.TryGetValue(cardId, out var accum))
-        {
-            accum.OriginSourceId = origin.Value.originId;
-        }
-    }
+    public void TagCardOrigin(string cardId, int cardHash) { }
 
     // ── Forge Tracking ────────────────────────────────────────
 
@@ -1326,12 +1361,35 @@ public sealed class CombatTracker
 
     // ── Helpers ──────────────────────────────────────────────
 
-    private ContributionAccum GetOrCreate(string sourceId, string sourceType)
+    // Fix C: composite bucket key `sourceId\u0001originId`. Same-name cards from
+    // different origins (deck vs skill-potion vs Shiv generator A vs generator B) land
+    // in distinct buckets instead of colliding under a single plain-sourceId key.
+    // OriginId=null collapses to plain sourceId so top-level bars (and legacy save
+    // snapshots) keep their natural key shape.
+    private static string MakeBucketKey(string sourceId, string? originId)
+        => originId == null ? sourceId : sourceId + "\u0001" + originId;
+
+    private string? ResolveOriginFor(string sourceId)
     {
-        if (!_currentCombat.TryGetValue(sourceId, out var accum))
+        // Only the currently-playing card's origin propagates to its own bucket. Other
+        // attribution paths (relic/potion/power-source) use origin=null (main bucket).
+        if (sourceId == _activeCardId) return _activeCardOrigin;
+        return null;
+    }
+
+    private ContributionAccum GetOrCreate(string sourceId, string sourceType, string? originOverride = null)
+    {
+        string? originId = originOverride ?? ResolveOriginFor(sourceId);
+        string key = MakeBucketKey(sourceId, originId);
+        if (!_currentCombat.TryGetValue(key, out var accum))
         {
-            accum = new ContributionAccum { SourceId = sourceId, SourceType = sourceType };
-            _currentCombat[sourceId] = accum;
+            accum = new ContributionAccum
+            {
+                SourceId = sourceId,
+                SourceType = sourceType,
+                OriginSourceId = originId,
+            };
+            _currentCombat[key] = accum;
         }
         return accum;
     }

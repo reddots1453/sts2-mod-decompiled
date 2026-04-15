@@ -1,0 +1,1346 @@
+diff --git a/mods/sts2_community_stats/src/Collection/CombatTracker.cs b/mods/sts2_community_stats/src/Collection/CombatTracker.cs
+index 0165b57..4920e61 100644
+--- a/mods/sts2_community_stats/src/Collection/CombatTracker.cs
++++ b/mods/sts2_community_stats/src/Collection/CombatTracker.cs
+@@ -17,6 +17,11 @@ public sealed class CombatTracker
+ 
+     // The card currently being played (set by CardPlayStarted, cleared by CardPlayFinished)
+     private string? _activeCardId;
++    // Origin of the currently-playing card instance. null for deck-native, or the
++    // generator's sourceId (e.g. "SKILL_POTION") for temp-generated cards. Resolved
++    // once at OnCardPlayStarted from _cardOriginMap, used by GetOrCreate to key the
++    // composite bucket so same-named cards with different origins stay separate.
++    private string? _activeCardOrigin;
+ 
+     // The relic currently executing a hook (set/cleared by relic hook tracking patch)
+     private string? _activeRelicId;
+@@ -28,18 +33,26 @@ public sealed class CombatTracker
+     // ActiveCardId already exposed above
+     public string? ActivePotionId => _activePotionId;
+     public string? ActiveRelicId => _activeRelicId;
++    public string? ActiveCardOrigin => _activeCardOrigin;
+ 
+     // The power whose hook is currently executing (for indirect effects like Rage, FlameBarrier)
+     private string? _activePowerSourceId;
+     private string? _activePowerSourceType;
++    private string? _activePowerSourceOrigin;
+ 
+     // Track DamageResult objects already processed by DamageReceived,
+     // so KillingBlowPatcher doesn't double-count them.
+     private readonly HashSet<int> _processedDamageResults = new();
+ 
+-    // Pending upgrade delta for the currently playing card (per-hit split, per Review R3)
++    // Pending upgrade delta for the currently playing card (per-hit split, per Review R3).
++    // The delta is attributed to the *upgrader* that produced it (e.g. Armaments),
++    // so DirectDamage/EffectiveBlock flow into that upgrader's bucket rather than
++    // staying as a slice on the upgraded card.
+     private int _pendingUpgradeDamageDelta;
+     private int _pendingUpgradeBlockDelta;
++    private string? _pendingUpgradeSourceId;
++    private string? _pendingUpgradeSourceType;
++    private string? _pendingUpgradeSourceOrigin;
+ 
+     // H3: Deferred Osty death negative defense — only applied when enemy next attacks player
+     private (string sourceId, string sourceType, int amount)? _pendingOstyDeathDefense;
+@@ -153,10 +166,12 @@ public sealed class CombatTracker
+     {
+         _currentCombat.Clear();
+         _activeCardId = null;
++        _activeCardOrigin = null;
+         _activeRelicId = null;
+         _activePotionId = null;
+         _activePowerSourceId = null;
+         _activePowerSourceType = null;
++        _activePowerSourceOrigin = null;
+         _encounterId = encounterId;
+         _encounterType = encounterType;
+         _damageTakenByPlayer = 0;
+@@ -167,6 +182,9 @@ public sealed class CombatTracker
+         _pendingOstyDeathDefense = null;
+         _pendingUpgradeDamageDelta = 0;
+         _pendingUpgradeBlockDelta = 0;
++        _pendingUpgradeSourceId = null;
++        _pendingUpgradeSourceType = null;
++        _pendingUpgradeSourceOrigin = null;
+         _processedDamageResults.Clear();
+         _forgeLog.Clear();
+         ContributionMap.Instance.Clear();
+@@ -205,6 +223,7 @@ public sealed class CombatTracker
+     public string? ActiveCardId => _activeCardId;
+     public string? ActivePowerSourceId => _activePowerSourceId;
+     public string? ActivePowerSourceType => _activePowerSourceType;
++    public string? ActivePowerSourceOrigin => _activePowerSourceOrigin;
+ 
+     // ── Card Play Tracking ──────────────────────────────────
+ 
+@@ -214,10 +233,12 @@ public sealed class CombatTracker
+         // Safety: clear stale potion context (shouldn't still be set, but guards against
+         // edge cases where PotionUsed didn't fire, e.g. combat ended mid-potion)
+         _activePotionId = null;
++        // Resolve origin once per play. null = deck-native; a sourceId = generator.
++        // All GetOrCreate calls during this play attribute to the (cardId, origin) bucket.
++        var origin = ContributionMap.Instance.GetCardOrigin(cardHash);
++        _activeCardOrigin = origin?.originId;
+         var accum = GetOrCreate(cardId, "card");
+         accum.TimesPlayed++;
+-        // Tag origin so generated/transformed cards display as sub-bars
+-        TagCardOrigin(cardId, cardHash);
+         // Reset orb first-trigger flag so first orb trigger during this card play
+         // goes to channeling source, subsequent triggers go to this card.
+         ContributionMap.Instance.ResetOrbFirstTrigger();
+@@ -225,11 +246,20 @@ public sealed class CombatTracker
+         var upgDelta = ContributionMap.Instance.GetUpgradeDelta(cardHash);
+         _pendingUpgradeDamageDelta = upgDelta?.DamageDelta ?? 0;
+         _pendingUpgradeBlockDelta = upgDelta?.BlockDelta ?? 0;
++        _pendingUpgradeSourceId = upgDelta?.UpgraderSourceId;
++        _pendingUpgradeSourceType = upgDelta?.UpgraderSourceType;
++        _pendingUpgradeSourceOrigin = upgDelta?.UpgraderOrigin;
+     }
+ 
+     public void OnCardPlayFinished()
+     {
+         _activeCardId = null;
++        _activeCardOrigin = null;
++        _pendingUpgradeDamageDelta = 0;
++        _pendingUpgradeBlockDelta = 0;
++        _pendingUpgradeSourceId = null;
++        _pendingUpgradeSourceType = null;
++        _pendingUpgradeSourceOrigin = null;
+     }
+ 
+     // ── Relic Context Tracking ──────────────────────────────
+@@ -254,6 +284,7 @@ public sealed class CombatTracker
+         {
+             _activePowerSourceId = source.SourceId;
+             _activePowerSourceType = source.SourceType;
++            _activePowerSourceOrigin = source.OriginId;
+         }
+     }
+ 
+@@ -261,18 +292,27 @@ public sealed class CombatTracker
+     {
+         _activePowerSourceId = null;
+         _activePowerSourceType = null;
++        _activePowerSourceOrigin = null;
+     }
+ 
+     /// <summary>Force-clear ALL context. Called between tests to prevent stale state.</summary>
+     public void ForceResetAllContext()
+     {
+         _activeCardId = null;
++        _activeCardOrigin = null;
+         _activePotionId = null;
+         _activeRelicId = null;
+         _activePowerSourceId = null;
+         _activePowerSourceType = null;
++        _activePowerSourceOrigin = null;
+         _pendingDrawSourceId = null;
+         _pendingDrawSourceType = null;
++        _pendingDrawSourceOrigin = null;
++        _pendingUpgradeDamageDelta = 0;
++        _pendingUpgradeBlockDelta = 0;
++        _pendingUpgradeSourceId = null;
++        _pendingUpgradeSourceType = null;
++        _pendingUpgradeSourceOrigin = null;
+         ContributionMap.Instance.ClearActiveOrbContext();
+     }
+ 
+@@ -360,9 +400,9 @@ public sealed class CombatTracker
+             if (blockedDamage > 0)
+             {
+                 var consumed = ContributionMap.Instance.ConsumeBlock(blockedDamage);
+-                foreach (var (sourceId, sourceType, amount) in consumed)
++                foreach (var (sourceId, sourceType, originId, amount) in consumed)
+                 {
+-                    GetOrCreate(sourceId, sourceType).EffectiveBlock += amount;
++                    GetOrCreate(sourceId, sourceType, originOverride: originId).EffectiveBlock += amount;
+                 }
+             }
+ 
+@@ -427,7 +467,7 @@ public sealed class CombatTracker
+                 var m = modifiers[i];
+                 if (m.Amount <= 0) continue;
+                 int scaledAmount = (int)Math.Round(m.Amount * scale);
+-                modifiers[i] = new ContributionMap.ModifierContribution(m.SourceId, m.SourceType, scaledAmount);
++                modifiers[i] = new ContributionMap.ModifierContribution(m.SourceId, m.SourceType, m.OriginId, scaledAmount);
+                 scaledTotal += scaledAmount;
+             }
+             modifierTotal = scaledTotal;
+@@ -466,7 +506,7 @@ public sealed class CombatTracker
+                 foreach (var mod in modifiers)
+                 {
+                     if (mod.Amount > 0)
+-                        GetOrCreate(mod.SourceId, mod.SourceType).ModifierDamage += mod.Amount;
++                        GetOrCreate(mod.SourceId, mod.SourceType, originOverride: mod.OriginId).ModifierDamage += mod.Amount;
+                 }
+             }
+ 
+@@ -477,18 +517,24 @@ public sealed class CombatTracker
+                 int focusAmount = Math.Min(focusContrib.Value.amount, directDamage);
+                 if (focusAmount > 0)
+                 {
+-                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType).ModifierDamage += focusAmount;
++                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType, originOverride: focusContrib.Value.originId).ModifierDamage += focusAmount;
+                     directDamage -= focusAmount;
+                 }
+             }
+ 
+             var (sourceId2, sourceType2) = ResolveSource(cardSourceId);
+ 
+-            // Per-hit upgrade delta split (C2): each hit of a multi-hit card gets its upgrade bonus
+-            if (_pendingUpgradeDamageDelta > 0 && directDamage > 0)
++            // Per-hit upgrade delta split: attribute the bonus to the upgrader
++            // (e.g. Armaments) rather than the upgraded card, since the extra
++            // damage exists only because the upgrader produced it.
++            if (_pendingUpgradeDamageDelta > 0 && directDamage > 0 && _pendingUpgradeSourceId != null)
+             {
+                 int upgSplit = Math.Min(_pendingUpgradeDamageDelta, directDamage);
+-                GetOrCreate(sourceId2, sourceType2).UpgradeDamage += upgSplit;
++                GetOrCreate(
++                    _pendingUpgradeSourceId,
++                    _pendingUpgradeSourceType ?? "unknown",
++                    originOverride: _pendingUpgradeSourceOrigin
++                ).DirectDamage += upgSplit;
+                 directDamage -= upgSplit;
+             }
+ 
+@@ -526,11 +572,11 @@ public sealed class CombatTracker
+         var fractions = ContributionMap.Instance.GetDebuffSourceFractions(dealerHash, "WEAK_POWER");
+         if (fractions.Count > 0)
+         {
+-            foreach (var (sourceId, sourceType, frac) in fractions)
++            foreach (var (sourceId, sourceType, originId, frac) in fractions)
+             {
+                 int share = (int)Math.Round(prevented * frac);
+                 if (share > 0)
+-                    GetOrCreate(sourceId, sourceType).MitigatedByDebuff += share;
++                    GetOrCreate(sourceId, sourceType, originOverride: originId).MitigatedByDebuff += share;
+             }
+         }
+     }
+@@ -580,10 +626,11 @@ public sealed class CombatTracker
+     public void OnBlockGained(int amount, string? cardPlayId)
+     {
+         var (sourceId, sourceType) = ResolveSource(cardPlayId);
++        string? originForSource = ResolveActiveOrigin(sourceId);
+ 
+         if (amount > 0)
+         {
+-            ContributionMap.Instance.AddBlock(sourceId, sourceType, amount);
++            ContributionMap.Instance.AddBlock(sourceId, sourceType, amount, originForSource);
+ 
+             // Focus contribution split for Frost orb: Focus bonus as ModifierBlock
+             var focusContrib = ContributionMap.Instance.PendingOrbFocusContrib;
+@@ -591,14 +638,23 @@ public sealed class CombatTracker
+             {
+                 int focusAmount = Math.Min(focusContrib.Value.amount, amount);
+                 if (focusAmount > 0)
+-                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType).ModifierBlock += focusAmount;
++                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType, originOverride: focusContrib.Value.originId).ModifierBlock += focusAmount;
+             }
+ 
+-            // Per-hit upgrade block delta split (C2)
+-            if (_pendingUpgradeBlockDelta > 0 && amount > 0)
++            // Per-hit upgrade block delta split: attribute to upgrader. Unlike
++            // damage, we do NOT subtract from AddBlock's amount — the upgraded
++            // card's FIFO still consumes the full block. Routing upgSplit into
++            // the upgrader's EffectiveBlock surfaces it as a separate bar
++            // without going through BlockEntry FIFO (so upgrader's slice is
++            // always counted effective, a minor simplification).
++            if (_pendingUpgradeBlockDelta > 0 && amount > 0 && _pendingUpgradeSourceId != null)
+             {
+                 int upgSplit = Math.Min(_pendingUpgradeBlockDelta, amount);
+-                GetOrCreate(sourceId, sourceType).UpgradeBlock += upgSplit;
++                GetOrCreate(
++                    _pendingUpgradeSourceId,
++                    _pendingUpgradeSourceType ?? "unknown",
++                    originOverride: _pendingUpgradeSourceOrigin
++                ).EffectiveBlock += upgSplit;
+             }
+ 
+             // Consume block modifier context (Dexterity, etc.)
+@@ -610,7 +666,7 @@ public sealed class CombatTracker
+                 {
+                     if (mod.Amount > 0)
+                     {
+-                        GetOrCreate(mod.SourceId, mod.SourceType).ModifierBlock += mod.Amount;
++                        GetOrCreate(mod.SourceId, mod.SourceType, originOverride: mod.OriginId).ModifierBlock += mod.Amount;
+                         modifierTotal += mod.Amount;
+                     }
+                 }
+@@ -619,18 +675,32 @@ public sealed class CombatTracker
+         }
+     }
+ 
++    /// <summary>
++    /// Resolve origin for the currently active card/power context. Used by
++    /// record-time APIs (AddBlock, RecordPowerSource, etc.) so that FIFO/layer
++    /// entries capture origin at application time and the later deferred
++    /// consumer can bucket into the correct (sourceId, origin) pair.
++    /// </summary>
++    private string? ResolveActiveOrigin(string? sourceId)
++    {
++        if (sourceId == null) return null;
++        if (_activeCardId != null && sourceId == _activeCardId) return _activeCardOrigin;
++        if (_activePowerSourceId != null && sourceId == _activePowerSourceId) return _activePowerSourceOrigin;
++        return null;
++    }
++
+     // ── Power Application ───────────────────────────────────
+ 
+     public void OnPowerSourceRecorded(string powerId)
+     {
+         if (_activeCardId != null)
+-            ContributionMap.Instance.RecordPowerSource(powerId, _activeCardId, "card");
++            ContributionMap.Instance.RecordPowerSource(powerId, _activeCardId, "card", originId: _activeCardOrigin);
+         else if (_activePotionId != null)
+             ContributionMap.Instance.RecordPowerSource(powerId, _activePotionId, "potion");
+         else if (_activeRelicId != null)
+             ContributionMap.Instance.RecordPowerSource(powerId, _activeRelicId, "relic");
+         else if (_activePowerSourceId != null)
+-            ContributionMap.Instance.RecordPowerSource(powerId, _activePowerSourceId, _activePowerSourceType ?? "card");
++            ContributionMap.Instance.RecordPowerSource(powerId, _activePowerSourceId, _activePowerSourceType ?? "card", originId: _activePowerSourceOrigin);
+     }
+ 
+     public void OnPowerApplied(string powerId, decimal amount, int creatureHash, bool isPlayerTarget)
+@@ -643,21 +713,37 @@ public sealed class CombatTracker
+ 
+         if (sourceId == null) return;
+ 
++        string? originId = _activeCardId != null ? _activeCardOrigin :
++                           (_activePowerSourceId != null && sourceId == _activePowerSourceId)
++                               ? _activePowerSourceOrigin : null;
++
+         // Record power source with amount for proportional multi-source attribution
+         int intAmount = (int)amount;
+-        ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType, intAmount);
++
++        // Doom uses a dedicated per-enemy FIFO attribution stack instead of
++        // the shared _powerSources map. Self-doom (BorrowedTime, Neurosurge)
++        // must NOT be recorded anywhere — it would pollute enemy Doom kill
++        // attribution for any later enemy-targeted doom card.
++        if (powerId == "DOOM_POWER")
++        {
++            if (!isPlayerTarget && intAmount > 0)
++                ContributionMap.Instance.RecordDoomLayer(creatureHash, sourceId, sourceType, intAmount, originId);
++            return;
++        }
++
++        ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType, intAmount, originId);
+ 
+         if (isPlayerTarget)
+         {
+-            ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType, intAmount);
++            ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType, intAmount, originId);
+         }
+         else
+         {
+-            ContributionMap.Instance.RecordDebuffSource(creatureHash, powerId, sourceId, sourceType);
++            ContributionMap.Instance.RecordDebuffSource(creatureHash, powerId, sourceId, sourceType, originId);
+             // H1: Record FIFO debuff layer for duration-based debuffs (Vulnerable, Weak)
+             int duration = (int)amount;
+             if (duration > 0)
+-                ContributionMap.Instance.RecordDebuffLayer(creatureHash, powerId, sourceId, sourceType, duration);
++                ContributionMap.Instance.RecordDebuffLayer(creatureHash, powerId, sourceId, sourceType, duration, originId);
+         }
+     }
+ 
+@@ -680,17 +766,20 @@ public sealed class CombatTracker
+     // The prefix records the intended source here; OnCardDrawn checks it first.
+     private string? _pendingDrawSourceId;
+     private string? _pendingDrawSourceType;
++    private string? _pendingDrawSourceOrigin;
+ 
+-    public void SetPendingDrawSource(string sourceId, string sourceType)
++    public void SetPendingDrawSource(string sourceId, string sourceType, string? originId = null)
+     {
+         _pendingDrawSourceId = sourceId;
+         _pendingDrawSourceType = sourceType;
++        _pendingDrawSourceOrigin = originId;
+     }
+ 
+     public void ClearPendingDrawSource()
+     {
+         _pendingDrawSourceId = null;
+         _pendingDrawSourceType = null;
++        _pendingDrawSourceOrigin = null;
+     }
+ 
+     public void OnCardDrawn(bool fromHandDraw)
+@@ -701,9 +790,10 @@ public sealed class CombatTracker
+         // Consumes the pending source after use.
+         if (_pendingDrawSourceId != null)
+         {
+-            GetOrCreate(_pendingDrawSourceId, _pendingDrawSourceType ?? "card").CardsDrawn++;
++            GetOrCreate(_pendingDrawSourceId, _pendingDrawSourceType ?? "card", originOverride: _pendingDrawSourceOrigin).CardsDrawn++;
+             _pendingDrawSourceId = null;
+             _pendingDrawSourceType = null;
++            _pendingDrawSourceOrigin = null;
+             return;
+         }
+ 
+@@ -802,9 +892,9 @@ public sealed class CombatTracker
+     public void FlushPendingHandDrawBonus()
+     {
+         var bonuses = ContributionMap.Instance.ConsumePendingHandDrawBonus();
+-        foreach (var (sourceId, sourceType, count) in bonuses)
++        foreach (var (sourceId, sourceType, originId, count) in bonuses)
+         {
+-            GetOrCreate(sourceId, sourceType).CardsDrawn += count;
++            GetOrCreate(sourceId, sourceType, originOverride: originId).CardsDrawn += count;
+         }
+     }
+ 
+@@ -833,10 +923,11 @@ public sealed class CombatTracker
+         // Ensure OSTY parent entry exists
+         GetOrCreate(OstyParentId, "osty");
+ 
+-        // Attribute damage to the specific card
+-        var accum = GetOrCreate(cardSourceId, "card");
++        // Attribute damage to the specific card under OSTY parent. originOverride
++        // pins the bucket at creation time — same card played outside Osty context
++        // gets a separate bucket (origin=null) and doesn't collide.
++        var accum = GetOrCreate(cardSourceId, "card", originOverride: OstyParentId);
+         accum.DirectDamage += totalDamage;
+-        accum.OriginSourceId = OstyParentId;
+ 
+         // Also consume modifier context if present
+         var modifiers = ContributionMap.Instance.LastDamageModifiers;
+@@ -845,7 +936,7 @@ public sealed class CombatTracker
+             foreach (var mod in modifiers)
+             {
+                 if (mod.Amount > 0)
+-                    GetOrCreate(mod.SourceId, mod.SourceType).ModifierDamage += mod.Amount;
++                    GetOrCreate(mod.SourceId, mod.SourceType, originOverride: mod.OriginId).ModifierDamage += mod.Amount;
+             }
+             modifiers.Clear();
+         }
+@@ -865,9 +956,8 @@ public sealed class CombatTracker
+         var consumed = ContributionMap.Instance.ConsumeOstyHp(damage);
+         foreach (var (sourceId, sourceType, amount) in consumed)
+         {
+-            var accum = GetOrCreate(sourceId, sourceType);
++            var accum = GetOrCreate(sourceId, sourceType, originOverride: OstyParentId);
+             accum.EffectiveBlock += amount;
+-            accum.OriginSourceId = OstyParentId;
+         }
+ 
+         // If stack was insufficient (shouldn't normally happen), attribute remainder to OSTY itself
+@@ -917,28 +1007,31 @@ public sealed class CombatTracker
+     }
+ 
+     /// <summary>
+-    /// Called after Doom kills. Attributes total HP as damage to the Doom power source.
++    /// Called after Doom kills. Consumes each target's FIFO doom layer stack
++    /// up to the creature's HP at kill time, attributing per-source damage in
++    /// application order. Multi-doom-card plays distribute correctly instead
++    /// of collapsing to the first applied source.
+     /// </summary>
+     public void OnDoomKillsCompleted()
+     {
+         var targets = ContributionMap.Instance.ConsumeDoomTargetHp();
+         if (targets.Count == 0) return;
+ 
+-        int totalDamage = 0;
+-        foreach (var (_, hp) in targets) totalDamage += hp;
++        foreach (var (creatureHash, hpAtKill) in targets)
++        {
++            if (hpAtKill <= 0) continue;
+ 
+-        if (totalDamage <= 0) return;
++            var layers = ContributionMap.Instance.ConsumeDoomLayers(creatureHash, hpAtKill);
++            if (layers.Count == 0)
++            {
++                // No tracked layers — fallback to generic DOOM bucket so
++                // total damage is still conserved in the contribution view.
++                GetOrCreate("DOOM", "card").AttributedDamage += hpAtKill;
++                continue;
++            }
+ 
+-        // Find what card/relic applied the Doom power
+-        var source = ContributionMap.Instance.GetPowerSource("DOOM_POWER");
+-        if (source != null)
+-        {
+-            GetOrCreate(source.SourceId, source.SourceType).AttributedDamage += totalDamage;
+-        }
+-        else
+-        {
+-            // Fallback: attribute to generic "DOOM" entry
+-            GetOrCreate("DOOM", "card").AttributedDamage += totalDamage;
++            foreach (var (sourceId, sourceType, originId, amt) in layers)
++                GetOrCreate(sourceId, sourceType, originOverride: originId).AttributedDamage += amt;
+         }
+     }
+ 
+@@ -949,19 +1042,6 @@ public sealed class CombatTracker
+         ContributionMap.Instance.RecordCardOrigin(cardHash, originId, originType);
+     }
+ 
+-    /// <summary>
+-    /// If a card has a known origin (generated/transformed by another card),
+-    /// tag its ContributionAccum so the UI can display it as a sub-bar.
+-    /// </summary>
+-    public void TagCardOrigin(string cardId, int cardHash)
+-    {
+-        var origin = ContributionMap.Instance.GetCardOrigin(cardHash);
+-        if (origin != null && _currentCombat.TryGetValue(cardId, out var accum))
+-        {
+-            accum.OriginSourceId = origin.Value.originId;
+-        }
+-    }
+-
+     // ── Forge Tracking ────────────────────────────────────────
+ 
+     /// <summary>
+@@ -997,16 +1077,14 @@ public sealed class CombatTracker
+         foreach (var (srcId, (srcType, count, totalAmt)) in aggregated)
+         {
+             string key = $"FORGE:{srcId}";
+-            var accum = GetOrCreate(key, srcType);
+-            accum.OriginSourceId = "SOVEREIGN_BLADE";
++            var accum = GetOrCreate(key, srcType, originOverride: "SOVEREIGN_BLADE");
+             accum.DirectDamage += totalAmt;
+             accum.TimesPlayed += count;
+         }
+ 
+         // Also write base damage entry (SovereignBlade starts at 10)
+         const int baseDamage = 10;
+-        var baseAccum = GetOrCreate("FORGE:BASE", "card");
+-        baseAccum.OriginSourceId = "SOVEREIGN_BLADE";
++        var baseAccum = GetOrCreate("FORGE:BASE", "card", originOverride: "SOVEREIGN_BLADE");
+         baseAccum.DirectDamage = baseDamage; // fixed, not additive
+         baseAccum.TimesPlayed = 1;
+     }
+@@ -1051,12 +1129,57 @@ public sealed class CombatTracker
+ 
+     // ── Helpers ──────────────────────────────────────────────
+ 
+-    private ContributionAccum GetOrCreate(string sourceId, string sourceType)
++    // Separator between sourceId and origin in the composite bucket key. Chosen as
++    // \u0001 because valid in-game card/relic/potion ids are uppercase ASCII with
++    // underscores — no collision possible.
++    private const char BucketKeySeparator = '\u0001';
++
++    private static string MakeBucketKey(string sourceId, string? origin)
++        => origin == null ? sourceId : sourceId + BucketKeySeparator + origin;
++
++    /// <summary>
++    /// Fetch or create the contribution bucket for a (sourceId, origin) pair.
++    /// Origin resolution:
++    ///   - explicit originOverride wins (used by Osty/Sovereign Blade paths)
++    ///   - sourceType == "card" during an active card play inherits _activeCardOrigin
++    ///   - sourceType == "card" during a power-hook callback where sourceId matches
++    ///     the active power source inherits _activePowerSourceOrigin (the origin of
++    ///     the card that originally applied the power)
++    ///   - otherwise origin = null (relic, potion, orb, power-direct, etc.)
++    /// Once the bucket is created OriginSourceId is fixed — no subsequent call can
++    /// overwrite it, which prevents the last-writer-wins bug where temp-generated
++    /// same-named cards stole credit from deck-native ones.
++    /// </summary>
++    private ContributionAccum GetOrCreate(string sourceId, string sourceType, string? originOverride = null)
+     {
+-        if (!_currentCombat.TryGetValue(sourceId, out var accum))
++        string? origin = originOverride;
++        if (origin == null && sourceType == "card")
++        {
++            if (_activeCardId != null && sourceId == _activeCardId)
++                origin = _activeCardOrigin;
++            else if (_activePowerSourceId != null && sourceId == _activePowerSourceId)
++                origin = _activePowerSourceOrigin;
++            else
++            {
++                // Orb passive/evoke attribution: if the bucket sourceId matches the
++                // active orb's channeling card, inherit the orb context's origin so
++                // that orb damage routes into the same sub-bar as the channeling card.
++                var orbCtx = ContributionMap.Instance.ActiveOrbContext;
++                if (orbCtx != null && sourceId == orbCtx.Value.sourceId)
++                    origin = orbCtx.Value.originId;
++            }
++        }
++
++        var key = MakeBucketKey(sourceId, origin);
++        if (!_currentCombat.TryGetValue(key, out var accum))
+         {
+-            accum = new ContributionAccum { SourceId = sourceId, SourceType = sourceType };
+-            _currentCombat[sourceId] = accum;
++            accum = new ContributionAccum
++            {
++                SourceId = sourceId,
++                SourceType = sourceType,
++                OriginSourceId = origin,
++            };
++            _currentCombat[key] = accum;
+         }
+         return accum;
+     }
+diff --git a/mods/sts2_community_stats/src/Collection/ContributionMap.cs b/mods/sts2_community_stats/src/Collection/ContributionMap.cs
+index 51c5719..2771d85 100644
+--- a/mods/sts2_community_stats/src/Collection/ContributionMap.cs
++++ b/mods/sts2_community_stats/src/Collection/ContributionMap.cs
+@@ -66,8 +66,12 @@ public class ContributionMap
+     // Multiple sources can contribute to the same power (e.g. Inflame+Vajra both give Str).
+     private readonly Dictionary<string, List<PowerSourceEntry>> _powerSources = new();
+ 
+-    public record PowerSource(string SourceId, string SourceType);
+-    public record PowerSourceEntry(string SourceId, string SourceType, int Amount);
++    // OriginId propagates the card-origin (null for deck-native, or the generator's
++    // sourceId for temp-generated cards) of the card that applied this power, so that
++    // later power-hook callbacks writing contribution back to this card can bucket it
++    // into the correct (cardId, origin) entry.
++    public record PowerSource(string SourceId, string SourceType, string? OriginId = null);
++    public record PowerSourceEntry(string SourceId, string SourceType, string? OriginId, int Amount);
+ 
+     // Per-creature debuff tracking: (creatureHash, powerId) → source
+     private readonly Dictionary<(int, string), PowerSource> _creatureDebuffSources = new();
+@@ -82,34 +86,37 @@ public class ContributionMap
+     {
+         public string SourceId = "";
+         public string SourceType = "";
++        public string? OriginId;
+         public int Remaining;
+     }
+ 
+-    public void RecordPowerSource(string powerId, string sourceId, string sourceType, int amount = 0)
++    public void RecordPowerSource(string powerId, string sourceId, string sourceType, int amount = 0, string? originId = null)
+     {
+         if (!_powerSources.TryGetValue(powerId, out var list))
+         {
+             list = new List<PowerSourceEntry>();
+             _powerSources[powerId] = list;
+         }
+-        // If same source already recorded, update amount
++        // Same (source, origin) pair merges; different origins stay separate so
++        // potion-generated Flex and deck-native Flex each keep their own Strength
++        // attribution slice.
+         for (int i = 0; i < list.Count; i++)
+         {
+-            if (list[i].SourceId == sourceId)
++            if (list[i].SourceId == sourceId && list[i].OriginId == originId)
+             {
+-                list[i] = new PowerSourceEntry(sourceId, sourceType, list[i].Amount + amount);
++                list[i] = new PowerSourceEntry(sourceId, sourceType, originId, list[i].Amount + amount);
+                 return;
+             }
+         }
+-        list.Add(new PowerSourceEntry(sourceId, sourceType, amount));
++        list.Add(new PowerSourceEntry(sourceId, sourceType, originId, amount));
+     }
+ 
+-    public void RecordDebuffSource(int creatureHash, string powerId, string sourceId, string sourceType)
++    public void RecordDebuffSource(int creatureHash, string powerId, string sourceId, string sourceType, string? originId = null)
+     {
+-        _creatureDebuffSources[(creatureHash, powerId)] = new PowerSource(sourceId, sourceType);
++        _creatureDebuffSources[(creatureHash, powerId)] = new PowerSource(sourceId, sourceType, originId);
+     }
+ 
+-    public void RecordPlayerBuffSource(string powerId, string sourceId, string sourceType, int amount = 0)
++    public void RecordPlayerBuffSource(string powerId, string sourceId, string sourceType, int amount = 0, string? originId = null)
+     {
+         if (!_playerBuffSources.TryGetValue(powerId, out var list))
+         {
+@@ -118,30 +125,31 @@ public class ContributionMap
+         }
+         for (int i = 0; i < list.Count; i++)
+         {
+-            if (list[i].SourceId == sourceId)
++            if (list[i].SourceId == sourceId && list[i].OriginId == originId)
+             {
+-                list[i] = new PowerSourceEntry(sourceId, sourceType, list[i].Amount + amount);
++                list[i] = new PowerSourceEntry(sourceId, sourceType, originId, list[i].Amount + amount);
+                 return;
+             }
+         }
+-        list.Add(new PowerSourceEntry(sourceId, sourceType, amount));
++        list.Add(new PowerSourceEntry(sourceId, sourceType, originId, amount));
+     }
+ 
+     /// <summary>Clear the block FIFO pool. Call after LoseBlock to sync pool with actual block.</summary>
+     public void ClearBlockPool() => _blockPool.Clear();
+ 
+-    public void AddBlock(string sourceId, string sourceType, int amount)
++    public void AddBlock(string sourceId, string sourceType, int amount, string? originId = null)
+     {
+         if (amount <= 0) return;
+-        _blockPool.Add(new BlockEntry { SourceId = sourceId, SourceType = sourceType, Remaining = amount });
++        _blockPool.Add(new BlockEntry { SourceId = sourceId, SourceType = sourceType, OriginId = originId, Remaining = amount });
+     }
+ 
+     /// <summary>
+-    /// Consume block from the pool (FIFO) and return per-source consumption.
++    /// Consume block from the pool (FIFO) and return per-source consumption including origin
++    /// captured at AddBlock time, so the consumer can credit the correct (cardId, origin) bucket.
+     /// </summary>
+-    public List<(string SourceId, string SourceType, int Amount)> ConsumeBlock(int blockedDamage)
++    public List<(string SourceId, string SourceType, string? OriginId, int Amount)> ConsumeBlock(int blockedDamage)
+     {
+-        var result = new List<(string, string, int)>();
++        var result = new List<(string, string, string?, int)>();
+         var remaining = blockedDamage;
+ 
+         for (int i = 0; i < _blockPool.Count && remaining > 0; i++)
+@@ -150,7 +158,7 @@ public class ContributionMap
+             if (entry.Remaining <= 0) continue;
+ 
+             var consumed = Math.Min(entry.Remaining, remaining);
+-            result.Add((entry.SourceId, entry.SourceType, consumed));
++            result.Add((entry.SourceId, entry.SourceType, entry.OriginId, consumed));
+             entry.Remaining -= consumed;
+             remaining -= consumed;
+         }
+@@ -170,27 +178,29 @@ public class ContributionMap
+     public PowerSource? GetPowerSource(string powerId)
+     {
+         var list = _powerSources.GetValueOrDefault(powerId);
+-        return list != null && list.Count > 0 ? new PowerSource(list[0].SourceId, list[0].SourceType) : null;
++        return list != null && list.Count > 0 ? new PowerSource(list[0].SourceId, list[0].SourceType, list[0].OriginId) : null;
+     }
+ 
+     /// <summary>
+     /// Distribute a total modifier amount across all sources of a power proportionally.
+-    /// Returns list of (sourceId, sourceType, allocatedAmount).
++    /// Returns list of (sourceId, sourceType, originId, allocatedAmount). OriginId is the
++    /// card-origin captured when the power was recorded, so consumers can route the share
++    /// into the right (cardId, origin) bucket.
+     /// </summary>
+-    public List<(string sourceId, string sourceType, int amount)> DistributeByPowerSources(
++    public List<(string sourceId, string sourceType, string? originId, int amount)> DistributeByPowerSources(
+         string powerId, int totalAmount)
+     {
+-        var result = new List<(string, string, int)>();
++        var result = new List<(string, string, string?, int)>();
+         var sources = _powerSources.GetValueOrDefault(powerId);
+         if (sources == null || sources.Count == 0)
+         {
+             // No known sources — attribute to power itself
+-            result.Add((powerId, "power", totalAmount));
++            result.Add((powerId, "power", null, totalAmount));
+             return result;
+         }
+         if (sources.Count == 1)
+         {
+-            result.Add((sources[0].SourceId, sources[0].SourceType, totalAmount));
++            result.Add((sources[0].SourceId, sources[0].SourceType, sources[0].OriginId, totalAmount));
+             return result;
+         }
+ 
+@@ -207,7 +217,7 @@ public class ContributionMap
+             else
+                 share = (int)((long)totalAmount * Math.Max(sources[i].Amount, 1) / totalRecorded);
+             if (share > 0)
+-                result.Add((sources[i].SourceId, sources[i].SourceType, share));
++                result.Add((sources[i].SourceId, sources[i].SourceType, sources[i].OriginId, share));
+             allocated += share;
+         }
+         return result;
+@@ -223,14 +233,14 @@ public class ContributionMap
+     // When multiple cards apply the same debuff, each application records its source + duration.
+     // Attribution uses FIFO: earliest layers are consumed first.
+ 
+-    public record DebuffLayerEntry(string SourceId, string SourceType, int Duration);
++    public record DebuffLayerEntry(string SourceId, string SourceType, string? OriginId, int Duration);
+ 
+     private readonly Dictionary<(int creatureHash, string powerId), List<DebuffLayerEntry>> _debuffLayers = new();
+ 
+     /// <summary>
+     /// Record a debuff layer application. Called when a power is applied to a creature.
+     /// </summary>
+-    public void RecordDebuffLayer(int creatureHash, string powerId, string sourceId, string sourceType, int duration)
++    public void RecordDebuffLayer(int creatureHash, string powerId, string sourceId, string sourceType, int duration, string? originId = null)
+     {
+         var key = (creatureHash, powerId);
+         if (!_debuffLayers.TryGetValue(key, out var layers))
+@@ -238,17 +248,17 @@ public class ContributionMap
+             layers = new List<DebuffLayerEntry>();
+             _debuffLayers[key] = layers;
+         }
+-        layers.Add(new DebuffLayerEntry(sourceId, sourceType, duration));
++        layers.Add(new DebuffLayerEntry(sourceId, sourceType, originId, duration));
+     }
+ 
+     /// <summary>
+     /// Get fractional attribution for a debuff's sources (FIFO-based).
+-    /// Returns list of (sourceId, sourceType, fraction) where fractions sum to 1.0.
++    /// Returns list of (sourceId, sourceType, originId, fraction) where fractions sum to 1.0.
+     /// Falls back to single-source GetDebuffSource if no layers recorded.
+     /// </summary>
+-    public List<(string SourceId, string SourceType, float Fraction)> GetDebuffSourceFractions(int creatureHash, string powerId)
++    public List<(string SourceId, string SourceType, string? OriginId, float Fraction)> GetDebuffSourceFractions(int creatureHash, string powerId)
+     {
+-        var result = new List<(string, string, float)>();
++        var result = new List<(string, string, string?, float)>();
+         var key = (creatureHash, powerId);
+ 
+         if (_debuffLayers.TryGetValue(key, out var layers) && layers.Count > 0)
+@@ -260,7 +270,7 @@ public class ContributionMap
+                 foreach (var l in layers)
+                 {
+                     float frac = (float)l.Duration / totalDuration;
+-                    result.Add((l.SourceId, l.SourceType, frac));
++                    result.Add((l.SourceId, l.SourceType, l.OriginId, frac));
+                 }
+                 return result;
+             }
+@@ -269,7 +279,7 @@ public class ContributionMap
+         // Fallback to single source
+         var single = GetDebuffSource(creatureHash, powerId);
+         if (single != null)
+-            result.Add((single.SourceId, single.SourceType, 1.0f));
++            result.Add((single.SourceId, single.SourceType, single.OriginId, 1.0f));
+ 
+         return result;
+     }
+@@ -291,7 +301,7 @@ public class ContributionMap
+     public PowerSource? GetPlayerBuffSource(string powerId)
+     {
+         var list = _playerBuffSources.GetValueOrDefault(powerId);
+-        return list != null && list.Count > 0 ? new PowerSource(list[0].SourceId, list[0].SourceType) : null;
++        return list != null && list.Count > 0 ? new PowerSource(list[0].SourceId, list[0].SourceType, list[0].OriginId) : null;
+     }
+ 
+     // ── Damage Modifier Context ──────────────────────────────
+@@ -303,7 +313,7 @@ public class ContributionMap
+     /// <summary>Per-modifier block contributions from the most recent ModifyBlock call.</summary>
+     public List<ModifierContribution> LastBlockModifiers { get; } = new();
+ 
+-    public record ModifierContribution(string SourceId, string SourceType, int Amount);
++    public record ModifierContribution(string SourceId, string SourceType, string? OriginId, int Amount);
+ 
+     // ── Card Origin Tracking ───────────────────────────────
+     // Tracks which card generated/transformed another card (for sub-bar display).
+@@ -325,9 +335,9 @@ public class ContributionMap
+ 
+     private readonly Dictionary<int, List<StrReductionEntry>> _enemyStrReductions = new();
+ 
+-    public record StrReductionEntry(string SourceId, string SourceType, int Amount, bool IsTemporary);
++    public record StrReductionEntry(string SourceId, string SourceType, string? OriginId, int Amount, bool IsTemporary);
+ 
+-    public void RecordStrengthReduction(int enemyHash, string sourceId, string sourceType, int amount, bool isTemporary)
++    public void RecordStrengthReduction(int enemyHash, string sourceId, string sourceType, int amount, bool isTemporary, string? originId = null)
+     {
+         if (amount <= 0) return;
+         if (!_enemyStrReductions.TryGetValue(enemyHash, out var list))
+@@ -335,11 +345,11 @@ public class ContributionMap
+             list = new List<StrReductionEntry>();
+             _enemyStrReductions[enemyHash] = list;
+         }
+-        var existing = list.FindIndex(e => e.SourceId == sourceId);
++        var existing = list.FindIndex(e => e.SourceId == sourceId && e.OriginId == originId);
+         if (existing >= 0)
+             list[existing] = list[existing] with { Amount = list[existing].Amount + amount };
+         else
+-            list.Add(new StrReductionEntry(sourceId, sourceType, amount, isTemporary));
++            list.Add(new StrReductionEntry(sourceId, sourceType, originId, amount, isTemporary));
+     }
+ 
+     public void RevertTemporaryStrReduction(int enemyHash)
+@@ -430,17 +440,17 @@ public class ContributionMap
+     // ── Pending Hand Draw Bonus ─────────────────────────────
+     // Recorded by ModifyHandDraw patches, consumed after hand draw completes.
+ 
+-    private readonly List<(string sourceId, string sourceType, int count)> _pendingHandDrawBonus = new();
++    private readonly List<(string sourceId, string sourceType, string? originId, int count)> _pendingHandDrawBonus = new();
+ 
+-    public void RecordHandDrawBonus(string sourceId, string sourceType, int extraDraw)
++    public void RecordHandDrawBonus(string sourceId, string sourceType, int extraDraw, string? originId = null)
+     {
+         if (extraDraw > 0)
+-            _pendingHandDrawBonus.Add((sourceId, sourceType, extraDraw));
++            _pendingHandDrawBonus.Add((sourceId, sourceType, originId, extraDraw));
+     }
+ 
+-    public List<(string sourceId, string sourceType, int count)> ConsumePendingHandDrawBonus()
++    public List<(string sourceId, string sourceType, string? originId, int count)> ConsumePendingHandDrawBonus()
+     {
+-        var result = new List<(string, string, int)>(_pendingHandDrawBonus);
++        var result = new List<(string, string, string?, int)>(_pendingHandDrawBonus);
+         _pendingHandDrawBonus.Clear();
+         return result;
+     }
+@@ -465,6 +475,9 @@ public class ContributionMap
+ 
+     /// <summary>
+     /// Consume Osty HP from the stack (LIFO) and return per-source consumption.
++    /// Origin is not carried: the consumer pins OSTY as the bucket origin via
++    /// originOverride, which dominates. Distinction between same-named summoners
++    /// with different origins collapses under OSTY parent — accepted limitation.
+     /// </summary>
+     public List<(string SourceId, string SourceType, int Amount)> ConsumeOstyHp(int damage)
+     {
+@@ -520,16 +533,57 @@ public class ContributionMap
+         return result;
+     }
+ 
++    // ── Doom FIFO Attribution Layers ─────────────────────────
++    // Per-enemy FIFO stack of (sourceId, amount) entries, one per DoomPower
++    // application. At kill time layers are consumed in order, capped by the
++    // creature's HP when doom triggers. This replaces the old single-source
++    // GetPowerSource("DOOM_POWER") lookup for attribution purposes.
++
++    public sealed record DoomLayer(string SourceId, string SourceType, string? OriginId, int Amount);
++
++    private readonly Dictionary<int, List<DoomLayer>> _doomStacks = new();
++
++    public void RecordDoomLayer(int creatureHash, string sourceId, string sourceType, int amount, string? originId = null)
++    {
++        if (amount <= 0) return;
++        if (!_doomStacks.TryGetValue(creatureHash, out var list))
++        {
++            list = new List<DoomLayer>();
++            _doomStacks[creatureHash] = list;
++        }
++        list.Add(new DoomLayer(sourceId, sourceType, originId, amount));
++    }
++
++    public List<(string SourceId, string SourceType, string? OriginId, int Amount)> ConsumeDoomLayers(int creatureHash, int hpAtKill)
++    {
++        var result = new List<(string, string, string?, int)>();
++        if (hpAtKill <= 0) return result;
++        if (!_doomStacks.TryGetValue(creatureHash, out var list) || list.Count == 0) return result;
++
++        int remaining = hpAtKill;
++        foreach (var layer in list)
++        {
++            if (remaining <= 0) break;
++            int take = Math.Min(layer.Amount, remaining);
++            if (take > 0) result.Add((layer.SourceId, layer.SourceType, layer.OriginId, take));
++            remaining -= take;
++        }
++        _doomStacks.Remove(creatureHash);
++        return result;
++    }
++
++    public void ClearDoomStack(int creatureHash) => _doomStacks.Remove(creatureHash);
++
+     // ── Orb Source Tracking ────────────────────────────────
+     // Tracks which card/relic channeled each orb for indirect contribution attribution.
+ 
+     private readonly Dictionary<int, OrbSource> _orbSources = new();
+ 
+-    public record OrbSource(string SourceId, string SourceType, string OrbType);
++    public record OrbSource(string SourceId, string SourceType, string OrbType, string? OriginId = null);
+ 
+-    public void RecordOrbSource(int orbHash, string sourceId, string sourceType, string orbType)
++    public void RecordOrbSource(int orbHash, string sourceId, string sourceType, string orbType, string? originId = null)
+     {
+-        _orbSources[orbHash] = new OrbSource(sourceId, sourceType, orbType);
++        _orbSources[orbHash] = new OrbSource(sourceId, sourceType, orbType, originId);
+     }
+ 
+     public OrbSource? GetOrbSource(int orbHash)
+@@ -542,10 +596,10 @@ public class ContributionMap
+     // First-trigger logic: during a card play, the first orb trigger goes to channeling source,
+     // subsequent triggers go to the evoke/trigger card (_activeCardId).
+ 
+-    private (string sourceId, string sourceType, string orbType)? _activeOrbContext;
++    private (string sourceId, string sourceType, string orbType, string? originId)? _activeOrbContext;
+ 
+     /// <summary>Focus contribution for the current orb trigger (set by patch before orb fires).</summary>
+-    private (string sourceId, string sourceType, int amount)? _pendingOrbFocusContrib;
++    private (string sourceId, string sourceType, string? originId, int amount)? _pendingOrbFocusContrib;
+ 
+     /// <summary>
+     /// True after the first orb trigger during a card play has been consumed.
+@@ -555,13 +609,13 @@ public class ContributionMap
+     private bool _orbFirstTriggerUsed;
+ 
+     public bool HasActiveOrbContext => _activeOrbContext != null;
+-    public (string sourceId, string sourceType, string orbType)? ActiveOrbContext => _activeOrbContext;
+-    public (string sourceId, string sourceType, int amount)? PendingOrbFocusContrib => _pendingOrbFocusContrib;
++    public (string sourceId, string sourceType, string orbType, string? originId)? ActiveOrbContext => _activeOrbContext;
++    public (string sourceId, string sourceType, string? originId, int amount)? PendingOrbFocusContrib => _pendingOrbFocusContrib;
+     public bool OrbFirstTriggerUsed => _orbFirstTriggerUsed;
+ 
+-    public void SetActiveOrbContext(string sourceId, string sourceType, string orbType)
++    public void SetActiveOrbContext(string sourceId, string sourceType, string orbType, string? originId = null)
+     {
+-        _activeOrbContext = (sourceId, sourceType, orbType);
++        _activeOrbContext = (sourceId, sourceType, orbType, originId);
+     }
+ 
+     public void MarkOrbFirstTriggerUsed()
+@@ -574,10 +628,10 @@ public class ContributionMap
+         _orbFirstTriggerUsed = false;
+     }
+ 
+-    public void SetPendingOrbFocusContrib(string sourceId, string sourceType, int amount)
++    public void SetPendingOrbFocusContrib(string sourceId, string sourceType, string? originId, int amount)
+     {
+         if (amount > 0)
+-            _pendingOrbFocusContrib = (sourceId, sourceType, amount);
++            _pendingOrbFocusContrib = (sourceId, sourceType, originId, amount);
+     }
+ 
+     public void ClearActiveOrbContext()
+@@ -591,11 +645,16 @@ public class ContributionMap
+ 
+     private readonly Dictionary<int, UpgradeDelta> _upgradeDeltaMap = new();
+ 
+-    public record UpgradeDelta(int DamageDelta, int BlockDelta, string SourceId, string SourceType);
++    public record UpgradeDelta(
++        int DamageDelta,
++        int BlockDelta,
++        string UpgraderSourceId,
++        string UpgraderSourceType,
++        string? UpgraderOrigin);
+ 
+-    public void RecordUpgradeDelta(int cardHash, int damageDelta, int blockDelta, string sourceId, string sourceType)
++    public void RecordUpgradeDelta(int cardHash, int damageDelta, int blockDelta, string upgraderSourceId, string upgraderSourceType, string? upgraderOrigin)
+     {
+-        _upgradeDeltaMap[cardHash] = new UpgradeDelta(damageDelta, blockDelta, sourceId, sourceType);
++        _upgradeDeltaMap[cardHash] = new UpgradeDelta(damageDelta, blockDelta, upgraderSourceId, upgraderSourceType, upgraderOrigin);
+     }
+ 
+     public UpgradeDelta? GetUpgradeDelta(int cardHash)
+@@ -630,6 +689,7 @@ public class ContributionMap
+         _pendingHandDrawBonus.Clear();
+         _ostyHpStack.Clear();
+         _pendingDoomHp.Clear();
++        _doomStacks.Clear();
+         _orbSources.Clear();
+         _activeOrbContext = null;
+         _pendingOrbFocusContrib = null;
+diff --git a/mods/sts2_community_stats/src/Patches/CombatHistoryPatch.cs b/mods/sts2_community_stats/src/Patches/CombatHistoryPatch.cs
+index 0ef7f97..a5ae2ac 100644
+--- a/mods/sts2_community_stats/src/Patches/CombatHistoryPatch.cs
++++ b/mods/sts2_community_stats/src/Patches/CombatHistoryPatch.cs
+@@ -114,6 +114,12 @@ public static class CombatHistoryPatch
+             if (isPlayerReceiver && result.WasTargetKilled)
+                 CombatTracker.Instance.OnPlayerDied();
+ 
++            // Drop any residual Doom FIFO layers on enemies killed by
++            // non-doom damage, so a later creature reusing the same
++            // GetHashCode() can't inherit stale attribution.
++            if (!isPlayerReceiver && result.WasTargetKilled)
++                ContributionMap.Instance.ClearDoomStack(receiver.GetHashCode());
++
+             // Defense attribution: Weak on enemy attacker reduces damage to player
+             if (isPlayerReceiver && dealer != null && result.TotalDamage > 0)
+             {
+@@ -208,9 +214,27 @@ public static class CombatHistoryPatch
+ [HarmonyPatch]
+ public static class PowerApplyPatch
+ {
++    [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.ApplyInternal))]
++    [HarmonyPrefix]
++    public static void BeforeApplyInternal(PowerModel __instance, out int __state)
++    {
++        __state = 0;
++        // DoomPower FIFO attribution needs per-application delta, not
++        // the cumulative Amount. Snapshot here so the Postfix can compute
++        // `delta = Amount - __state`. All other powers keep the original
++        // cumulative semantics and do not need this Prefix work.
++        var s = 0;
++        Safe.Run(() =>
++        {
++            if (__instance.Id.Entry == "DOOM_POWER")
++                s = __instance.Amount;
++        });
++        __state = s;
++    }
++
+     [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.ApplyInternal))]
+     [HarmonyPostfix]
+-    public static void AfterApplyInternal(PowerModel __instance, Creature owner)
++    public static void AfterApplyInternal(PowerModel __instance, Creature owner, int __state)
+     {
+         Safe.Run(() =>
+         {
+@@ -220,7 +244,11 @@ public static class PowerApplyPatch
+             int creatureHash = owner.GetHashCode();
+             bool isPlayerTarget = owner.IsPlayer;
+ 
+-            CombatTracker.Instance.OnPowerApplied(powerId, __instance.Amount, creatureHash, isPlayerTarget);
++            int amount = powerId == "DOOM_POWER"
++                ? __instance.Amount - __state
++                : __instance.Amount;
++
++            CombatTracker.Instance.OnPowerApplied(powerId, amount, creatureHash, isPlayerTarget);
+         });
+     }
+ }
+@@ -466,7 +494,7 @@ public static class PowerHookContextPatcher
+             // Consumed by OnCardDrawn/OnBlockGained after use.
+             var source = ContributionMap.Instance.GetPowerSource(__instance.Id.Entry);
+             if (source != null)
+-                CombatTracker.Instance.SetPendingDrawSource(source.SourceId, source.SourceType);
++                CombatTracker.Instance.SetPendingDrawSource(source.SourceId, source.SourceType, source.OriginId);
+         });
+     }
+ 
+@@ -664,8 +692,8 @@ public static class DamageModifierPatch
+                         // Multi-source: distribute additive bonus proportionally
+                         int totalAdd = Math.Abs((int)additive);
+                         var distributed = ContributionMap.Instance.DistributeByPowerSources(powerId, totalAdd);
+-                        foreach (var (srcId, srcType, share) in distributed)
+-                            modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, share));
++                        foreach (var (srcId, srcType, originId, share) in distributed)
++                            modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, originId, share));
+                         continue;
+                     }
+ 
+@@ -700,8 +728,8 @@ public static class DamageModifierPatch
+                     // Multi-source: distribute multiplicative bonus proportionally
+                     var multDistributed = ContributionMap.Instance.DistributeByPowerSources(
+                         powerId, Math.Abs(contribution));
+-                    foreach (var (psId, psType, share) in multDistributed)
+-                        modList.Add(new ContributionMap.ModifierContribution(psId, psType, share));
++                    foreach (var (psId, psType, originId, share) in multDistributed)
++                        modList.Add(new ContributionMap.ModifierContribution(psId, psType, originId, share));
+                 }
+                 else if (mod is RelicModel relic)
+                 {
+@@ -712,7 +740,7 @@ public static class DamageModifierPatch
+                     if (additive != 0)
+                     {
+                         modList.Add(new ContributionMap.ModifierContribution(
+-                            relicId, "relic", Math.Abs((int)additive)));
++                            relicId, "relic", null, Math.Abs((int)additive)));
+                         continue;
+                     }
+ 
+@@ -724,7 +752,7 @@ public static class DamageModifierPatch
+                         int contribution = (int)(finalDmg - finalDmg / multiplicative);
+                         if (contribution > 0)
+                             modList.Add(new ContributionMap.ModifierContribution(
+-                                relicId, "relic", contribution));
++                                relicId, "relic", null, contribution));
+                     }
+                 }
+             }
+@@ -789,11 +817,11 @@ public static class DamageModifierPatch
+             var fractions = ContributionMap.Instance.GetDebuffSourceFractions(target.GetHashCode(), "VULNERABLE_POWER");
+             if (fractions.Count > 0)
+             {
+-                foreach (var (srcId, srcType, frac) in fractions)
++                foreach (var (srcId, srcType, originId, frac) in fractions)
+                 {
+                     int srcShare = (int)Math.Round(vulnShare * frac);
+                     if (srcShare > 0)
+-                        modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, srcShare));
++                        modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, originId, srcShare));
+                 }
+             }
+             else
+@@ -801,7 +829,7 @@ public static class DamageModifierPatch
+                 var vulnSource = ContributionMap.Instance.GetPowerSource("VULNERABLE_POWER");
+                 string vsId = vulnSource?.SourceId ?? "VULNERABLE_POWER";
+                 string vsType = vulnSource?.SourceType ?? "power";
+-                modList.Add(new ContributionMap.ModifierContribution(vsId, vsType, vulnShare));
++                modList.Add(new ContributionMap.ModifierContribution(vsId, vsType, vulnSource?.OriginId, vulnShare));
+             }
+         }
+ 
+@@ -810,7 +838,7 @@ public static class DamageModifierPatch
+         {
+             int phrogShare = (int)Math.Round(totalContrib * (phrogDelta / subTotal));
+             if (phrogShare > 0)
+-                modList.Add(new ContributionMap.ModifierContribution("PAPER_PHROG", "relic", phrogShare));
++                modList.Add(new ContributionMap.ModifierContribution("PAPER_PHROG", "relic", null, phrogShare));
+         }
+ 
+         // CrueltyPower
+@@ -820,7 +848,7 @@ public static class DamageModifierPatch
+             int crueltyShare = (int)Math.Round(totalContrib * (crueltyDelta / subTotal));
+             if (crueltyShare > 0)
+                 modList.Add(new ContributionMap.ModifierContribution(
+-                    crueltySource?.SourceId ?? "CRUELTY_POWER", crueltySource?.SourceType ?? "power", crueltyShare));
++                    crueltySource?.SourceId ?? "CRUELTY_POWER", crueltySource?.SourceType ?? "power", crueltySource?.OriginId, crueltyShare));
+         }
+ 
+         // DebilitatePower
+@@ -830,7 +858,7 @@ public static class DamageModifierPatch
+             int debilShare = (int)Math.Round(totalContrib * (debilitateDelta / subTotal));
+             if (debilShare > 0)
+                 modList.Add(new ContributionMap.ModifierContribution(
+-                    debilSource?.SourceId ?? "DEBILITATE_POWER", debilSource?.SourceType ?? "power", debilShare));
++                    debilSource?.SourceId ?? "DEBILITATE_POWER", debilSource?.SourceType ?? "power", debilSource?.OriginId, debilShare));
+         }
+     }
+ 
+@@ -876,14 +904,14 @@ public static class DamageModifierPatch
+         int weakShare = (int)Math.Round(totalContrib * (baseReduction / subTotal));
+         if (weakShare > 0)
+             modList.Add(new ContributionMap.ModifierContribution(
+-                weakSource?.SourceId ?? "WEAK_POWER", weakSource?.SourceType ?? "power", weakShare));
++                weakSource?.SourceId ?? "WEAK_POWER", weakSource?.SourceType ?? "power", weakSource?.OriginId, weakShare));
+ 
+         // PaperKrane relic
+         if (kraneDelta > 0)
+         {
+             int kraneShare = (int)Math.Round(totalContrib * (kraneDelta / subTotal));
+             if (kraneShare > 0)
+-                modList.Add(new ContributionMap.ModifierContribution("PAPER_KRANE", "relic", kraneShare));
++                modList.Add(new ContributionMap.ModifierContribution("PAPER_KRANE", "relic", null, kraneShare));
+         }
+ 
+         // DebilitatePower
+@@ -893,7 +921,7 @@ public static class DamageModifierPatch
+             int debilShare = (int)Math.Round(totalContrib * (debilitateDelta / subTotal));
+             if (debilShare > 0)
+                 modList.Add(new ContributionMap.ModifierContribution(
+-                    debilSource?.SourceId ?? "DEBILITATE_POWER", debilSource?.SourceType ?? "power", debilShare));
++                    debilSource?.SourceId ?? "DEBILITATE_POWER", debilSource?.SourceType ?? "power", debilSource?.OriginId, debilShare));
+         }
+     }
+ }
+@@ -1016,7 +1044,7 @@ public static class BlockModifierPatch
+     [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyBlock))]
+     [HarmonyPostfix]
+     public static void AfterModifyBlock(decimal __result, decimal __state,
+-        Creature target, CardModel? cardSource, CardPlay? cardPlay,
++        Creature target, ValueProp props, CardModel? cardSource, CardPlay? cardPlay,
+         IEnumerable<AbstractModel> modifiers)
+     {
+         Safe.Run(() =>
+@@ -1027,29 +1055,40 @@ public static class BlockModifierPatch
+             decimal finalBlock = __result;
+             decimal totalBonus = finalBlock - baseBlock;
+ 
+-            if (totalBonus <= 0 || modifiers == null)
+-                return;
++            // Consistent with damage path: if a multiplicative debuff (Frail)
++            // or negative additive has eaten all net bonus, don't credit any
++            // positive modifier. A positive Dex entry may be lost when Frail
++            // fully cancels it — matches the Str+Weak behavior on the damage
++            // side and is accepted as a system-wide convention.
++            if (totalBonus <= 0 || modifiers == null) return;
+ 
+             var modList = ContributionMap.Instance.LastBlockModifiers;
+             modList.Clear();
+ 
+-            // Each modifier's actual contribution is its ModifyBlockAdditive return value
+-            // Multi-source: distribute block modifier proportionally (e.g. Footwork + relic both give Dex)
+             foreach (var mod in modifiers)
+             {
+-                if (mod is PowerModel power)
+-                {
+-                    var powerId = power.Id.Entry;
+-                    if (string.IsNullOrEmpty(powerId)) continue;
+-
+-                    int contribution = Math.Abs(power.Amount);
+-                    if (contribution <= 0) continue;
+-
+-                    var distributed = ContributionMap.Instance.DistributeByPowerSources(
+-                        powerId, contribution);
+-                    foreach (var (srcId, srcType, share) in distributed)
+-                        modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, share));
+-                }
++                if (mod is not PowerModel power) continue;
++                var powerId = power.Id.Entry;
++                if (string.IsNullOrEmpty(powerId)) continue;
++
++                // Call the power's own additive hook instead of reading
++                // power.Amount directly. FrailPower only overrides the
++                // Multiplicative hook, so its Additive returns the base-class
++                // default 0 and is filtered below — no more phantom block
++                // contribution from Frail's remaining-turns counter.
++                // Negative Dexterity returns base.Amount < 0 and is also
++                // filtered out (product decision: drop negative contributions
++                // entirely rather than model them as negative defense).
++                decimal additive = power.ModifyBlockAdditive(target, baseBlock, props, cardSource, cardPlay);
++                if (additive <= 0) continue;
++
++                int contribution = (int)additive;
++                if (contribution <= 0) continue;
++
++                var distributed = ContributionMap.Instance.DistributeByPowerSources(
++                    powerId, contribution);
++                foreach (var (srcId, srcType, originId, share) in distributed)
++                    modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, originId, share));
+             }
+         });
+     }
+@@ -1157,10 +1196,11 @@ public static class CardUpgradeTrackerPatch
+             // Store the delta for later attribution when the upgraded card is played.
+             // Source = the card that triggered the upgrade (e.g., Armaments), or "upgrade" fallback
+             var tracker = CombatTracker.Instance;
+-            string sourceId = tracker.ActiveCardId ?? "upgrade";
+-            string sourceType = tracker.ActiveCardId != null ? "card" : "upgrade";
++            string upgraderSourceId = tracker.ActiveCardId ?? "upgrade";
++            string upgraderSourceType = tracker.ActiveCardId != null ? "card" : "unknown";
++            string? upgraderOrigin = tracker.ActiveCardId != null ? tracker.ActiveCardOrigin : null;
+             ContributionMap.Instance.RecordUpgradeDelta(card.GetHashCode(),
+-                damageDelta, blockDelta, sourceId, sourceType);
++                damageDelta, blockDelta, upgraderSourceId, upgraderSourceType, upgraderOrigin);
+         });
+     }
+ }
+@@ -2085,7 +2125,8 @@ public static class EnemyStrReductionPatch
+             int reductionAmount = (int)Math.Abs(__instance.Amount);
+ 
+             ContributionMap.Instance.RecordStrengthReduction(
+-                owner.GetHashCode(), sourceId, sourceType, reductionAmount, isTemporary);
++                owner.GetHashCode(), sourceId, sourceType, reductionAmount, isTemporary,
++                originId: tracker.ActiveCardId != null ? tracker.ActiveCardOrigin : null);
+         });
+     }
+ }
+@@ -2318,6 +2359,7 @@ public static class OrbChanneledPatch
+             // must take priority over _activeCardId = "DEFRAGMENT".
+             string? sourceId = CombatTracker.Instance.ActivePowerSourceId;
+             string sourceType = CombatTracker.Instance.ActivePowerSourceType ?? "card";
++            string? originId = sourceId != null ? CombatTracker.Instance.ActivePowerSourceOrigin : null;
+ 
+             if (sourceId == null)
+             {
+@@ -2328,6 +2370,7 @@ public static class OrbChanneledPatch
+             {
+                 sourceId = CombatTracker.Instance.ActiveCardId;
+                 sourceType = "card";
++                originId = CombatTracker.Instance.ActiveCardOrigin;
+             }
+             if (sourceId == null) return;
+ 
+@@ -2352,7 +2395,7 @@ public static class OrbChanneledPatch
+ 
+             Godot.GD.Print($"[OrbTrack] Channel: hash={orb.GetHashCode()}, type={orbType}, source={sourceId}");
+             ContributionMap.Instance.RecordOrbSource(
+-                orb.GetHashCode(), sourceId, sourceType, orbType);
++                orb.GetHashCode(), sourceId, sourceType, orbType, originId);
+         });
+     }
+ }
+@@ -2442,7 +2485,7 @@ public static class OrbPassivePatch
+         }
+ 
+         ContributionMap.Instance.SetActiveOrbContext(
+-            source.SourceId, source.SourceType, source.OrbType);
++            source.SourceId, source.SourceType, source.OrbType, source.OriginId);
+ 
+         if (duringCardPlay)
+             ContributionMap.Instance.MarkOrbFirstTriggerUsed();
+@@ -2471,7 +2514,7 @@ public static class OrbPassivePatch
+         if (focusPower != null && focusPower.Amount > 0)
+         {
+             ContributionMap.Instance.SetPendingOrbFocusContrib(
+-                focusSource.SourceId, focusSource.SourceType,
++                focusSource.SourceId, focusSource.SourceType, focusSource.OriginId,
+                 (int)focusPower.Amount);
+         }
+     }
+@@ -2545,7 +2588,7 @@ public static class OrbEvokePatch
+         }
+ 
+         ContributionMap.Instance.SetActiveOrbContext(
+-            source.SourceId, source.SourceType, source.OrbType);
++            source.SourceId, source.SourceType, source.OrbType, source.OriginId);
+ 
+         if (duringCardPlay)
+             ContributionMap.Instance.MarkOrbFirstTriggerUsed();
+diff --git a/mods/sts2_community_stats/src/UI/ContributionChart.cs b/mods/sts2_community_stats/src/UI/ContributionChart.cs
+index af68abe..0ca6f0b 100644
+--- a/mods/sts2_community_stats/src/UI/ContributionChart.cs
++++ b/mods/sts2_community_stats/src/UI/ContributionChart.cs
+@@ -197,8 +197,11 @@ public partial class ContributionChart : VBoxContainer
+             int posSum = 0;
+             foreach (var a in data.Values)
+             {
++                // UpgradeBlock intentionally omitted: new data routes the
++                // upgrade delta into the upgrader's EffectiveBlock, and the
++                // legacy field would otherwise double-count against itself.
+                 int v = a.EffectiveBlock + a.ModifierBlock + a.MitigatedByDebuff
+-                      + a.MitigatedByBuff + a.MitigatedByStrReduction + a.UpgradeBlock;
++                      + a.MitigatedByBuff + a.MitigatedByStrReduction;
+                 if (v > 0) posSum += v;
+             }
+             totalVal = posSum;

@@ -1034,7 +1034,7 @@ public static class BlockModifierPatch
     [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyBlock))]
     [HarmonyPostfix]
     public static void AfterModifyBlock(decimal __result, decimal __state,
-        Creature target, CardModel? cardSource, CardPlay? cardPlay,
+        Creature target, ValueProp props, CardModel? cardSource, CardPlay? cardPlay,
         IEnumerable<AbstractModel> modifiers)
     {
         Safe.Run(() =>
@@ -1051,8 +1051,12 @@ public static class BlockModifierPatch
             var modList = ContributionMap.Instance.LastBlockModifiers;
             modList.Clear();
 
-            // Each modifier's actual contribution is its ModifyBlockAdditive return value
-            // Multi-source: distribute block modifier proportionally (e.g. Footwork + relic both give Dex)
+            // Mirror AfterModifyDamage attribution: query each power's actual hook
+            // contribution rather than reading power.Amount (which is a duration
+            // counter for debuffs like Frail and produces phantom positive block).
+            // Negative contributions (multiplicative < 1m, i.e. Frail/NoBlock etc.
+            // reducing player block) are filtered out — they are NOT defense
+            // contributions and must not appear in the defense bar.
             foreach (var mod in modifiers)
             {
                 if (mod is PowerModel power)
@@ -1060,13 +1064,30 @@ public static class BlockModifierPatch
                     var powerId = power.Id.Entry;
                     if (string.IsNullOrEmpty(powerId)) continue;
 
-                    int contribution = Math.Abs(power.Amount);
+                    decimal additive = power.ModifyBlockAdditive(target, baseBlock, props, cardSource, cardPlay);
+                    if (additive > 0)
+                    {
+                        int totalAdd = (int)additive;
+                        if (totalAdd <= 0) continue;
+                        var distributed = ContributionMap.Instance.DistributeByPowerSources(powerId, totalAdd);
+                        foreach (var (srcId, srcType, share) in distributed)
+                            modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, share));
+                        continue;
+                    }
+
+                    decimal multiplicative = power.ModifyBlockMultiplicative(target, baseBlock + additive, props, cardSource, cardPlay);
+                    if (multiplicative == 1m || multiplicative <= 0) continue;
+                    // Skip multiplicative < 1m — these are player-side block debuffs
+                    // (Frail 0.75x etc.) that REDUCE block. Attributing their negative
+                    // delta as a positive defense contribution was the phantom-bar bug.
+                    if (multiplicative < 1m) continue;
+
+                    int contribution = (int)(finalBlock - finalBlock / multiplicative);
                     if (contribution <= 0) continue;
 
-                    var distributed = ContributionMap.Instance.DistributeByPowerSources(
-                        powerId, contribution);
-                    foreach (var (srcId, srcType, share) in distributed)
-                        modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, share));
+                    var multDistributed = ContributionMap.Instance.DistributeByPowerSources(powerId, contribution);
+                    foreach (var (psId, psType, share) in multDistributed)
+                        modList.Add(new ContributionMap.ModifierContribution(psId, psType, share));
                 }
             }
         });
@@ -1173,12 +1194,15 @@ public static class CardUpgradeTrackerPatch
             if (damageDelta <= 0 && blockDelta <= 0) return;
 
             // Store the delta for later attribution when the upgraded card is played.
-            // Source = the card that triggered the upgrade (e.g., Armaments), or "upgrade" fallback
+            // Source = the card that triggered the upgrade (e.g., Armaments), or "upgrade" fallback.
+            // Fix D: also capture the upgrader's origin so potion-generated vs deck-native
+            // upgraders (e.g. SKILL_POTION Armaments vs deck Armaments) attribute to distinct buckets.
             var tracker = CombatTracker.Instance;
             string sourceId = tracker.ActiveCardId ?? "upgrade";
             string sourceType = tracker.ActiveCardId != null ? "card" : "upgrade";
+            string? upgraderOrigin = tracker.ActiveCardId != null ? tracker.ActiveCardOrigin : null;
             ContributionMap.Instance.RecordUpgradeDelta(card.GetHashCode(),
-                damageDelta, blockDelta, sourceId, sourceType);
+                damageDelta, blockDelta, sourceId, sourceType, upgraderOrigin);
         });
     }
 }
