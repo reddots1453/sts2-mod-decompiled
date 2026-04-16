@@ -1,6 +1,6 @@
 # Stats the Spire — STS2 社区数据共享 Mod
 
-**版本**: 0.13.0  
+**版本**: 0.13.1  
 **适用**: Slay the Spire 2 (Early Access v0.99.x+)  
 **类型**: 纯信息展示，不影响游戏平衡 
 
