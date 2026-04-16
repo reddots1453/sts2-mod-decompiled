@@ -143,6 +143,7 @@ public static class ModConfig
             var data = new Dictionary<string, object?>
             {
                 ["api_base_url"] = ApiBaseUrl,
+                ["allow_http"] = AllowHttp,
                 ["query_timeout_ms"] = QueryTimeoutMs,
                 ["upload_timeout_ms"] = UploadTimeoutMs,
                 ["enable_upload"] = EnableUpload,
