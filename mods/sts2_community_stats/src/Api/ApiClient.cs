@@ -30,6 +30,18 @@ public sealed class ApiClient : IDisposable
         // relative to the parent, and paths with '/' as absolute from host root.
         var baseUrl = ModConfig.ApiBaseUrl.TrimEnd('/') + "/";
 
+        // Security: refuse HTTP unless config.json explicitly opts in via
+        // "allow_http": true. This prevents accidental plaintext traffic
+        // when the URL default or config.json is misconfigured. The
+        // allow_http flag exists as a conscious GFW workaround for users
+        // who cannot reach the HTTPS endpoint due to SNI blocking.
+        if (baseUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            && !ModConfig.AllowHttp)
+        {
+            Safe.Warn($"[ApiClient] Refusing HTTP base URL — set \"allow_http\": true in config.json to override. URL: {baseUrl}");
+            baseUrl = baseUrl.Replace("http://", "https://");
+        }
+
         _queryClient = new HttpClient
         {
             BaseAddress = new Uri(baseUrl),
@@ -94,7 +106,8 @@ public sealed class ApiClient : IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync();
-                Safe.Warn($"Upload failed: {(int)response.StatusCode} {response.ReasonPhrase} — {body}");
+                var truncated = body.Length > 200 ? body[..200] + "..." : body;
+                Safe.Warn($"Upload failed: {(int)response.StatusCode} — {truncated}");
             }
             return (int)response.StatusCode;
         }

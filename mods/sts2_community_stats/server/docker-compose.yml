@@ -6,7 +6,7 @@ services:
     ports:
       - "5080:8080"
     environment:
-      DATABASE_URL: "postgresql://sts2stats:${DB_PASSWORD:-changeme}@db:5432/sts2stats"
+      DATABASE_URL: "postgresql://sts2stats:${DB_PASSWORD:?DB_PASSWORD env var must be set}@db:5432/sts2stats"
       REDIS_URL: "redis://redis:6379/0"
       LOG_LEVEL: "info"
       PRECOMPUTE_INTERVAL_MINUTES: "10"
@@ -32,7 +32,7 @@ services:
     environment:
       POSTGRES_DB: sts2stats
       POSTGRES_USER: sts2stats
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-changeme}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD env var must be set}"
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Schema + migrations (alphabetical order = apply order on first init).

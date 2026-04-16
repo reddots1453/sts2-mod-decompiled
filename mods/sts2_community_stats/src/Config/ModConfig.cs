@@ -10,9 +10,18 @@ public static class ModConfig
     public const string ModVersion = "2.0.0";
 
     // Server (can be overridden via config.json for local testing)
-    public static string ApiBaseUrl { get; set; } = "https://api.sts2stats.example.com/v1";
+    public static string ApiBaseUrl { get; set; } = "https://statsthespire.duckdns.org/v1";
     public static int QueryTimeoutMs { get; set; } = 5000;
     public static int UploadTimeoutMs { get; set; } = 30000;
+
+    /// <summary>
+    /// Security: explicitly allow HTTP (non-TLS) API connections. Default
+    /// false — only HTTPS is accepted. Set to true in config.json when
+    /// HTTPS is unavailable (e.g. GFW SNI blocking forces HTTP fallback
+    /// via bare IP). ApiClient checks this flag at init and refuses to
+    /// send data over HTTP unless explicitly opted-in.
+    /// </summary>
+    public static bool AllowHttp { get; set; } = false;
 
     // User preferences
     public static bool EnableUpload { get; set; } = true;
@@ -89,6 +98,8 @@ public static class ModConfig
                 QueryTimeoutMs = qt.GetInt32();
             if (root.TryGetProperty("upload_timeout_ms", out var ut))
                 UploadTimeoutMs = ut.GetInt32();
+            if (root.TryGetProperty("allow_http", out var ah))
+                AllowHttp = ah.GetBoolean();
             if (root.TryGetProperty("enable_upload", out var eu))
                 EnableUpload = eu.GetBoolean();
             if (root.TryGetProperty("language", out var lang))

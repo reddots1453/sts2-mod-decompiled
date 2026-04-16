@@ -57,7 +57,7 @@ public sealed class StatsProvider
         if (testBundle != null)
         {
             _bundle = testBundle;
-            Safe.Info($"[DIAG:StatsProvider] Loaded bundled test data at init: {testBundle.Cards.Count} cards, {testBundle.Relics.Count} relics, {testBundle.Events.Count} events");
+            Safe.Info($"Loaded bundled test data: {testBundle.Cards.Count} cards, {testBundle.Relics.Count} relics, {testBundle.Events.Count} events");
         }
     }
 
@@ -73,13 +73,9 @@ public sealed class StatsProvider
         _bundleFilter = filter;
         var diskKey = $"bulk_{character}_{filter.Hash()}";
 
-        Safe.Info($"[DIAG:Preload] Starting preload for character={character}, diskKey={diskKey}");
-        Safe.Info($"[DIAG:Preload] ApiBaseUrl={Config.ModConfig.ApiBaseUrl}");
-
         try
         {
             var bundle = await ApiClient.Instance.GetBulkStatsAsync(character, filter);
-            Safe.Info($"[DIAG:Preload] GetBulkStatsAsync returned: {(bundle != null ? "non-null" : "NULL")}");
             if (bundle != null)
             {
                 _bundle = bundle;

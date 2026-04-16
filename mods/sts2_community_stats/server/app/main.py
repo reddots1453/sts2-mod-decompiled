@@ -125,9 +125,13 @@ async def health():
         errors["redis"] = str(e)
 
     if errors:
+        # Log full error details server-side for debugging, but do NOT
+        # return them to the caller — exception strings may leak pg
+        # version, connection hostnames, Redis internals, etc.
+        logger.warning("Health check failed: %s", errors)
         return ORJSONResponse(
             status_code=503,
-            content={"status": "unhealthy", "errors": errors},
+            content={"status": "unhealthy"},
         )
     return {"status": "healthy", "db": "ok", "redis": "ok"}
 

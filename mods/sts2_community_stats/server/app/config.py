@@ -6,10 +6,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Database ────────────────────────────────────────────────
-DATABASE_URL: str = os.getenv(
-    "DATABASE_URL",
-    "postgresql://sts2stats:changeme@localhost:5432/sts2stats",
-)
+_db_url = os.getenv("DATABASE_URL", "")
+if not _db_url:
+    raise RuntimeError(
+        "DATABASE_URL environment variable must be set. "
+        "Example: postgresql://sts2stats:<password>@db:5432/sts2stats"
+    )
+DATABASE_URL: str = _db_url
 
 # asyncpg wants a DSN without the +asyncpg suffix that SQLAlchemy uses
 DATABASE_DSN: str = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
