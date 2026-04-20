@@ -245,6 +245,9 @@ public static class RelicHookContextPatcher
     {
         Safe.Run(() =>
         {
+            // Clear any stale orb context so relic hooks (StoneCalendar end-of-turn etc.)
+            // don't inherit attribution from a previously-passive orb.
+            ContributionMap.Instance.ClearActiveOrbContext();
             var relicId = __instance.Id.Entry;
             CombatTracker.Instance.SetActiveRelic(relicId);
             // Pending draw source for async relic hooks (CharonsAshes draws via GamePiece etc.)
@@ -646,6 +649,10 @@ public static class PowerHookContextPatcher
     {
         Safe.Run(() =>
         {
+            // Clear any stale orb context so power hooks (PoisonPower tick,
+            // ThornsPower retaliation, etc.) don't inherit attribution from
+            // a previously-passive orb still referenced in _activeOrbContext.
+            ContributionMap.Instance.ClearActiveOrbContext();
             var powerId = __instance.Id.Entry;
             CombatTracker.Instance.SetActivePowerSource(powerId);
             // Also set pending draw/block/damage source for async power hooks.
@@ -2828,7 +2835,13 @@ public static class OrbPassivePatch
     private static void SetOrbContextForPassive(OrbModel orb)
     {
         var source = ContributionMap.Instance.GetOrbSource(orb.GetHashCode());
-        if (source == null) return;
+        if (source == null)
+        {
+            // Untracked orb: clear any stale context from a prior orb so its
+            // channeling card doesn't get credited for this orb's effects.
+            ContributionMap.Instance.ClearActiveOrbContext();
+            return;
+        }
 
         // First-trigger logic: if a card is playing and first trigger already used,
         // skip setting orb context so _activeCardId takes priority.
@@ -2848,12 +2861,14 @@ public static class OrbPassivePatch
         SetOrbFocusContrib(orb);
     }
 
-    [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.Passive))]
-    [HarmonyPostfix]
-    public static void AfterOrbPassive()
-    {
-        Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext());
-    }
+    // AfterOrbPassive postfix REMOVED: OrbCmd.Passive is `async Task` and its
+    // Harmony postfix fires at the first `await orb.Passive(...)` — BEFORE the
+    // orb's own damage resolves. Clearing orbCtx there would zero-out the
+    // orb's attribution while its damage is still in-flight. Instead, orbCtx
+    // lifetime is bounded by (a) the next BeforeOrbPassive / BeforeOrbEvoke
+    // prefix (overwrite) and (b) the ClearActiveOrbContext calls now placed at
+    // SetPowerContext / SetRelicContext entry, which prevent any stale orb
+    // context from leaking into subsequent power/relic hook effects.
 
     /// <summary>Shared Focus computation used by both passive and evoke patches.</summary>
     internal static void SetOrbFocusContrib(OrbModel orb)
@@ -2928,7 +2943,13 @@ public static class OrbEvokePatch
     private static void SetOrbEvokeContext(OrbModel orb)
     {
         var source = ContributionMap.Instance.GetOrbSource(orb.GetHashCode());
-        if (source == null) return;
+        if (source == null)
+        {
+            // Untracked orb: clear any stale context from a prior orb so its
+            // channeling card doesn't get credited for this evoke.
+            ContributionMap.Instance.ClearActiveOrbContext();
+            return;
+        }
 
         // PRD rule: 1st evoke → channeling source, 2nd+ evoke → triggering card.
         // During a card play, first evoke sets orb context (channeling source gets credit).
