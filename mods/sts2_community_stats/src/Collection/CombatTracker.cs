@@ -304,6 +304,16 @@ public sealed class CombatTracker
     public void OnCardPlayStarted(string cardId, int cardHash)
     {
         _activeCardId = cardId;
+        // Round 15 Plan A: bound orb context lifetime to at most one card-play
+        // window. Without this, a turn-end/turn-start orb passive (patched
+        // prefix-only) leaves _activeOrbContext pointing at the channeling
+        // source; the next card's pure-effect path (e.g. Defend → GainBlock)
+        // would then hit orbCtx first in ResolveSource and misattribute the
+        // block to the orb's channeling source instead of the card itself.
+        // Clearing here is safe because any orb passive/evoke triggered BY
+        // this card play is re-set fresh by OrbPassivePatch/OrbEvokePatch
+        // prefix before their effects resolve.
+        ContributionMap.Instance.ClearActiveOrbContext();
         // Safety: clear stale potion context (shouldn't still be set, but guards against
         // edge cases where PotionUsed didn't fire, e.g. combat ended mid-potion)
         _activePotionId = null;

@@ -700,7 +700,14 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(InfernoPower), "AfterDamageReceived", prefix, postfix);
         TryPatch(harmony, typeof(InfernoPower), "AfterPlayerTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(JuggernautPower), "AfterBlockGained", prefix, postfix);
-        TryPatch(harmony, typeof(GrapplePower), "AfterBlockGained", prefix, postfix);
+        // Round 15 Plan B companion fix: GrapplePower was removed in game
+        // v0.103.2 (present in v0.99.1 LEGACY). Compile-time `typeof` breaks
+        // the build on v0.103.2 reference assemblies. Use a runtime soft
+        // reference via AccessTools.TypeByName so the mod compiles against
+        // any version and only patches when the type exists.
+        var grappleType = AccessTools.TypeByName("MegaCrit.Sts2.Core.Models.Powers.GrapplePower");
+        if (grappleType != null)
+            TryPatch(harmony, grappleType, "AfterBlockGained", prefix, postfix);
         TryPatch(harmony, typeof(CrimsonMantlePower), "AfterPlayerTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(DarkEmbracePower), "AfterCardExhausted", prefix, postfix);
         TryPatch(harmony, typeof(DarkEmbracePower), "AfterTurnEnd", prefix, postfix);
@@ -2785,11 +2792,16 @@ public static class OrbPassivePatch
     /// </summary>
     public static void PatchOrbTurnEndTriggers(Harmony harmony)
     {
-        // PREFIX ONLY — no postfix, because async methods' Harmony postfix fires at first await,
-        // which clears orb context before the orb's damage/block effect completes.
-        // Each prefix overwrites the previous orb's context, which is correct since
-        // OrbQueue.BeforeTurnEnd processes orbs sequentially (await each one).
+        // Round 15 Plan B: async-aware postfix via `ref Task __result` wrap.
+        // Harmony's regular postfix on an async method fires at the first
+        // internal `await` (i.e. before the orb's effect resolves) — too
+        // early to clear orb context safely. Instead we overwrite __result
+        // with a wrapped Task that awaits the original completion and THEN
+        // clears the context. This gives us a reliable "effect-resolved"
+        // cleanup point without racing the orb's own damage/block/energy
+        // resolution.
         var prefix = new HarmonyMethod(AccessTools.Method(typeof(OrbPassivePatch), nameof(BeforeOrbTurnEnd)));
+        var postfix = new HarmonyMethod(AccessTools.Method(typeof(OrbPassivePatch), nameof(AfterOrbTurnEndAsync)));
 
         // Only patch orb types that ACTUALLY override BeforeTurnEndOrbTrigger.
         var beforeTurnEndOrbs = new[] {
@@ -2801,7 +2813,7 @@ public static class OrbPassivePatch
             {
                 var m = AccessTools.Method(t, "BeforeTurnEndOrbTrigger");
                 if (m != null && m.DeclaringType == t)
-                    harmony.Patch(m, prefix);
+                    harmony.Patch(m, prefix, postfix);
                 else
                     Godot.GD.Print($"[OrbPatch] Skipped {t.Name}.BeforeTurnEndOrbTrigger (not overridden)");
             }
@@ -2815,7 +2827,7 @@ public static class OrbPassivePatch
         try
         {
             var m = AccessTools.Method(typeof(PlasmaOrb), "AfterTurnStartOrbTrigger");
-            if (m != null) harmony.Patch(m, prefix);
+            if (m != null) harmony.Patch(m, prefix, postfix);
         }
         catch (System.Exception ex)
         {
@@ -2826,6 +2838,22 @@ public static class OrbPassivePatch
     public static void BeforeOrbTurnEnd(OrbModel __instance)
     {
         Safe.Run(() => SetOrbContextForPassive(__instance));
+    }
+
+    // Round 15 Plan B: async-aware postfix for BeforeTurnEndOrbTrigger /
+    // AfterTurnStartOrbTrigger. Both return `Task`. See PatchOrbTurnEndTriggers
+    // for why we wrap __result instead of using a regular postfix body.
+    public static void AfterOrbTurnEndAsync(ref System.Threading.Tasks.Task __result)
+    {
+        var original = __result;
+        if (original == null) return;
+        __result = WrapClearOrbCtx(original);
+    }
+
+    private static async System.Threading.Tasks.Task WrapClearOrbCtx(System.Threading.Tasks.Task original)
+    {
+        try { await original; }
+        finally { Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext()); }
     }
 
     // NO postfix — async methods' postfix fires at first await, clearing context too early.
@@ -2903,7 +2931,12 @@ public static class OrbEvokePatch
 
     public static void PatchOrbEvokeMethods(Harmony harmony)
     {
+        // Round 15 Plan B: async-aware postfix. Evoke returns
+        // Task<IEnumerable<Creature>>, so we wrap __result with a generic
+        // awaiter that preserves the return value and clears orb context
+        // after the evoke effect resolves.
         var prefix = new HarmonyMethod(AccessTools.Method(typeof(OrbEvokePatch), nameof(BeforeOrbEvoke)));
+        var postfix = new HarmonyMethod(AccessTools.Method(typeof(OrbEvokePatch), nameof(AfterOrbEvokeAsync)));
         var orbTypes = new System.Type[] {
             typeof(LightningOrb), typeof(FrostOrb), typeof(DarkOrb),
             typeof(PlasmaOrb), typeof(GlassOrb)
@@ -2920,7 +2953,7 @@ public static class OrbEvokePatch
                 var m = System.Array.Find(methods, mi => mi.Name == "Evoke");
                 if (m != null)
                 {
-                    harmony.Patch(m, prefix);
+                    harmony.Patch(m, prefix, postfix);
                     Godot.GD.Print($"[OrbEvokePatch] Patched {t.Name}.Evoke");
                 }
                 else
@@ -2938,6 +2971,24 @@ public static class OrbEvokePatch
     public static void BeforeOrbEvoke(OrbModel __instance)
     {
         Safe.Run(() => SetOrbEvokeContext(__instance));
+    }
+
+    // Round 15 Plan B: async-aware postfix for orb.Evoke.
+    // Evoke signature: Task<IEnumerable<Creature>>. We wrap __result with
+    // a continuation that preserves the enumerable and clears orb context
+    // after the real evoke effect has resolved.
+    public static void AfterOrbEvokeAsync(ref System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>> __result)
+    {
+        var original = __result;
+        if (original == null) return;
+        __result = WrapClearOrbCtxEvoke(original);
+    }
+
+    private static async System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>>
+        WrapClearOrbCtxEvoke(System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>> original)
+    {
+        try { return await original; }
+        finally { Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext()); }
     }
 
     private static void SetOrbEvokeContext(OrbModel orb)
