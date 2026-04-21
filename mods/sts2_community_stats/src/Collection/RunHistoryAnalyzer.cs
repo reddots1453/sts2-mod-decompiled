@@ -966,6 +966,15 @@ public sealed class RunHistoryAnalyzer
         var ancients = new List<string>();
         var bossDmg = new Dictionary<string, int>();
 
+        // PlayerMapPointHistoryEntry.BoughtColorless only records colorless-pool
+        // card buys. Colored shop buys (Ironclad buys Strike+ at a shop, etc.)
+        // never land in that list, so CardsBought was always undercounted. We
+        // record every shop card purchase via ShopPatch.BeforeCardPurchaseVisual
+        // → RunDataCollector.RecordShopPurchase → ShopPurchasePersistence; here
+        // we load by seed and bucket by act. Falls back to BoughtColorless for
+        // runs imported before this fix (no persistence file).
+        var perActBuys = BuildPerActShopCardBuys(run);
+
         if (run.MapPointHistory != null)
         {
             for (int i = 0; i < run.MapPointHistory.Count; i++)
@@ -976,6 +985,7 @@ public sealed class RunHistoryAnalyzer
 
                 int gained = 0, bought = 0, removed = 0, upgraded = 0;
                 int unknown = 0, monster = 0, elite = 0, shop = 0, campfire = 0;
+                bool usePersisted = perActBuys != null;
 
                 foreach (var floor in floors)
                 {
@@ -994,7 +1004,8 @@ public sealed class RunHistoryAnalyzer
                         gained   += ps.CardsGained?.Count ?? 0;
                         removed  += ps.CardsRemoved?.Count ?? 0;
                         upgraded += ps.UpgradedCards?.Count ?? 0;
-                        bought   += ps.BoughtColorless?.Count ?? 0;
+                        if (!usePersisted)
+                            bought += ps.BoughtColorless?.Count ?? 0;
 
                         if (ps.AncientChoices != null)
                         {
@@ -1017,6 +1028,9 @@ public sealed class RunHistoryAnalyzer
                         }
                     }
                 }
+
+                if (usePersisted)
+                    bought = perActBuys!.GetValueOrDefault(actIdx, 0);
 
                 path[actIdx] = new ActPathStats
                 {
@@ -1045,5 +1059,40 @@ public sealed class RunHistoryAnalyzer
             AncientChoicesPicked = ancients,
             BossDamageTaken = bossDmg,
         };
+    }
+
+    /// <summary>
+    /// Load <see cref="ShopPurchasePersistence"/> for this run's seed and
+    /// bucket card purchases by act. Stored <c>Floor</c> is the game's running
+    /// <c>RunState.TotalFloor</c> at purchase time, so act N contains
+    /// purchases with <c>floor ∈ (startFloor, startFloor + |MapPointHistory[N-1]|]</c>.
+    /// Returns null when no persistence file exists (historical / pre-fix runs);
+    /// caller falls back to <c>BoughtColorless</c>.
+    /// </summary>
+    private static Dictionary<int, int>? BuildPerActShopCardBuys(RunHistory run)
+    {
+        if (string.IsNullOrEmpty(run.Seed) || run.MapPointHistory == null) return null;
+        var purchases = ShopPurchasePersistence.Load(run.Seed);
+        if (purchases == null) return null;
+
+        var result = new Dictionary<int, int>();
+        int startFloor = 0;
+        for (int i = 0; i < run.MapPointHistory.Count; i++)
+        {
+            int actIdx = i + 1;
+            int actFloorCount = run.MapPointHistory[i]?.Count ?? 0;
+            int endFloor = startFloor + actFloorCount;
+
+            int count = 0;
+            foreach (var p in purchases)
+            {
+                if (p.ItemType != "card") continue;
+                if (p.Floor > startFloor && p.Floor <= endFloor) count++;
+            }
+            result[actIdx] = count;
+
+            startFloor = endFloor;
+        }
+        return result;
     }
 }

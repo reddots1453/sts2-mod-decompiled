@@ -64,6 +64,25 @@ public partial class StatsLabel : Label
         return Create(text, color);
     }
 
+    /// <summary>
+    /// Owned-relic hover variant: win rate + delta only, no pick rate.
+    /// Used by the top-bar relic inventory where the player already owns
+    /// the relic and pick rate is irrelevant.
+    /// Format: "Win Y% (±Z%)". Colored by delta sign.
+    /// </summary>
+    public static StatsLabel ForRelicWinRateWithDelta(RelicStats stats, float globalAvgWinRate)
+    {
+        var deltaPct = (stats.WinRate - globalAvgWinRate) * 100f;
+        var sign = deltaPct >= 0 ? "+" : "";
+        var baseText = string.Format(L.Get("stats.relic_win_only"),
+            (stats.WinRate * 100).ToString("F1"));
+        var text = $"{baseText} ({sign}{deltaPct:F1}%)";
+        var color = MathF.Abs(deltaPct) < 1f
+            ? NeutralColor
+            : (deltaPct >= 0 ? HighWinColor : LowWinColor);
+        return Create(text, color);
+    }
+
     public static StatsLabel ForEventOption(EventOptionStats stats)
     {
         // PRD 3.5: show only selection rate, drop win rate

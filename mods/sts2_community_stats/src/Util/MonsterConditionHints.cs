@@ -23,9 +23,11 @@ public static class MonsterConditionHints
 {
     private static readonly Dictionary<string, string[]> _table = new()
     {
-        // Toadpole: runtime `IsFront` toggle. User requested slot-position
-        // labeling for consistency across slot-based monsters.
-        ["TOADPOLE"] = new[] { "1号位", "2号位" },
+        // Toadpole: runtime `IsFront` toggle. Branch declaration order in
+        // the game feeds AddState(WHIRL, !IsFront) first (back = 2号位) and
+        // AddState(SPIKEN, IsFront) second (front = 1号位), so this table
+        // must list 2号位 before 1号位 to match index.
+        ["TOADPOLE"] = new[] { "2号位", "1号位" },
 
         // Exoskeleton: branches by spawn slot index
         ["EXOSKELETON"] = new[] { "1号位", "2号位", "3号位", "4号位" },

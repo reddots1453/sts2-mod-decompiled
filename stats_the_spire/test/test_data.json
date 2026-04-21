@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-04-01T12:00:00Z",
-  "total_runs": 42850,
+  "total_runs": 6666,
   "cards": {
     "STRIKE_IRONCLAD":   { "pick": 0.10, "win": 0.48, "removal": 0.25, "upgrade": 0.05, "shop_buy": 0.02, "n": 20000 },
     "DEFEND_IRONCLAD":   { "pick": 0.10, "win": 0.47, "removal": 0.22, "upgrade": 0.08, "shop_buy": 0.02, "n": 20000 },

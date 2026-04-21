@@ -456,6 +456,64 @@ public class ContributionMap
             list.RemoveAll(e => e.IsTemporary);
     }
 
+    /// <summary>
+    /// Subtract <paramref name="amount"/> from recorded reductions on
+    /// <paramref name="enemyHash"/>, removing entries whose Amount hits zero.
+    /// Called when an enemy's StrengthPower goes UP (e.g. TempStr.AfterTurnEnd
+    /// revert, or some unusual buff) so stale recorded reductions don't
+    /// carry into subsequent hits / turns.
+    ///
+    /// LIFO fallback — only used when we cannot identify which source is
+    /// being reverted. <see cref="ConsumeReductionFromSource"/> is preferred
+    /// (exact-source match) and is used by the TempStr revert path.
+    /// </summary>
+    public void ReduceRecordedStrReduction(int enemyHash, int amount)
+    {
+        if (amount <= 0) return;
+        if (!_enemyStrReductions.TryGetValue(enemyHash, out var list)) return;
+        int remaining = amount;
+        for (int i = list.Count - 1; i >= 0 && remaining > 0; i--)
+        {
+            int take = Math.Min(list[i].Amount, remaining);
+            int newAmt = list[i].Amount - take;
+            remaining -= take;
+            if (newAmt <= 0) list.RemoveAt(i);
+            else list[i] = list[i] with { Amount = newAmt };
+        }
+    }
+
+    /// <summary>
+    /// Consume up to <paramref name="amount"/> from the specific
+    /// <paramref name="sourceId"/>'s recorded reduction on
+    /// <paramref name="enemyHash"/>, removing the entry when it hits zero.
+    /// Used when a TemporaryStrengthPower reverts — we know which source
+    /// applied the temp buff (TempStr.OriginModel), so we consume its entry
+    /// precisely instead of relying on LIFO order.
+    /// </summary>
+    public void ConsumeReductionFromSource(int enemyHash, string sourceId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrEmpty(sourceId)) return;
+        if (!_enemyStrReductions.TryGetValue(enemyHash, out var list)) return;
+        int idx = list.FindIndex(e => e.SourceId == sourceId);
+        if (idx < 0) return;
+        int newAmt = list[idx].Amount - amount;
+        if (newAmt <= 0) list.RemoveAt(idx);
+        else list[idx] = list[idx] with { Amount = newAmt };
+    }
+
+    // AsyncLocal tag: set by TempStrengthRevertPatch.BeforeTempStrRevert prefix,
+    // cleared by its postfix. While set, StrengthPower.SetAmount postfix with
+    // delta>0 treats the change as a specific-source revert and uses
+    // ConsumeReductionFromSource instead of LIFO. AsyncLocal's EC flow
+    // propagates the tag through the awaited `PowerCmd.Apply<StrengthPower>`
+    // chain inside AfterTurnEnd so the nested SetAmount call sees it.
+    private static readonly AsyncLocal<(string SourceId, string SourceType)?> _revertingTempStrSourceAL = new();
+    public (string SourceId, string SourceType)? RevertingTempStrSource
+    {
+        get => _revertingTempStrSourceAL.Value;
+        set => _revertingTempStrSourceAL.Value = value;
+    }
+
     public IReadOnlyList<StrReductionEntry>? GetStrReductions(int enemyHash)
         => _enemyStrReductions.GetValueOrDefault(enemyHash);
 
@@ -696,20 +754,91 @@ public class ContributionMap
         return _orbSources.GetValueOrDefault(orbHash);
     }
 
+    // ── Orb Passive Trigger Count + Extra Trigger Source ────
+    // Hook.ModifyOrbPassiveTriggerCount may raise the count (e.g. GoldPlatedCables
+    // adds +1 to the front orb). Track per-orb trigger index so the second trigger
+    // attributes to the modifying relic/power, not the orb's channeler.
+
+    private readonly Dictionary<int, int> _orbPassiveTriggerCount = new();
+    private readonly Dictionary<int, (string id, string type)> _orbExtraTriggerSource = new();
+
+    public int IncrementOrbPassiveTriggerCount(int orbHash)
+    {
+        int next = _orbPassiveTriggerCount.TryGetValue(orbHash, out var cur) ? cur + 1 : 1;
+        _orbPassiveTriggerCount[orbHash] = next;
+        return next;
+    }
+
+    public void ResetOrbPassiveTriggerCount(int orbHash)
+    {
+        _orbPassiveTriggerCount[orbHash] = 0;
+    }
+
+    public void ResetAllOrbPassiveTriggerCounts()
+    {
+        _orbPassiveTriggerCount.Clear();
+    }
+
+    public void SetOrbExtraTriggerSource(int orbHash, string sourceId, string sourceType)
+    {
+        if (!string.IsNullOrEmpty(sourceId))
+            _orbExtraTriggerSource[orbHash] = (sourceId, sourceType);
+    }
+
+    public void ClearOrbExtraTriggerSource(int orbHash)
+    {
+        _orbExtraTriggerSource.Remove(orbHash);
+    }
+
+    public (string id, string type)? GetOrbExtraTriggerSource(int orbHash)
+    {
+        return _orbExtraTriggerSource.TryGetValue(orbHash, out var v) ? v : null;
+    }
+
     // ── Active Orb Context ──────────────────────────────────
-    // Set when an orb passive/evoke is executing so damage/block/energy can be attributed.
-    // First-trigger logic: during a card play, the first orb trigger goes to channeling source,
-    // subsequent triggers go to the evoke/trigger card (_activeCardId).
+    // Set by OrbPassivePatch / OrbEvokePatch prefix when an orb is about to
+    // fire, read by CombatTracker.ResolveSource so damage/block/energy/draw
+    // the orb produces attribute to the channeling card (or extra-trigger
+    // source). First-trigger logic: during a card play, the first orb
+    // trigger goes to the channeling source, subsequent triggers go to
+    // the evoke/trigger card (_activeCardId).
+    //
+    // AsyncLocal-backed: OrbCmd.Passive / orb.Evoke are `async Task`, so
+    // context must flow through `await` continuations inside the orb's
+    // body. Crucially, a bare static field would LEAK after the async flow
+    // returns — subsequent unrelated power/relic hooks in the same turn
+    // (PoisonPower tick, StoneCalendar end-of-turn, etc.) would inherit
+    // the stale orb source and misattribute. AsyncLocal's copy-on-write
+    // ExecutionContext semantics isolate the value to the orb's own async
+    // subtree: inner set propagates through awaits within the orb flow,
+    // but the CALLER's context (where the orb was awaited from) keeps its
+    // pre-orb value (usually null). No postfix, Task wrapper, or "clear
+    // on SetRelic/SetPower entry" hack needed — the runtime unsets it
+    // automatically at flow boundaries.
 
-    private (string sourceId, string sourceType, string orbType)? _activeOrbContext;
+    private static readonly AsyncLocal<(string sourceId, string sourceType, string orbType)?> _activeOrbContextAL = new();
+    private static readonly AsyncLocal<(string sourceId, string sourceType, int amount)?> _pendingOrbFocusContribAL = new();
 
-    /// <summary>Focus contribution for the current orb trigger (set by patch before orb fires).</summary>
-    private (string sourceId, string sourceType, int amount)? _pendingOrbFocusContrib;
+    private (string sourceId, string sourceType, string orbType)? _activeOrbContext
+    {
+        get => _activeOrbContextAL.Value;
+        set => _activeOrbContextAL.Value = value;
+    }
+
+    private (string sourceId, string sourceType, int amount)? _pendingOrbFocusContrib
+    {
+        get => _pendingOrbFocusContribAL.Value;
+        set => _pendingOrbFocusContribAL.Value = value;
+    }
 
     /// <summary>
     /// True after the first orb trigger during a card play has been consumed.
     /// Reset at each card play start. When true, orb context is NOT set so that
     /// _activeCardId (the evoke card) takes priority in ResolveSource.
+    ///
+    /// NOT AsyncLocal: this flag tracks card-play-scoped state (set/reset by
+    /// CombatTracker, read by orb prefixes which share the same logical
+    /// card-play flow). Plain field is correct here.
     /// </summary>
     private bool _orbFirstTriggerUsed;
 
@@ -765,9 +894,13 @@ public class ContributionMap
         return _upgradeDeltaMap.GetValueOrDefault(cardHash);
     }
 
-    // ── Enemy base damage tracking (for C1 str reduction formula) ──
-    // Set by EnemyDamageIntentPatch Prefix on Hook.ModifyDamage when dealer is not player
+    // ── Enemy base damage / Str tracking (for str-reduction formula) ──
+    // Set by EnemyDamageIntentPatch Prefix on Hook.ModifyDamage when dealer is
+    // not player. PendingEnemyCurrentStr is the dealer's StrengthPower.Amount
+    // at hit time — already includes any OUR recorded reductions. Used to
+    // compute "damage without our reductions" = base + currentStr + recorded.
     public int PendingEnemyBaseDamage { get; set; }
+    public int PendingEnemyCurrentStr { get; set; }
     public int PendingEnemyHitCount { get; set; } = 1;
 
     public void Clear()
@@ -783,6 +916,7 @@ public class ContributionMap
         _upgradeDeltaMap.Clear();
         _enemyStrReductions.Clear();
         PendingEnemyBaseDamage = 0;
+        PendingEnemyCurrentStr = 0;
         PendingEnemyHitCount = 1;
         _seekingEdgeActive = false;
         _seekingEdgePrimaryTargetHash = 0;
@@ -794,6 +928,8 @@ public class ContributionMap
         _pendingDoomHp.Clear();
         _doomStacks.Clear();
         _orbSources.Clear();
+        _orbPassiveTriggerCount.Clear();
+        _orbExtraTriggerSource.Clear();
         _activeOrbContext = null;
         _pendingOrbFocusContrib = null;
         _orbFirstTriggerUsed = false;

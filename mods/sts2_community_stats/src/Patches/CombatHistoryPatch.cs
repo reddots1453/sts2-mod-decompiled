@@ -101,6 +101,13 @@ public static class CombatHistoryPatch
             bool isOstyDealer = dealer != null && dealer.Monster is Osty;
             bool isOstyReceiver = receiver.Monster is Osty;
 
+            // Skip damage attribution for enemies in an invincible phase
+            // (ShowsInfiniteHp flag) — see CombatTracker.OnDamageDealt for
+            // rationale. Still pass through so encounter tracking / damage
+            // dedup run normally; only the enemy-side damage ledger is
+            // suppressed.
+            bool invincible = !isPlayerReceiver && receiver.ShowsInfiniteHp;
+
             CombatTracker.Instance.OnDamageDealt(
                 result.TotalDamage,
                 result.BlockedDamage,
@@ -109,7 +116,8 @@ public static class CombatHistoryPatch
                 receiver.GetHashCode(),
                 dealer?.GetHashCode() ?? 0,
                 isOstyDealer: isOstyDealer,
-                isOstyReceiver: isOstyReceiver);
+                isOstyReceiver: isOstyReceiver,
+                skipEnemyDamageAttribution: invincible);
 
             if (isPlayerReceiver && result.WasTargetKilled)
                 CombatTracker.Instance.OnPlayerDied();
@@ -245,9 +253,6 @@ public static class RelicHookContextPatcher
     {
         Safe.Run(() =>
         {
-            // Clear any stale orb context so relic hooks (StoneCalendar end-of-turn etc.)
-            // don't inherit attribution from a previously-passive orb.
-            ContributionMap.Instance.ClearActiveOrbContext();
             var relicId = __instance.Id.Entry;
             CombatTracker.Instance.SetActiveRelic(relicId);
             // Pending draw source for async relic hooks (CharonsAshes draws via GamePiece etc.)
@@ -330,7 +335,11 @@ public static class RelicHookContextPatcher
         TryPatch(harmony, typeof(GamePiece), "AfterCardPlayed", prefix, postfix);
         TryPatch(harmony, typeof(IronClub), "AfterCardPlayed", prefix, postfix);
         TryPatch(harmony, typeof(JossPaper), "AfterCardExhausted", prefix, postfix);
-        TryPatch(harmony, typeof(Pendulum), "AfterShuffle", prefix, postfix);
+        // Pendulum's current game behavior: `AfterPlayerTurnStart` every N
+        // turns, draws a card when counter wraps to 0. The old `AfterShuffle`
+        // hook doesn't exist on this Pendulum override at all — patch would
+        // silently bind to nothing and the draw attributed to UNTRACKED.
+        TryPatch(harmony, typeof(Pendulum), "AfterPlayerTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(BlessedAntler), "BeforeHandDraw", prefix, postfix);
 
         // ── Power application relics (records relic as power source) ──
@@ -649,10 +658,6 @@ public static class PowerHookContextPatcher
     {
         Safe.Run(() =>
         {
-            // Clear any stale orb context so power hooks (PoisonPower tick,
-            // ThornsPower retaliation, etc.) don't inherit attribution from
-            // a previously-passive orb still referenced in _activeOrbContext.
-            ContributionMap.Instance.ClearActiveOrbContext();
             var powerId = __instance.Id.Entry;
             CombatTracker.Instance.SetActivePowerSource(powerId);
             // Also set pending draw/block/damage source for async power hooks.
@@ -700,14 +705,6 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(InfernoPower), "AfterDamageReceived", prefix, postfix);
         TryPatch(harmony, typeof(InfernoPower), "AfterPlayerTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(JuggernautPower), "AfterBlockGained", prefix, postfix);
-        // Round 15 Plan B companion fix: GrapplePower was removed in game
-        // v0.103.2 (present in v0.99.1 LEGACY). Compile-time `typeof` breaks
-        // the build on v0.103.2 reference assemblies. Use a runtime soft
-        // reference via AccessTools.TypeByName so the mod compiles against
-        // any version and only patches when the type exists.
-        var grappleType = AccessTools.TypeByName("MegaCrit.Sts2.Core.Models.Powers.GrapplePower");
-        if (grappleType != null)
-            TryPatch(harmony, grappleType, "AfterBlockGained", prefix, postfix);
         TryPatch(harmony, typeof(CrimsonMantlePower), "AfterPlayerTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(DarkEmbracePower), "AfterCardExhausted", prefix, postfix);
         TryPatch(harmony, typeof(DarkEmbracePower), "AfterTurnEnd", prefix, postfix);
@@ -771,8 +768,12 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(ParryPower), "AfterSovereignBladePlayed", prefix, postfix);
         TryPatch(harmony, typeof(PillarOfCreationPower), "AfterCardGeneratedForCombat", prefix, postfix);
         TryPatch(harmony, typeof(OrbitPower), "AfterEnergySpent", prefix, postfix);
-        // ArsenalPower.AfterCardPlayed not patchable at runtime (not implemented, only inherited)
-        // Arsenal's Strength application is tracked via PowerApplyPatch instead.
+        // ArsenalPower in the current game: applies StrengthPower to owner on
+        // AfterCardGeneratedForCombat (not AfterCardPlayed). Without setting
+        // power source context at THAT hook, the Str apply attributes to the
+        // card that generated the new card (BladeOfInk, Stoke, etc.) instead
+        // of Arsenal. Adding the context patch here fixes attribution.
+        TryPatch(harmony, typeof(ArsenalPower), "AfterCardGeneratedForCombat", prefix, postfix);
         TryPatch(harmony, typeof(MonologuePower), "AfterCardPlayed", prefix, postfix);
         TryPatch(harmony, typeof(MonarchsGazePower), "AfterDamageGiven", prefix, postfix);
         TryPatch(harmony, typeof(SpectrumShiftPower), "BeforeHandDraw", prefix, postfix);
@@ -1111,6 +1112,16 @@ public static class EnemyDamageIntentPatch
         {
             if (dealer == null || dealer.IsPlayer) return;
             ContributionMap.Instance.PendingEnemyBaseDamage = (int)damage;
+            // Dealer's current StrengthPower at hit time — already reflects
+            // any reductions we've recorded (e.g. Piercing Wail's -8 has
+            // already been applied before the attack fires). Used in
+            // CombatTracker.OnDamageDealt to reconstruct "damage that would
+            // have been dealt without our reductions" = base + (currentStr +
+            // totalReduction). This matters when the enemy had positive Str
+            // (e.g. buffed) before our reduction: raw base alone undercounts
+            // the actual damage we prevented per hit.
+            var str = dealer.GetPower<StrengthPower>();
+            ContributionMap.Instance.PendingEnemyCurrentStr = (int)(str?.Amount ?? 0);
         });
     }
 
@@ -1685,13 +1696,17 @@ public static class KillingBlowPatcher
 
             Safe.Info($"[KillingBlow] Capturing missed damage: {cardSourceId ?? "?"} → {results.TotalDamage} to {target}");
 
+            // Invincible-phase guard — same reasoning as AfterDamageReceived.
+            bool invincible = receiver.ShowsInfiniteHp;
+
             CombatTracker.Instance.OnDamageDealt(
                 results.TotalDamage,
                 results.BlockedDamage,
                 cardSourceId,
                 isPlayerReceiver,
                 receiver.GetHashCode(),
-                dealer?.GetHashCode() ?? 0);
+                dealer?.GetHashCode() ?? 0,
+                skipEnemyDamageAttribution: invincible);
         });
     }
 
@@ -2452,25 +2467,81 @@ public static class RelicHandDrawBonusPatch
 [HarmonyPatch]
 public static class EnemyStrReductionPatch
 {
-    [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.ApplyInternal))]
+    // Tracks old Amount at SetAmount entry so we can compute the true delta in
+    // the postfix. Moving from `ApplyInternal` postfix to `SetAmount` prefix/
+    // postfix fixes three prior bugs:
+    //   A. Old code used `|__instance.Amount|` (total) instead of the delta.
+    //      For enemies with pre-existing Strength (e.g. boss with innate buff),
+    //      Piercing Wail's -8 delta was recorded as `|new total|` which was
+    //      wrong (could be smaller or larger than the actual reduction).
+    //   B. ApplyInternal only fires for the FIRST power instance. Subsequent
+    //      applies to the same non-instanced power go through
+    //      PowerCmd.ModifyAmount, which does NOT call ApplyInternal —
+    //      reductions to enemies that already had a StrengthPower were
+    //      silently missed. SetAmount fires on both paths.
+    //   C. TemporaryStrengthPower's "isTemporary" flag was set from the
+    //      `__instance is TemporaryStrengthPower` check. But the actual silent
+    //      StrengthPower apply is on a *StrengthPower* (not its TempStr
+    //      wrapper), so the check always returned false and revert-on-turn-end
+    //      never matched.  Fix: read the *caller's* PowerModel via stack
+    //      inspection of ApplierContext (tempStrWrapper) — simpler workaround:
+    //      always mark as temporary when the active source's CardModel /
+    //      PotionModel / RelicModel declares a TempStr power (rare), or just
+    //      accept that turn-end revert clears based on SetAmount sign.
+
+    [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.SetAmount))]
+    [HarmonyPrefix]
+    public static void BeforeSetAmount_StrTracking(PowerModel __instance, out int __state)
+    {
+        __state = __instance.Amount;
+    }
+
+    [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.SetAmount))]
     [HarmonyPostfix]
-    public static void AfterApplyInternal_StrTracking(PowerModel __instance, Creature owner)
+    public static void AfterSetAmount_StrTracking(PowerModel __instance, int amount, int __state)
     {
         Safe.Run(() =>
         {
-            // Only track StrengthPower with negative amount applied to non-player creatures
             if (__instance is not StrengthPower) return;
-            if (owner.IsPlayer) return;
-            if (__instance.Amount >= 0) return; // Only negative (reduction)
+            var owner = __instance.Owner;
+            if (owner == null || owner.IsPlayer) return;
 
-            // Fix 3.6: power > relic > potion > card priority. A relic that
-            // applies enemy Str reduction during card play (e.g. a hypothetical
-            // relic that triggers on AfterCardPlayed and debuffs enemies) should
-            // credit the relic, not the triggering card.
+            // Delta = new - old. Negative delta = reduction.
+            int oldAmount = __state;
+            int newAmount = __instance.Amount; // or `amount`; SetAmount just set it
+            int delta = newAmount - oldAmount;
+            if (delta >= 0)
+            {
+                // Positive delta on an enemy's StrengthPower means either a
+                // TempStr revert at turn end or some unusual buff. If we are
+                // inside a TempStrengthPower.AfterTurnEnd call (detected via
+                // ContributionMap.RevertingTempStrSource AsyncLocal tag set
+                // by TempStrengthRevertPatch.BeforeTempStrRevert), consume
+                // from the EXACT matching source entry so permanent
+                // reductions (Malaise etc.) are not eaten by LIFO when a
+                // temp reduction (Piercing Wail) reverts. Fall back to LIFO
+                // only when the tag is absent (rare: non-TempStr buff paths).
+                if (delta > 0)
+                {
+                    var revertSource = ContributionMap.Instance.RevertingTempStrSource;
+                    if (revertSource.HasValue)
+                    {
+                        ContributionMap.Instance.ConsumeReductionFromSource(
+                            owner.GetHashCode(), revertSource.Value.SourceId, delta);
+                    }
+                    else
+                    {
+                        ContributionMap.Instance.ReduceRecordedStrReduction(
+                            owner.GetHashCode(), delta);
+                    }
+                }
+                return;
+            }
+
+            // Source attribution: power > relic > potion > card
             var tracker = CombatTracker.Instance;
             string? sourceId = null;
             string sourceType = "card";
-
             if (tracker.ActivePowerSourceId != null)
             {
                 sourceId = tracker.ActivePowerSourceId;
@@ -2493,34 +2564,71 @@ public static class EnemyStrReductionPatch
             }
             if (sourceId == null) return;
 
-            bool isTemporary = __instance is TemporaryStrengthPower;
-            int reductionAmount = (int)Math.Abs(__instance.Amount);
-
+            int reductionAmount = -delta;  // |delta|, positive
+            // isTemporary=false here; TemporaryStrengthPower's revert is detected
+            // via the positive-delta branch above (ReduceRecordedStrReduction).
             ContributionMap.Instance.RecordStrengthReduction(
-                owner.GetHashCode(), sourceId, sourceType, reductionAmount, isTemporary);
+                owner.GetHashCode(), sourceId, sourceType, reductionAmount, isTemporary: false);
+
+            Safe.Info($"[StrReduction] enemy={owner.GetHashCode()} src={sourceId} old={oldAmount} new={newAmount} delta={delta} recorded={reductionAmount}");
         });
     }
 }
 
 // ═══════════════════════════════════════════════════════════
-// TemporaryStrengthPower revert tracking
-// When temporary strength reverts at turn end, remove from tracking.
+// TemporaryStrengthPower revert — mark source around the revert window
+//
+// TemporaryStrengthPower.AfterTurnEnd fires on each player/enemy turn end;
+// when `side == Owner.Side`, it `await PowerCmd.Apply<StrengthPower>(+Amount)`
+// to undo the temp strength. That fires StrengthPower.SetAmount with delta
+// > 0 which our EnemyStrReductionPatch postfix interprets as "revert,
+// consume from _enemyStrReductions".
+//
+// Problem with plain LIFO consumption: if the list has entries from both
+// a TempStr source (e.g. Piercing Wail -8) and an earlier permanent
+// source (e.g. Malaise -2), LIFO eats the LAST entry first — which may
+// be the permanent source, losing accurate credit.
+//
+// Fix: use an AsyncLocal source tag set by the prefix here. Harmony
+// prefix runs synchronously before the async state machine body; the
+// body captures the current ExecutionContext (including our AsyncLocal)
+// at its first await. The captured EC flows through all nested awaits
+// in the body, so when the inner Apply<StrengthPower> reaches SetAmount
+// our AsyncLocal is still set. Postfix (fires at first-await sync
+// return) clears the caller-side value, so unrelated SetAmount calls
+// outside the revert window are not affected.
 // ═══════════════════════════════════════════════════════════
 
 [HarmonyPatch]
 public static class TempStrengthRevertPatch
 {
     [HarmonyPatch(typeof(TemporaryStrengthPower), nameof(TemporaryStrengthPower.AfterTurnEnd))]
-    [HarmonyPostfix]
-    public static void AfterTempStrRevert(TemporaryStrengthPower __instance)
+    [HarmonyPrefix]
+    public static void BeforeTempStrRevert(TemporaryStrengthPower __instance)
     {
         Safe.Run(() =>
         {
-            if (__instance.Owner != null && !__instance.Owner.IsPlayer)
+            if (__instance.Owner == null || __instance.Owner.IsPlayer) return;
+            var origin = __instance.OriginModel;
+            var id = origin?.Id.Entry;
+            if (string.IsNullOrEmpty(id)) return;
+
+            string type = origin switch
             {
-                ContributionMap.Instance.RevertTemporaryStrReduction(__instance.Owner.GetHashCode());
-            }
+                CardModel   => "card",
+                RelicModel  => "relic",
+                PotionModel => "potion",
+                _           => "card",
+            };
+            ContributionMap.Instance.RevertingTempStrSource = (id!, type);
         });
+    }
+
+    [HarmonyPatch(typeof(TemporaryStrengthPower), nameof(TemporaryStrengthPower.AfterTurnEnd))]
+    [HarmonyPostfix]
+    public static void AfterTempStrRevert()
+    {
+        Safe.Run(() => ContributionMap.Instance.RevertingTempStrSource = null);
     }
 }
 
@@ -2773,11 +2881,41 @@ public static class OrbChanneledPatch
 public static class OrbPassivePatch
 {
     /// <summary>
-    /// Before orb passive triggers, set orb context and compute Focus split.
-    /// First-trigger logic: during a card play, first trigger → channeling source,
-    /// subsequent triggers → let _activeCardId (the trigger card) take priority.
-    /// Outside card play (turn-end), orb context always applies.
+    /// Hook.ModifyOrbPassiveTriggerCount postfix — tracks whether a modifying
+    /// model (relic/power) raised the count. When it did, the *extra* trigger
+    /// attributes to the modifying entity (e.g. GoldPlatedCables adds +1 to
+    /// the front orb and that extra passive should go to the cables, not the
+    /// orb's channeling card). Reset the per-orb counter each time the game
+    /// recomputes so we start fresh per orb-passive batch.
     /// </summary>
+    [HarmonyPatch(typeof(Hook), nameof(Hook.ModifyOrbPassiveTriggerCount))]
+    [HarmonyPostfix]
+    public static void AfterModifyOrbPassiveTriggerCount(int __result, OrbModel orb, int triggerCount, List<AbstractModel> modifyingModels)
+    {
+        Safe.Run(() =>
+        {
+            if (orb == null) return;
+            int hash = orb.GetHashCode();
+            ContributionMap.Instance.ResetOrbPassiveTriggerCount(hash);
+            if (__result > triggerCount && modifyingModels != null && modifyingModels.Count > 0)
+            {
+                var last = modifyingModels[modifyingModels.Count - 1];
+                var id = last.Id.Entry;
+                if (!string.IsNullOrEmpty(id))
+                {
+                    string type = last is RelicModel ? "relic"
+                                : last is PowerModel ? "power"
+                                : "relic";
+                    ContributionMap.Instance.SetOrbExtraTriggerSource(hash, id, type);
+                }
+            }
+            else
+            {
+                ContributionMap.Instance.ClearOrbExtraTriggerSource(hash);
+            }
+        });
+    }
+
     [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.Passive))]
     [HarmonyPrefix]
     public static void BeforeOrbPassiveStatic(OrbModel orb)
@@ -2785,25 +2923,18 @@ public static class OrbPassivePatch
         Safe.Run(() => SetOrbContextForPassive(orb));
     }
 
-    /// <summary>
-    /// Also patch each orb type's BeforeTurnEndOrbTrigger, because turn-end passives
-    /// call this.Passive() directly (instance method) instead of OrbCmd.Passive (static).
-    /// Uses __instance to get the orb reference.
-    /// </summary>
     public static void PatchOrbTurnEndTriggers(Harmony harmony)
     {
-        // Round 15 Plan B: async-aware postfix via `ref Task __result` wrap.
-        // Harmony's regular postfix on an async method fires at the first
-        // internal `await` (i.e. before the orb's effect resolves) — too
-        // early to clear orb context safely. Instead we overwrite __result
-        // with a wrapped Task that awaits the original completion and THEN
-        // clears the context. This gives us a reliable "effect-resolved"
-        // cleanup point without racing the orb's own damage/block/energy
-        // resolution.
+        // AsyncLocal design: prefix sets _activeOrbContext (AsyncLocal), postfix
+        // clears it in the caller's EC. Harmony postfix on an async method fires
+        // when the method synchronously returns (i.e. after the state machine
+        // suspends at its first await) — that's BEFORE the orb body's awaited
+        // continuations resume, and BEFORE the caller's own `await` captures its
+        // EC. So postfix clearing here does NOT zero out the orb body's
+        // continuation view (it kept its pre-suspend captured EC with the set
+        // value) but DOES clear the caller's EC so no leak to subsequent hooks.
         var prefix = new HarmonyMethod(AccessTools.Method(typeof(OrbPassivePatch), nameof(BeforeOrbTurnEnd)));
-        var postfix = new HarmonyMethod(AccessTools.Method(typeof(OrbPassivePatch), nameof(AfterOrbTurnEndAsync)));
-
-        // Only patch orb types that ACTUALLY override BeforeTurnEndOrbTrigger.
+        var postfix = new HarmonyMethod(AccessTools.Method(typeof(OrbPassivePatch), nameof(AfterOrbTurnEnd)));
         var beforeTurnEndOrbs = new[] {
             typeof(LightningOrb), typeof(FrostOrb), typeof(DarkOrb), typeof(GlassOrb)
         };
@@ -2823,7 +2954,6 @@ public static class OrbPassivePatch
             }
         }
 
-        // PlasmaOrb uses AfterTurnStartOrbTrigger (fires at start of NEXT turn)
         try
         {
             var m = AccessTools.Method(typeof(PlasmaOrb), "AfterTurnStartOrbTrigger");
@@ -2840,69 +2970,55 @@ public static class OrbPassivePatch
         Safe.Run(() => SetOrbContextForPassive(__instance));
     }
 
-    // Round 15 Plan B: async-aware postfix for BeforeTurnEndOrbTrigger /
-    // AfterTurnStartOrbTrigger. Both return `Task`. See PatchOrbTurnEndTriggers
-    // for why we wrap __result instead of using a regular postfix body.
-    public static void AfterOrbTurnEndAsync(ref System.Threading.Tasks.Task __result)
+    public static void AfterOrbTurnEnd()
     {
-        var original = __result;
-        if (original == null) return;
-        __result = WrapClearOrbCtx(original);
+        Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext());
     }
-
-    private static async System.Threading.Tasks.Task WrapClearOrbCtx(System.Threading.Tasks.Task original)
-    {
-        try { await original; }
-        finally { Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext()); }
-    }
-
-    // NO postfix — async methods' postfix fires at first await, clearing context too early.
-    // Orb context is cleared by the next BeforeOrbTurnEnd prefix (overwriting) or
-    // naturally when no orb context is needed.
 
     private static void SetOrbContextForPassive(OrbModel orb)
     {
         var source = ContributionMap.Instance.GetOrbSource(orb.GetHashCode());
-        if (source == null)
+        if (source == null) return;
+
+        int hash = orb.GetHashCode();
+        int triggerIdx = ContributionMap.Instance.IncrementOrbPassiveTriggerCount(hash);
+        if (triggerIdx > 1)
         {
-            // Untracked orb: clear any stale context from a prior orb so its
-            // channeling card doesn't get credited for this orb's effects.
-            ContributionMap.Instance.ClearActiveOrbContext();
-            return;
+            var extra = ContributionMap.Instance.GetOrbExtraTriggerSource(hash);
+            if (extra.HasValue)
+            {
+                ContributionMap.Instance.SetActiveOrbContext(
+                    extra.Value.id, extra.Value.type, source.OrbType);
+                SetOrbFocusContrib(orb);
+                return;
+            }
         }
 
-        // First-trigger logic: if a card is playing and first trigger already used,
-        // skip setting orb context so _activeCardId takes priority.
         bool duringCardPlay = CombatTracker.Instance.ActiveCardId != null;
         if (duringCardPlay && ContributionMap.Instance.OrbFirstTriggerUsed)
         {
+            ContributionMap.Instance.ClearActiveOrbContext();
             SetOrbFocusContrib(orb);
             return;
         }
 
         ContributionMap.Instance.SetActiveOrbContext(
             source.SourceId, source.SourceType, source.OrbType);
-
-        if (duringCardPlay)
-            ContributionMap.Instance.MarkOrbFirstTriggerUsed();
-
+        if (duringCardPlay) ContributionMap.Instance.MarkOrbFirstTriggerUsed();
         SetOrbFocusContrib(orb);
     }
 
-    // AfterOrbPassive postfix REMOVED: OrbCmd.Passive is `async Task` and its
-    // Harmony postfix fires at the first `await orb.Passive(...)` — BEFORE the
-    // orb's own damage resolves. Clearing orbCtx there would zero-out the
-    // orb's attribution while its damage is still in-flight. Instead, orbCtx
-    // lifetime is bounded by (a) the next BeforeOrbPassive / BeforeOrbEvoke
-    // prefix (overwrite) and (b) the ClearActiveOrbContext calls now placed at
-    // SetPowerContext / SetRelicContext entry, which prevent any stale orb
-    // context from leaking into subsequent power/relic hook effects.
+    [HarmonyPatch(typeof(OrbCmd), nameof(OrbCmd.Passive))]
+    [HarmonyPostfix]
+    public static void AfterOrbPassive()
+    {
+        Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext());
+    }
 
     /// <summary>Shared Focus computation used by both passive and evoke patches.</summary>
     internal static void SetOrbFocusContrib(OrbModel orb)
     {
-        if (orb is PlasmaOrb) return; // Plasma doesn't use ModifyOrbValue
-        // Try both possible power ID formats
+        if (orb is PlasmaOrb) return;
         var focusSource = ContributionMap.Instance.GetPowerSource("FOCUS_POWER")
                        ?? ContributionMap.Instance.GetPowerSource("FOCUS");
         if (focusSource == null) return;
@@ -2931,12 +3047,12 @@ public static class OrbEvokePatch
 
     public static void PatchOrbEvokeMethods(Harmony harmony)
     {
-        // Round 15 Plan B: async-aware postfix. Evoke returns
-        // Task<IEnumerable<Creature>>, so we wrap __result with a generic
-        // awaiter that preserves the return value and clears orb context
-        // after the evoke effect resolves.
+        // Same AsyncLocal design as PatchOrbTurnEndTriggers: prefix sets, postfix
+        // clears the caller-flow view. Body's captured EC at the first internal
+        // await keeps the set value, so evoke-originated damage/block still
+        // attribute correctly; subsequent hooks in the caller's flow see null.
         var prefix = new HarmonyMethod(AccessTools.Method(typeof(OrbEvokePatch), nameof(BeforeOrbEvoke)));
-        var postfix = new HarmonyMethod(AccessTools.Method(typeof(OrbEvokePatch), nameof(AfterOrbEvokeAsync)));
+        var postfix = new HarmonyMethod(AccessTools.Method(typeof(OrbEvokePatch), nameof(AfterOrbEvoke)));
         var orbTypes = new System.Type[] {
             typeof(LightningOrb), typeof(FrostOrb), typeof(DarkOrb),
             typeof(PlasmaOrb), typeof(GlassOrb)
@@ -2945,7 +3061,6 @@ public static class OrbEvokePatch
         {
             try
             {
-                // Evoke returns Task<IEnumerable<Creature>>, find it by name from all methods
                 var methods = t.GetMethods(System.Reflection.BindingFlags.Instance
                     | System.Reflection.BindingFlags.Public
                     | System.Reflection.BindingFlags.NonPublic
@@ -2973,42 +3088,19 @@ public static class OrbEvokePatch
         Safe.Run(() => SetOrbEvokeContext(__instance));
     }
 
-    // Round 15 Plan B: async-aware postfix for orb.Evoke.
-    // Evoke signature: Task<IEnumerable<Creature>>. We wrap __result with
-    // a continuation that preserves the enumerable and clears orb context
-    // after the real evoke effect has resolved.
-    public static void AfterOrbEvokeAsync(ref System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>> __result)
+    public static void AfterOrbEvoke()
     {
-        var original = __result;
-        if (original == null) return;
-        __result = WrapClearOrbCtxEvoke(original);
-    }
-
-    private static async System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>>
-        WrapClearOrbCtxEvoke(System.Threading.Tasks.Task<System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>> original)
-    {
-        try { return await original; }
-        finally { Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext()); }
+        Safe.Run(() => ContributionMap.Instance.ClearActiveOrbContext());
     }
 
     private static void SetOrbEvokeContext(OrbModel orb)
     {
         var source = ContributionMap.Instance.GetOrbSource(orb.GetHashCode());
-        if (source == null)
-        {
-            // Untracked orb: clear any stale context from a prior orb so its
-            // channeling card doesn't get credited for this evoke.
-            ContributionMap.Instance.ClearActiveOrbContext();
-            return;
-        }
+        if (source == null) return;
 
-        // PRD rule: 1st evoke → channeling source, 2nd+ evoke → triggering card.
-        // During a card play, first evoke sets orb context (channeling source gets credit).
-        // Subsequent evokes CLEAR orb context so _activeCardId (the evoking card) takes over.
         bool duringCardPlay = CombatTracker.Instance.ActiveCardId != null;
         if (duringCardPlay && ContributionMap.Instance.OrbFirstTriggerUsed)
         {
-            // 2nd+ evoke: clear orb context → falls through to _activeCardId in ResolveSource
             ContributionMap.Instance.ClearActiveOrbContext();
             OrbPassivePatch.SetOrbFocusContrib(orb);
             return;

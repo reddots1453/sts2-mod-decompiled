@@ -30,6 +30,33 @@ public sealed class RunContributionAggregator
     public IReadOnlyDictionary<string, ContributionAccum> RunTotals => _runTotals;
     public IReadOnlyList<EncounterRecord> Encounters => _encounters;
 
+    /// <summary>Total turns taken across every completed combat in this run.</summary>
+    public int TotalRunTurns
+    {
+        get
+        {
+            int sum = 0;
+            foreach (var e in _encounters) sum += e.TurnsTaken;
+            return sum;
+        }
+    }
+
+    /// <summary>
+    /// Sum of all damage-dealing contributions across run totals.
+    /// Direct + Modifier + Attributed + Upgrade — mirrors the bar-chart's
+    /// "damage dealt" section so the DPS row matches what the user sees.
+    /// </summary>
+    public int TotalRunDamage
+    {
+        get
+        {
+            int sum = 0;
+            foreach (var a in _runTotals.Values)
+                sum += a.DirectDamage + a.ModifierDamage + a.AttributedDamage + a.UpgradeDamage;
+            return sum;
+        }
+    }
+
     // ── Lifecycle ────────────────────────────────────────────
 
     public void Reset()

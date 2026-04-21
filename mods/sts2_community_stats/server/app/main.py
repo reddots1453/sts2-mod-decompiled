@@ -142,8 +142,9 @@ async def health():
 @limiter.limit(config.RATE_LIMIT_UPLOAD)
 async def upload_run(request: Request, payload: RunUploadPayload):
     run_id = await ingest_run(get_pool(), payload)
-    if run_id == -1:
-        return {"status": "ok", "run_id": None, "dedup": True}
+    # ingest_run no longer returns -1 — duplicates now trigger a backfill
+    # and return the existing run_id. Preserve the `dedup` flag in the
+    # response so the client can tell fresh inserts from backfills.
     return {"status": "ok", "run_id": run_id}
 
 

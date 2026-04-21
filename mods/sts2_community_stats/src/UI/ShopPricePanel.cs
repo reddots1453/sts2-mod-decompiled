@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using CommunityStats.Config;
 using Godot;
+using MegaCrit.Sts2.Core.Entities.Merchant;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models.Relics;
 
@@ -16,11 +17,11 @@ namespace CommunityStats.UI;
 /// owns MembershipCard or TheCourier the displayed prices are *already*
 /// discounted (per Q3c — show only the post-discount value, not both).
 ///
-/// Base prices (decompiled CardModel/RelicModel/PotionModel shop pools):
-///   Cards: 50 / 75 / 150 (±5%), ×1.15 for colorless cards
-///   Relics: 200 / 250 / 300 (±15%); shop-pool relics use 225
-///   Potions: 50 / 75 / 100 (±5%)
-///   Removal: 75 + 25 × CardShopRemovalsUsed
+/// Card / relic / potion prices are the game's documented shop pool bands.
+/// Removal cost is NOT hardcoded — we ask the game to compute it via a
+/// throwaway <see cref="MerchantCardRemovalEntry"/> so the value tracks
+/// Inflation ascension, future balance tweaks, and <c>CardShopRemovalsUsed</c>
+/// automatically.
 /// </summary>
 public static class ShopPricePanel
 {
@@ -46,7 +47,7 @@ public static class ShopPricePanel
         float multiplier = ComputeDiscountMultiplier(player);
         AppendDiscountSummary(panel, player, multiplier);
 
-        int removalCost = (int)Math.Round((75 + 25 * cardRemovalsUsed) * multiplier);
+        int removalCost = ComputeRemovalCost(player, cardRemovalsUsed, multiplier);
         int playerGold = TryGetGold(player);
         var removalColor = (playerGold >= 0 && playerGold < removalCost) ? DimColor : RedColor;
         panel.AddRow(string.Format(L.Get("shop.removal"), removalCost), "", removalColor, removalColor);
@@ -65,9 +66,9 @@ public static class ShopPricePanel
         AddCell(grid, L.Get("shop.col_uncommon"), GrayColor, HeaderSize);
         AddCell(grid, L.Get("shop.col_rare"), GrayColor, HeaderSize);
 
-        // Relics: 200 / 250 / 300, ±15%
+        // Relics: 175 / 225 / 275, ±15% (v0.103.2 RelicModel.MerchantCost)
         AddCategoryRow(grid, L.Get("shop.relics"), GoldColor, multiplier,
-            new[] { 200, 250, 300 }, 0.15f, playerGold);
+            new[] { 175, 225, 275 }, 0.15f, playerGold);
 
         // Cards: 50 / 75 / 150, ±5%
         AddCategoryRow(grid, L.Get("shop.cards"), BlueColor, multiplier,
@@ -131,6 +132,40 @@ public static class ShopPricePanel
             var cellColor = (playerGold >= 0 && playerGold < low) ? DimColor : labelColor;
             AddCell(grid, low == high ? low.ToString() : $"{low}-{high}", cellColor, ValueSize);
         }
+    }
+
+    /// <summary>
+    /// Ask the game to compute the current card-removal cost. Constructs a
+    /// throwaway <see cref="MerchantCardRemovalEntry"/>; its constructor calls
+    /// <c>CalcCost</c>, which runs the authoritative formula
+    /// (<c>BaseCost + PriceIncrease * player.ExtraFields.CardShopRemovalsUsed</c>)
+    /// with live Inflation-ascension and removal-count inputs — no numbers
+    /// hardcoded in this mod.
+    ///
+    /// The returned <c>.Cost</c> is raw (pre-discount) because the getter only
+    /// applies <c>Hook.ModifyMerchantPrice</c> when the player is inside a
+    /// MerchantRoom; on the map hover panel the player is not, so the
+    /// membership/courier discount is layered on top via <paramref name="multiplier"/>
+    /// same as the card / relic / potion rows. When <paramref name="player"/> is
+    /// null (e.g. Neow-screen preview) we get 0 and fall back nowhere — the
+    /// caller just won't see a meaningful number, which is acceptable since no
+    /// merchant price table is relevant without a player in a run.
+    /// </summary>
+    private static int ComputeRemovalCost(Player? player, int cardRemovalsUsed, float multiplier)
+    {
+        if (player == null) return 0;
+        try
+        {
+            var entry = new MerchantCardRemovalEntry(player);
+            // Constructor already computed _cost via CalcCost() reading the
+            // player's ExtraFields.CardShopRemovalsUsed. `cardRemovalsUsed` is
+            // the same value our caller read from Traverse; we keep the param
+            // so that if the game ever exposes removal count via another path
+            // we can swap without touching call sites.
+            _ = cardRemovalsUsed;
+            return (int)Math.Round(entry.Cost * multiplier);
+        }
+        catch { return 0; }
     }
 
     private static int TryGetGold(Player? player)

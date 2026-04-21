@@ -28,6 +28,8 @@ public static class RelicHoverPatch
         // intentionally empty
     }
 
+    // Both holders show the same "win rate + delta" text — no pick rate.
+
     // ── NRelicBasicHolder (reward screens, etc.) ────────────────
 
     [HarmonyPatch(typeof(NRelicBasicHolder), "OnFocus")]
@@ -45,7 +47,7 @@ public static class RelicHoverPatch
         Safe.Run(() => RemoveRelicStats(__instance));
     }
 
-    // ── NRelicInventoryHolder (in-game relic bar) ───────────────
+    // ── NRelicInventoryHolder (in-game top-bar relic bar) ───────
 
     [HarmonyPatch(typeof(NRelicInventoryHolder), "OnFocus")]
     [HarmonyPostfix]
@@ -102,7 +104,7 @@ public static class RelicHoverPatch
             if (stats != null)
             {
                 var globalAvg = StatsProvider.Instance.GetGlobalAverageRelicWinRate();
-                label = StatsLabel.ForRelicStatsWithDelta(stats, globalAvg);
+                label = StatsLabel.ForRelicWinRateWithDelta(stats, globalAvg);
             }
             else
             {

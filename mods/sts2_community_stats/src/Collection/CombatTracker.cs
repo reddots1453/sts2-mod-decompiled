@@ -304,16 +304,6 @@ public sealed class CombatTracker
     public void OnCardPlayStarted(string cardId, int cardHash)
     {
         _activeCardId = cardId;
-        // Round 15 Plan A: bound orb context lifetime to at most one card-play
-        // window. Without this, a turn-end/turn-start orb passive (patched
-        // prefix-only) leaves _activeOrbContext pointing at the channeling
-        // source; the next card's pure-effect path (e.g. Defend → GainBlock)
-        // would then hit orbCtx first in ResolveSource and misattribute the
-        // block to the orb's channeling source instead of the card itself.
-        // Clearing here is safe because any orb passive/evoke triggered BY
-        // this card play is re-set fresh by OrbPassivePatch/OrbEvokePatch
-        // prefix before their effects resolve.
-        ContributionMap.Instance.ClearActiveOrbContext();
         // Safety: clear stale potion context (shouldn't still be set, but guards against
         // edge cases where PotionUsed didn't fire, e.g. combat ended mid-potion)
         _activePotionId = null;
@@ -473,7 +463,8 @@ public sealed class CombatTracker
     /// </summary>
     public void OnDamageDealt(int totalDamage, int blockedDamage, string? cardSourceId,
         bool isPlayerReceiver, int targetHash, int dealerHash,
-        bool isOstyDealer = false, bool isOstyReceiver = false)
+        bool isOstyDealer = false, bool isOstyReceiver = false,
+        bool skipEnemyDamageAttribution = false)
     {
         // Osty receiving damage = absorbing for player → defense contribution
         if (isOstyReceiver && !isPlayerReceiver)
@@ -535,7 +526,25 @@ public sealed class CombatTracker
                 }
             }
 
-            // Attribute enemy strength reduction as defense contribution
+            // Attribute enemy strength reduction as defense contribution.
+            //
+            // Correct cap per-hit is NOT `min(totalReduction, rawBase)` — that
+            // undercounts when the enemy had positive Strength before our
+            // reduction (e.g. buffed +2 Str, we apply Piercing Wail -8). In
+            // that case rawBase alone is smaller than the damage we actually
+            // prevented: the enemy would have dealt `base + Str_buff` per hit;
+            // with our reduction it now deals `max(0, base + Str_buff - 8)`.
+            //
+            // Reconstruct: "Str that would exist without our recorded
+            // reductions" = currentStr + totalReduction.  (currentStr already
+            // reflects our reduction because it's captured at hit time.)
+            // Hypothetical damage per hit without our reductions =
+            //   max(0, base + currentStr + totalReduction).
+            // Our reduction could only prevent up to that hypothetical amount,
+            // AND only up to the raw totalReduction magnitude (if base + Str
+            // > totalReduction, we still only prevented totalReduction).
+            //
+            // effective = min(totalReduction, hypothetical)
             if (dealerHash != 0)
             {
                 var reductions = ContributionMap.Instance.GetStrReductions(dealerHash);
@@ -545,10 +554,10 @@ public sealed class CombatTracker
                     foreach (var r in reductions) totalReduction += r.Amount;
                     if (totalReduction > 0)
                     {
-                        // C1 fix: cap effective reduction to enemy base damage per hit
                         int enemyBase = ContributionMap.Instance.PendingEnemyBaseDamage;
-                        int effectiveReduction = enemyBase > 0 ? Math.Min(totalReduction, enemyBase) : totalReduction;
-                        // Proportional share per source
+                        int currentStr = ContributionMap.Instance.PendingEnemyCurrentStr;
+                        int hypothetical = Math.Max(0, enemyBase + currentStr + totalReduction);
+                        int effectiveReduction = Math.Min(totalReduction, hypothetical);
                         foreach (var entry in reductions)
                         {
                             int share = (int)Math.Round((float)entry.Amount / totalReduction * effectiveReduction);
@@ -560,6 +569,16 @@ public sealed class CombatTracker
             }
             return;
         }
+
+        // Invincible-phase guard: some bosses (Doormaker phase 1 "DOOR",
+        // Waterfall Giant's AboutToBlow self-destruct phase, etc.) set
+        // Creature.ShowsInfiniteHp = true and pin their HP at 999999999 so
+        // the player cannot shorten those phases by dealing damage. Damage
+        // numbers still flow through CombatHistory.DamageReceived, but they
+        // have no gameplay effect. Treating them as real contribution would
+        // inflate TotalDamageDealt + per-source DirectDamage by thousands of
+        // points for a single invincible turn. Skip all attribution below.
+        if (skipEnemyDamageAttribution) return;
 
         // Damage dealt TO enemies — track DPS (PRD 3.7) and attribute to source
         _totalDamageDealt += totalDamage;

@@ -122,6 +122,10 @@ public partial class ContributionPanel : PanelContainer
         panel._tabs.SizeFlagsVertical = SizeFlags.ExpandFill;
         scroll.AddChild(panel._tabs);
 
+        // Switch DPS readout on tab change so the "每回合平均伤害" always
+        // reflects the dataset currently visible (本场战斗 vs 本局汇总).
+        panel._tabs.TabChanged += _ => Safe.Run(() => panel.UpdateDps());
+
         // Enable drag via title bar (PRD 4.5)
         DraggablePanel.Attach(panel, header);
 
@@ -319,13 +323,44 @@ public partial class ContributionPanel : PanelContainer
         return sep;
     }
 
+    /// <summary>
+    /// "每回合平均伤害" readout, switches dataset by the currently-visible tab.
+    /// - 本场战斗 (tab 0): per-combat = CombatTracker.TotalDamageDealt /
+    ///   TurnCount. Lives only for the currently-active combat; reset at
+    ///   every OnCombatStart.
+    /// - 本局汇总 (tab 1): cumulative = Σ run damage contributions /
+    ///   Σ turnsTaken across every completed combat this run. Sourced from
+    ///   RunContributionAggregator (survives SL via ContributionPersistence).
+    ///
+    /// 0 turns → show "—" instead of dividing. Previously used Math.Max(1, 0)
+    /// which falsely displayed total damage as DPS when turn counter was 0.
+    /// </summary>
     private void UpdateDps()
     {
         if (_dpsLabel == null) return;
-        var tracker = CombatTracker.Instance;
-        var turns = Math.Max(1, tracker.TurnCount);
-        var dps = (float)tracker.TotalDamageDealt / turns;
-        _dpsLabel.Text = $"{L.Get("contrib.dps")} {dps:F1}";
+
+        int turns;
+        int damage;
+        int tabIdx = _tabs?.CurrentTab ?? 0;
+        if (tabIdx == 1)
+        {
+            // 本局汇总
+            var agg = RunContributionAggregator.Instance;
+            turns  = agg.TotalRunTurns;
+            damage = agg.TotalRunDamage;
+        }
+        else
+        {
+            // 本场战斗
+            var tracker = CombatTracker.Instance;
+            turns  = tracker.TurnCount;
+            damage = tracker.TotalDamageDealt;
+        }
+
+        string value = turns > 0
+            ? ((float)damage / turns).ToString("F1")
+            : "—";
+        _dpsLabel.Text = $"{L.Get("contrib.dps")} {value}";
     }
 
     public static void ShowCombatResult(IReadOnlyDictionary<string, ContributionAccum>? combatData)

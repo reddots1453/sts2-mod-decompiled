@@ -65,6 +65,7 @@ public static class L
         // StatsLabel
         ["stats.pick"] = "Pick {0}% | Win {1}%",
         ["stats.relic"] = "Pick {0}% | Win {1}%",
+        ["stats.relic_win_only"] = "Win {0}%",
         ["stats.event"] = "Chosen {0}% | Win {1}%",
         ["stats.event_pick"] = "Chosen {0}%",
         ["stats.encounter"] = "Death {0}% | Avg DMG {1}",
@@ -354,6 +355,7 @@ public static class L
         // StatsLabel
         ["stats.pick"] = "选取 {0}% | 胜率 {1}%",
         ["stats.relic"] = "选取 {0}% | 胜率 {1}%",
+        ["stats.relic_win_only"] = "胜率 {0}%",
         ["stats.event"] = "选择 {0}% | 胜率 {1}%",
         ["stats.event_pick"] = "选择率 {0}%",
         ["stats.encounter"] = "死亡 {0}% | 平均伤害 {1}",

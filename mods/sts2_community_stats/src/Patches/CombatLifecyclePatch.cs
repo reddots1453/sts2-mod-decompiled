@@ -3,6 +3,7 @@ using CommunityStats.UI;
 using CommunityStats.Util;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
@@ -47,6 +48,24 @@ public static class CombatLifecyclePatch
             // and every monster is reachable — idempotent via `_eagerBakeDone`.
             MonsterIntentMetadata.Initialize();
         });
+    }
+
+    /// <summary>
+    /// Increment the turn counter so CombatTracker.TurnCount tracks the
+    /// number of player turns that have started in the current combat.
+    /// Without this, _turnCount stayed at 0 for the whole combat and the
+    /// "每回合平均伤害" readout fell back to "total damage / max(1, 0)" =
+    /// total damage. Harmony PREFIX on the async Hook.AfterPlayerTurnStart
+    /// runs synchronously before the state machine body, which is the
+    /// earliest point we know a new player turn is starting — one call
+    /// per turn, per combat. Safe.Run guards against any exception
+    /// interrupting the game's own turn-start hook dispatch.
+    /// </summary>
+    [HarmonyPatch(typeof(Hook), nameof(Hook.AfterPlayerTurnStart))]
+    [HarmonyPrefix]
+    public static void BeforePlayerTurnStartHook()
+    {
+        Safe.Run(() => CombatTracker.Instance.OnTurnStart());
     }
 
     // OnCombatEnded is a sync void method on CombatRoom — Postfix works correctly.

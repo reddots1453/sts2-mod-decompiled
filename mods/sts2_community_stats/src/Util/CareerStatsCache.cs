@@ -134,6 +134,7 @@ public static class CareerStatsCache
                 MonsterRooms = kv.Value.MonsterRooms,
                 EliteRooms = kv.Value.EliteRooms,
                 ShopRooms = kv.Value.ShopRooms,
+                CampfireRooms = kv.Value.CampfireRooms,
                 SampleSize = kv.Value.SampleSize,
             }),
         AncientPickRates = d.AncientPickRates.ToDictionary(
@@ -201,6 +202,7 @@ public static class CareerStatsCache
                 MonsterRooms = kv.Value.MonsterRooms,
                 EliteRooms = kv.Value.EliteRooms,
                 ShopRooms = kv.Value.ShopRooms,
+                CampfireRooms = kv.Value.CampfireRooms,
                 SampleSize = kv.Value.SampleSize,
             }),
         AncientPickRates = (d.AncientPickRates ?? new()).ToDictionary(
@@ -274,6 +276,7 @@ public static class CareerStatsCache
         [JsonPropertyName("m")]  public float MonsterRooms { get; set; }
         [JsonPropertyName("el")] public float EliteRooms { get; set; }
         [JsonPropertyName("sh")] public float ShopRooms { get; set; }
+        [JsonPropertyName("cf")] public float CampfireRooms { get; set; }
         [JsonPropertyName("ss")] public int SampleSize { get; set; }
     }
 

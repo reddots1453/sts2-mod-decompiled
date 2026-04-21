@@ -37,7 +37,7 @@ public static class ShopPatch
             {
                 if (_liveCards[i].TryGetTarget(out var card) &&
                     GodotObject.IsInstanceValid(card) && card.IsInsideTree())
-                    AfterCardFillSlot(card);
+                    AttachCardBuyRate(card);
                 else
                     _liveCards.RemoveAt(i);
             }
@@ -45,7 +45,7 @@ public static class ShopPatch
             {
                 if (_liveRelics[i].TryGetTarget(out var relic) &&
                     GodotObject.IsInstanceValid(relic) && relic.IsInsideTree())
-                    AfterRelicFillSlot(relic);
+                    AttachRelicBuyRate(relic);
                 else
                     _liveRelics.RemoveAt(i);
             }
@@ -76,7 +76,21 @@ public static class ShopPatch
 
     // ── Shop Card Offerings Recording (on shop enter) ───────
 
-    [HarmonyPatch(typeof(MerchantRoom), nameof(MerchantRoom.Enter))]
+    // Patch EnterInternal (declared on MerchantRoom itself) rather than
+    // the inherited AbstractRoom.Enter. Earlier version patched Enter, but
+    // that method's MethodInfo has DeclaringType = AbstractRoom — Harmony
+    // attempts to match the __instance parameter type to the declaring
+    // type and refuses the patch when a more-derived __instance is
+    // declared. Result: postfix silently never bound on v0.103.2 →
+    // shop_card_offerings was empty for every run past the game version
+    // where MerchantRoom.Enter existed as a non-inherited override.
+    //
+    // EnterInternal IS declared on MerchantRoom. MerchantRoom.Inventory is
+    // assigned synchronously at EnterInternal's first line (before any
+    // await), so the postfix — which fires when the async method
+    // synchronously returns its Task at the first await — sees a fully
+    // populated Inventory.
+    [HarmonyPatch(typeof(MerchantRoom), nameof(MerchantRoom.EnterInternal))]
     [HarmonyPostfix]
     public static void AfterMerchantRoomEnter(MerchantRoom __instance)
     {
@@ -107,177 +121,231 @@ public static class ShopPatch
         });
     }
 
-    // ── Card Purchase Recording ─────────────────────────────
+    // ── Purchase Recording (Card / Relic / Potion) ──────────
+    //
+    // Patch the ENTRY model layer, not the NMerchant* UI layer.
+    // MerchantEntry.OnTryPurchaseWrapper runs ClearAfterPurchase / RestockAfterPurchase
+    // BEFORE firing InvokePurchaseCompleted (→ NMerchantCard.OnSuccessfulPurchase),
+    // so by the time a UI-layer prefix sees the entry, CreationResult / Model
+    // has already been nulled or replaced by Populate(). Prefixes on
+    // ClearAfterPurchase / RestockAfterPurchase run BEFORE the field is
+    // cleared/replaced, capturing the still-live model. Both methods only
+    // run on successful purchases (see MerchantEntry.cs OnTryPurchaseWrapper
+    // success branch), so no spurious records.
 
-    [HarmonyPatch(typeof(NMerchantCard), "OnSuccessfulPurchase")]
+    [HarmonyPatch(typeof(MerchantCardEntry), "ClearAfterPurchase")]
     [HarmonyPrefix]
-    public static void BeforeCardPurchaseVisual(NMerchantCard __instance)
+    public static void BeforeCardClear(MerchantCardEntry __instance) => RecordCardPurchase(__instance);
+
+    [HarmonyPatch(typeof(MerchantCardEntry), "RestockAfterPurchase")]
+    [HarmonyPrefix]
+    public static void BeforeCardRestock(MerchantCardEntry __instance) => RecordCardPurchase(__instance);
+
+    [HarmonyPatch(typeof(MerchantRelicEntry), "ClearAfterPurchase")]
+    [HarmonyPrefix]
+    public static void BeforeRelicClear(MerchantRelicEntry __instance) => RecordRelicPurchase(__instance);
+
+    [HarmonyPatch(typeof(MerchantRelicEntry), "RestockAfterPurchase")]
+    [HarmonyPrefix]
+    public static void BeforeRelicRestock(MerchantRelicEntry __instance) => RecordRelicPurchase(__instance);
+
+    [HarmonyPatch(typeof(MerchantPotionEntry), "ClearAfterPurchase")]
+    [HarmonyPrefix]
+    public static void BeforePotionClear(MerchantPotionEntry __instance) => RecordPotionPurchase(__instance);
+
+    [HarmonyPatch(typeof(MerchantPotionEntry), "RestockAfterPurchase")]
+    [HarmonyPrefix]
+    public static void BeforePotionRestock(MerchantPotionEntry __instance) => RecordPotionPurchase(__instance);
+
+    private static void RecordCardPurchase(MerchantCardEntry entry)
     {
         Safe.Run(() =>
         {
-            var cardNode = Traverse.Create(__instance).Field("_cardNode").GetValue<object>();
-            if (cardNode == null) return;
-
-            var model = Traverse.Create(cardNode).Property("Model").GetValue<object>();
-            if (model == null) return;
-
-            var id = Traverse.Create(model).Property("Id").GetValue<object>();
-            var entry = Traverse.Create(id).Property("Entry").GetValue<string>();
-
-            var cardEntry = Traverse.Create(__instance).Field("_cardEntry").GetValue<object>();
-            var cost = cardEntry != null
-                ? Traverse.Create(cardEntry).Property("Cost").GetValue<int>()
-                : 0;
-
-            if (entry != null)
-            {
-                RunDataCollector.RecordShopPurchase(entry, "card", cost, RunDataCollector.CurrentFloor);
-            }
+            var cardId = entry.CreationResult?.Card?.Id.Entry;
+            if (string.IsNullOrEmpty(cardId)) return;
+            int cost = entry.Cost;
+            RunDataCollector.RecordShopPurchase(cardId!, "card", cost, RunDataCollector.CurrentFloor);
+            Safe.Info($"[ShopPurchase] card={cardId} cost={cost} floor={RunDataCollector.CurrentFloor}");
         });
     }
 
-    // ── Relic Purchase Recording ────────────────────────────
-
-    [HarmonyPatch(typeof(NMerchantRelic), "OnSuccessfulPurchase")]
-    [HarmonyPrefix]
-    public static void BeforeRelicPurchaseVisual(NMerchantRelic __instance)
+    private static void RecordRelicPurchase(MerchantRelicEntry entry)
     {
         Safe.Run(() =>
         {
-            var relic = Traverse.Create(__instance).Field("_relic").GetValue<object>();
-            if (relic == null) return;
-
-            var id = Traverse.Create(relic).Property("Id").GetValue<object>();
-            var entry = Traverse.Create(id).Property("Entry").GetValue<string>();
-
-            var relicEntry = Traverse.Create(__instance).Field("_relicEntry").GetValue<object>();
-            var cost = relicEntry != null
-                ? Traverse.Create(relicEntry).Property("Cost").GetValue<int>()
-                : 0;
-
-            if (entry != null)
-            {
-                RunDataCollector.RecordShopPurchase(entry, "relic", cost, RunDataCollector.CurrentFloor);
-            }
+            var relicId = entry.Model?.Id.Entry;
+            if (string.IsNullOrEmpty(relicId)) return;
+            int cost = entry.Cost;
+            RunDataCollector.RecordShopPurchase(relicId!, "relic", cost, RunDataCollector.CurrentFloor);
+            Safe.Info($"[ShopPurchase] relic={relicId} cost={cost} floor={RunDataCollector.CurrentFloor}");
         });
     }
 
-    // ── Potion Purchase Recording ───────────────────────────
-
-    [HarmonyPatch(typeof(NMerchantPotion), "OnSuccessfulPurchase")]
-    [HarmonyPrefix]
-    public static void BeforePotionPurchaseVisual(NMerchantPotion __instance)
+    private static void RecordPotionPurchase(MerchantPotionEntry entry)
     {
         Safe.Run(() =>
         {
-            var potion = Traverse.Create(__instance).Field("_potion").GetValue<object>();
-            if (potion == null) return;
-
-            var id = Traverse.Create(potion).Property("Id").GetValue<object>();
-            var entry = Traverse.Create(id).Property("Entry").GetValue<string>();
-
-            var potionEntry = Traverse.Create(__instance).Field("_potionEntry").GetValue<object>();
-            var cost = potionEntry != null
-                ? Traverse.Create(potionEntry).Property("Cost").GetValue<int>()
-                : 0;
-
-            if (entry != null)
-            {
-                RunDataCollector.RecordShopPurchase(entry, "potion", cost, RunDataCollector.CurrentFloor);
-            }
+            var potionId = entry.Model?.Id.Entry;
+            if (string.IsNullOrEmpty(potionId)) return;
+            int cost = entry.Cost;
+            RunDataCollector.RecordShopPurchase(potionId!, "potion", cost, RunDataCollector.CurrentFloor);
+            Safe.Info($"[ShopPurchase] potion={potionId} cost={cost} floor={RunDataCollector.CurrentFloor}");
         });
     }
 
-    // ── Shop Card Buy Rate Display ──────────────────────────
+    // ── Shop Card / Relic Buy Rate Display ──────────────────
+    //
+    // Patch both FillSlot (one-shot at shop enter) AND UpdateVisual (fires on
+    // FillSlot + gold change + post-purchase + EntryUpdated events). Previous
+    // implementation only hooked FillSlot AND used a chained Traverse reflection
+    // (`_cardNode` → Model → Id → Entry) that silently returned null when
+    // `_cardNode` wasn't populated yet — which happens if our postfix runs
+    // before UpdateVisual finishes creating the card node. Result: label never
+    // attached, nothing shown.
+    //
+    // Fix: read the entry directly from the slot's public `Entry` property
+    // (NMerchantSlot.Entry returns MerchantEntry base; cast to the concrete
+    // subtype). CreationResult.Card / Model are authoritative and set in the
+    // game's MerchantInventory.Populate step before any slot sees the entry,
+    // so no timing race.
 
     [HarmonyPatch(typeof(NMerchantCard), nameof(NMerchantCard.FillSlot))]
     [HarmonyPostfix]
-    public static void AfterCardFillSlot(NMerchantCard __instance)
+    public static void AfterCardFillSlot(NMerchantCard __instance) => AttachCardBuyRate(__instance);
+
+    [HarmonyPatch(typeof(NMerchantCard), "UpdateVisual")]
+    [HarmonyPostfix]
+    public static void AfterCardUpdateVisual(NMerchantCard __instance) => AttachCardBuyRate(__instance);
+
+    private static void AttachCardBuyRate(NMerchantCard slot)
     {
         Safe.Run(() =>
         {
-            // Use the slot's Hitbox as anchor parent — it matches the actual
-            // card click bounds, unlike _cardHolder which is often a zero-sized
-            // pivot and pushes anchored children to the scene origin.
-            var hitbox = __instance.Hitbox;
-            if (hitbox == null || !GodotObject.IsInstanceValid(hitbox)) return;
+            TrackCard(slot);
 
-            RemoveExistingLabel(hitbox);
-            TrackCard(__instance);
+            if (slot.Entry is not MerchantCardEntry cardEntry)
+            {
+                Safe.Info("[ShopBuyRate] card: entry is not MerchantCardEntry → skip");
+                return;
+            }
+            var card = cardEntry.CreationResult?.Card;
+            if (card == null)
+            {
+                // Empty / sold-out slot: wipe any stale label.
+                RemoveExistingLabel(slot);
+                return;
+            }
+            var cardId = card.Id.Entry;
+            if (string.IsNullOrEmpty(cardId)) return;
 
-            var cardNode = Traverse.Create(__instance).Field("_cardNode").GetValue<object>();
-            if (cardNode == null) return;
-
-            var model = Traverse.Create(cardNode).Property("Model").GetValue<object>();
-            if (model == null) return;
-
-            var id = Traverse.Create(model).Property("Id").GetValue<object>();
-            var cardId = Traverse.Create(id).Property("Entry").GetValue<string>();
-            if (cardId == null) return;
+            RemoveExistingLabel(slot);
 
             var stats = StatsProvider.Instance.GetCardStats(cardId);
             Label label;
+            string pathTag;
             if (stats != null)
+            {
                 label = StatsLabel.ForShopBuyRate(stats.ShopBuyRate);
+                pathTag = $"stats({stats.ShopBuyRate:F3})";
+            }
             else if (!StatsProvider.Instance.HasBundle)
+            {
                 label = StatsLabel.ForLoading();
+                pathTag = "loading";
+            }
             else
+            {
                 label = StatsLabel.ForUnavailable();
+                pathTag = "unavailable";
+            }
 
             label.SetMeta(StatsLabelMeta, true);
-            hitbox.AddChild(label);
-            // Anchor to bottom-right of the click hitbox (matches visual bounds).
-            label.AnchorLeft = 1f;
-            label.AnchorTop = 1f;
-            label.AnchorRight = 1f;
-            label.AnchorBottom = 1f;
-            label.OffsetLeft = -110;
-            label.OffsetTop = -26;
-            label.OffsetRight = -4;
-            label.OffsetBottom = -2;
+            // Absolute position below the card art. HorizontalAlignment.Right
+            // (set by StatsLabel.ForShopBuyRate) pins the text to the box's
+            // right edge. Size.X must match the shop card visual width —
+            // CardRewardScreenPatch uses 350 because NGridCardHolder slots
+            // have outer padding, but NMerchantCard is the card control
+            // itself and is narrower (~160-180px), so a 300-wide box pushes
+            // the right-aligned text past the card's right edge. 160 lands
+            // the text inside the card's bottom-right.
+            label.Position = new Vector2(0, 200);
+            label.Size = new Vector2(160, 30);
+            label.MouseFilter = Control.MouseFilterEnum.Ignore;
+            label.ZIndex = 100;
+            slot.AddChild(label);
+            label.Visible = true;
+            Safe.Info($"[ShopBuyRate] card={cardId} attached ({pathTag}) slotSize={slot.Size}");
         });
     }
 
-    // ── Shop Relic Buy Rate Display ─────────────────────────
-
     [HarmonyPatch(typeof(NMerchantRelic), nameof(NMerchantRelic.FillSlot))]
     [HarmonyPostfix]
-    public static void AfterRelicFillSlot(NMerchantRelic __instance)
+    public static void AfterRelicFillSlot(NMerchantRelic __instance) => AttachRelicBuyRate(__instance);
+
+    [HarmonyPatch(typeof(NMerchantRelic), "UpdateVisual")]
+    [HarmonyPostfix]
+    public static void AfterRelicUpdateVisual(NMerchantRelic __instance) => AttachRelicBuyRate(__instance);
+
+    // Relic label font size — matches card label (16 was too small at 10).
+    // Relic icons in shop are not tiny; 14 reads cleanly at default UI scale.
+    private const int RelicBuyRateFontSize = 14;
+
+    private static void AttachRelicBuyRate(NMerchantRelic slot)
     {
         Safe.Run(() =>
         {
-            var hitbox = __instance.Hitbox;
-            if (hitbox == null || !GodotObject.IsInstanceValid(hitbox)) return;
+            TrackRelic(slot);
 
-            RemoveExistingLabel(hitbox);
-            TrackRelic(__instance);
+            if (slot.Entry is not MerchantRelicEntry relicEntry)
+            {
+                Safe.Info("[ShopBuyRate] relic: entry is not MerchantRelicEntry → skip");
+                return;
+            }
+            var relic = relicEntry.Model;
+            if (relic == null)
+            {
+                RemoveExistingLabel(slot);
+                return;
+            }
+            var relicId = relic.Id.Entry;
+            if (string.IsNullOrEmpty(relicId)) return;
 
-            var relic = Traverse.Create(__instance).Field("_relic").GetValue<object>();
-            if (relic == null) return;
-
-            var id = Traverse.Create(relic).Property("Id").GetValue<object>();
-            var relicId = Traverse.Create(id).Property("Entry").GetValue<string>();
-            if (relicId == null) return;
+            RemoveExistingLabel(slot);
 
             var stats = StatsProvider.Instance.GetRelicStats(relicId);
             Label label;
+            string pathTag;
             if (stats != null)
-                label = StatsLabel.ForShopBuyRate(stats.ShopBuyRate, fontSize: 14);
+            {
+                label = StatsLabel.ForShopBuyRate(stats.ShopBuyRate, fontSize: RelicBuyRateFontSize);
+                pathTag = $"stats({stats.ShopBuyRate:F3})";
+            }
             else if (!StatsProvider.Instance.HasBundle)
+            {
                 label = StatsLabel.ForLoading();
+                pathTag = "loading";
+            }
             else
+            {
                 label = StatsLabel.ForUnavailable();
+                pathTag = "unavailable";
+            }
 
             label.SetMeta(StatsLabelMeta, true);
-            hitbox.AddChild(label);
+            slot.AddChild(label);
+            label.ZIndex = 100;
+            label.MouseFilter = Control.MouseFilterEnum.Ignore;
+            // Relic box: wider to fit fontSize=14 text "购买 12.3%".
             label.AnchorLeft = 1f;
             label.AnchorTop = 1f;
             label.AnchorRight = 1f;
             label.AnchorBottom = 1f;
-            label.OffsetLeft = -90;
-            label.OffsetTop = -22;
+            label.OffsetLeft = -80;
+            label.OffsetTop = -24;
             label.OffsetRight = -4;
-            label.OffsetBottom = -2;
+            label.OffsetBottom = -4;
+            label.Visible = true;
+            Safe.Info($"[ShopBuyRate] relic={relicId} attached ({pathTag}) slotSize={slot.Size}");
         });
     }
 

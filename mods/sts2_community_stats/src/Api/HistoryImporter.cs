@@ -176,12 +176,19 @@ public static class HistoryImporter
             return;
         }
 
-        int success = 0, skipped = 0, errors = 0;
+        int success = 0;
+        int skipped = 0;
+        int errors = 0;
         int processed = 0;
 
+        // Pre-load + filter all histories so we can sort by StartTime and walk
+        // them in chronological order. This lets us compute a retrospective
+        // player_win_rate per run = wins_so_far / total_so_far, matching the
+        // cumulative win rate the live BuildPayload would have emitted.
+        var staged = new List<RunHistory>(names.Count);
         foreach (var name in names)
         {
-            RunHistory? history;
+            RunHistory history;
             try
             {
                 var result = SaveManager.Instance!.LoadRunHistory(name);
@@ -200,15 +207,12 @@ public static class HistoryImporter
                 continue;
             }
 
-            // Filter: standard mode, single-player, not abandoned
             if (history.GameMode != GameMode.Standard)
             {
                 Safe.Info($"[HistoryImporter] Skip '{name}': GameMode={history.GameMode} (not Standard)");
                 skipped++;
                 continue;
             }
-            // WasAbandoned runs are included — most losses are manual abandons,
-            // not waiting for the killing blow.
             if (history.Players == null || history.Players.Count != 1)
             {
                 Safe.Info($"[HistoryImporter] Skip '{name}': Players={history.Players?.Count ?? 0} (not single-player)");
@@ -216,21 +220,36 @@ public static class HistoryImporter
                 continue;
             }
 
+            staged.Add(history);
+        }
+
+        staged.Sort((a, b) => a.StartTime.CompareTo(b.StartTime));
+        Safe.Info($"[HistoryImporter] Staged {staged.Count} runs for upload (chronological order)");
+
+        int winsSoFar = 0;
+        int totalSoFar = 0;
+
+        foreach (var history in staged)
+        {
+            totalSoFar++;
+            if (history.Win) winsSoFar++;
+            float retroWinRate = totalSoFar > 0 ? (float)winsSoFar / totalSoFar : 0f;
+
             RunUploadPayload? payload;
             try
             {
-                payload = ConvertRun(history);
+                payload = ConvertRun(history, retroWinRate);
             }
             catch (Exception ex)
             {
-                Safe.Warn($"[HistoryImporter] Convert error for '{name}': {ex.Message}");
+                Safe.Warn($"[HistoryImporter] Convert error: {ex.Message}");
                 errors++;
                 continue;
             }
 
             if (payload == null)
             {
-                Safe.Info($"[HistoryImporter] Skip '{name}': ConvertRun returned null");
+                Safe.Info("[HistoryImporter] Skip: ConvertRun returned null");
                 skipped++;
                 continue;
             }
@@ -248,15 +267,15 @@ public static class HistoryImporter
             }
 
             processed++;
-            UpdateProgress(processed, names.Count);
+            UpdateProgress(processed, staged.Count);
 
             // Server rate limit: 10 uploads/min/IP (nginx + slowapi).
             // Burst=5 is absorbed by the first few requests; after that
             // we must pace at roughly one per 6.5 s sustained.
             if (processed % 10 == 0)
-                Safe.Info($"[HistoryImporter] Progress: {success} uploaded, {skipped} skipped, {errors} errors");
+                Safe.Info($"[HistoryImporter] Progress: {success} uploaded, {skipped} skipped, {errors} errors, wr_so_far={retroWinRate:F2}");
 
-            if (processed < names.Count)
+            if (processed < staged.Count)
                 await Task.Delay(6500);
         }
 
@@ -266,9 +285,12 @@ public static class HistoryImporter
 
     /// <summary>
     /// Convert a RunHistory object to a RunUploadPayload.
+    /// <paramref name="retroWinRate"/> is the player's cumulative win rate
+    /// across all runs that preceded this one chronologically — computed by
+    /// <see cref="ImportAllAsync"/> after sorting by StartTime.
     /// Returns null if the run cannot be converted.
     /// </summary>
-    private static RunUploadPayload? ConvertRun(RunHistory history)
+    private static RunUploadPayload? ConvertRun(RunHistory history, float retroWinRate = 0f)
     {
         var player = history.Players[0];
         var characterId = player.Character?.Entry;
@@ -281,17 +303,29 @@ public static class HistoryImporter
             Character = characterId!,
             Ascension = history.Ascension,
             Win = history.Win,
-            PlayerWinRate = 0f,
+            PlayerWinRate = retroWinRate,
             NumPlayers = 1,
             RunHash = ComputeHash(history),
         };
+
+        // ── Shop purchases (prefer our persistence over MapHistory) ──
+        // If the run was recorded live by an earlier session of this mod,
+        // we have exact card IDs (including colored cards, which game-side
+        // BoughtColorless misses) and real costs. Only fall back to
+        // MapHistory for runs predating the mod or where the file was
+        // pruned by the 90-day sweep.
+        var persistedPurchases = ShopPurchasePersistence.Load(history.Seed);
+        bool havePersisted = persistedPurchases != null && persistedPurchases.Count > 0;
+        if (havePersisted)
+            payload.ShopPurchases.AddRange(persistedPurchases!);
 
         // ── Walk map_point_history ─────────────────────────
         int floor = PopulateFromMapHistory(
             history.MapPointHistory,
             history.KilledByEncounter?.Entry,
             history.Win,
-            payload);
+            payload,
+            includeShopPurchases: !havePersisted);
 
         payload.FloorReached = floor;
 
@@ -341,7 +375,8 @@ public static class HistoryImporter
         List<List<MapPointHistoryEntry>>? mapHistory,
         string? killedByEncounter,
         bool wasWin,
-        RunUploadPayload payload)
+        RunUploadPayload payload,
+        bool includeShopPurchases = true)
     {
         int floor = 0;
         int diagNodes = 0, diagPlayerStats = 0, diagBoughtRelics = 0,
@@ -476,34 +511,45 @@ public static class HistoryImporter
                 }
 
                 // ── Shop purchases ─────────────────
-                if (ps?.BoughtRelics != null)
+                // Gate behind includeShopPurchases: callers that pre-populate
+                // payload.ShopPurchases from an authoritative source (our
+                // ShopPatch-driven _shopPurchases list) pass false to avoid
+                // a) duplicating entries, and b) overriding their real Cost
+                // with 0. The MapHistory path is lossy:
+                //  - BoughtColorless misses colored card buys (they're
+                //    tracked only via the merchant entry hook)
+                //  - Cost is never captured, so values are all 0.
+                if (includeShopPurchases)
                 {
-                    foreach (var relicId in ps.BoughtRelics)
+                    if (ps?.BoughtRelics != null)
                     {
-                        var rid = relicId?.Entry;
-                        if (!string.IsNullOrEmpty(rid))
-                            payload.ShopPurchases.Add(new ShopPurchaseUpload
-                                { ItemId = rid!, ItemType = "relic", Cost = 0, Floor = floor });
+                        foreach (var relicId in ps.BoughtRelics)
+                        {
+                            var rid = relicId?.Entry;
+                            if (!string.IsNullOrEmpty(rid))
+                                payload.ShopPurchases.Add(new ShopPurchaseUpload
+                                    { ItemId = rid!, ItemType = "relic", Cost = 0, Floor = floor });
+                        }
                     }
-                }
-                if (ps?.BoughtPotions != null)
-                {
-                    foreach (var potionId in ps.BoughtPotions)
+                    if (ps?.BoughtPotions != null)
                     {
-                        var pid = potionId?.Entry;
-                        if (!string.IsNullOrEmpty(pid))
-                            payload.ShopPurchases.Add(new ShopPurchaseUpload
-                                { ItemId = pid!, ItemType = "potion", Cost = 0, Floor = floor });
+                        foreach (var potionId in ps.BoughtPotions)
+                        {
+                            var pid = potionId?.Entry;
+                            if (!string.IsNullOrEmpty(pid))
+                                payload.ShopPurchases.Add(new ShopPurchaseUpload
+                                    { ItemId = pid!, ItemType = "potion", Cost = 0, Floor = floor });
+                        }
                     }
-                }
-                if (ps?.BoughtColorless != null)
-                {
-                    foreach (var cardId in ps.BoughtColorless)
+                    if (ps?.BoughtColorless != null)
                     {
-                        var cid = cardId?.Entry;
-                        if (!string.IsNullOrEmpty(cid))
-                            payload.ShopPurchases.Add(new ShopPurchaseUpload
-                                { ItemId = cid!, ItemType = "card", Cost = 0, Floor = floor });
+                        foreach (var cardId in ps.BoughtColorless)
+                        {
+                            var cid = cardId?.Entry;
+                            if (!string.IsNullOrEmpty(cid))
+                                payload.ShopPurchases.Add(new ShopPurchaseUpload
+                                    { ItemId = cid!, ItemType = "card", Cost = 0, Floor = floor });
+                        }
                     }
                 }
 

@@ -81,7 +81,15 @@ public static class RunDataCollector
             Cost = Math.Clamp(cost, 0, 9999),
             Floor = floor
         });
+        // Persist so save+quit+resume mid-run doesn't drop these, and so the
+        // "本局统计" view (BuildSingleRunStats) can reconstruct bought-card
+        // counts. The game's MapPointHistory only records BoughtColorless for
+        // card buys; colored shop purchases are invisible without this.
+        ShopPurchasePersistence.Save(_shopPurchases);
     }
+
+    /// <summary>Read-only view used by RunHistoryAnalyzer.BuildSingleRunStats.</summary>
+    public static IReadOnlyList<ShopPurchaseUpload> GetShopPurchases() => _shopPurchases;
 
     public static void RecordCardRemoval(string cardId, string source, int floor)
     {
@@ -131,6 +139,11 @@ public static class RunDataCollector
         // this seed (lost from in-memory list by the Clear above).
         var saved = ShopOfferingPersistence.Load();
         if (saved != null) _shopCardOfferings.AddRange(saved);
+
+        // Same for shop purchases — needed so the "本局统计" view reconstructs
+        // CardsBought across SL / resume.
+        var savedPurchases = ShopPurchasePersistence.Load();
+        if (savedPurchases != null) _shopPurchases.AddRange(savedPurchases);
     }
 
     /// <summary>
@@ -159,6 +172,12 @@ public static class RunDataCollector
                 // run finishes — the per-combat and summary files cover replay.
                 ContributionPersistence.DeleteLiveState(seed!);
                 ShopOfferingPersistence.Delete(seed!);
+                // NOTE: don't delete _shop_purchases.json here — Run History's
+                // "本局统计" view loads it AFTER the run ends (including after
+                // abandon). The 90-day mtime-based sweep in
+                // ContributionPersistence.PruneOldFiles covers the whole
+                // ContributionsDir (all *.json), so leaving this file around
+                // does not create permanent clutter.
             }
 
             // New run finished: invalidate the cached career snapshot so the
@@ -196,26 +215,31 @@ public static class RunDataCollector
             Character = characterId,
             Ascension = run.Ascension,
             Win = isVictory,
-            PlayerWinRate = 0f, // Populated server-side from historical data
+            PlayerWinRate = ComputeLiveWinRate(isVictory),
             NumPlayers = run.Players?.Count ?? 1,
             FloorReached = CurrentFloor,
             ShopCardOfferings = new List<ShopCardOfferingUpload>(_shopCardOfferings),
+            // Shop purchases: use our ShopPatch-driven list (real costs, all
+            // card colors). The game's own MapPointHistory (BoughtRelics /
+            // Potions / Colorless) is missing colored card buys and has
+            // Cost=0 for everything, so we intentionally bypass it below.
+            ShopPurchases = new List<ShopPurchaseUpload>(_shopPurchases),
             Contributions = RunContributionAggregator.Instance.BuildContributionUploads(),
         };
 
         // Round 14 v5+: walk SerializableRun.MapPointHistory (authoritative,
-        // survives save+quit reload) to populate card/event/shop/encounter
+        // survives save+quit reload) to populate card/event/encounter
         // sections. Previously these lived in in-memory lists populated by
         // Record*() patches — but a mid-run save+quit drops the in-memory
         // state and the game's own MapPointHistory is the only reliable source.
-        // The encounter list produced by RunContributionAggregator is
-        // redundant with (and lossier than) the MapPointHistory walk, so we
-        // overwrite it here.
+        // includeShopPurchases: false — we already populated ShopPurchases
+        // from our authoritative _shopPurchases list above.
         int floor = Api.HistoryImporter.PopulateFromMapHistory(
             run.MapPointHistory,
             killedByEncounter: null,
             wasWin: isVictory,
-            payload);
+            payload,
+            includeShopPurchases: false);
         if (floor > 0) payload.FloorReached = floor;
 
         // Final deck
@@ -237,5 +261,43 @@ public static class RunDataCollector
         }
 
         return payload;
+    }
+
+    /// <summary>
+    /// Compute the player's cumulative win rate at the moment of this upload,
+    /// including the current (just-finished) run. Server stores this as
+    /// <c>runs.player_win_rate</c> and the F9 "min player win%" filter uses
+    /// it to narrow community aggregates.
+    ///
+    /// Source: <see cref="RunHistoryAnalyzer"/> cached snapshot (populated by
+    /// the mod's own local history walk). The snapshot is built from the
+    /// game's <c>SaveManager</c> run history files — written before
+    /// <c>ModManager.OnMetricsUpload</c> fires, so prior runs are visible.
+    /// Whether the current run is already in the cache depends on whether
+    /// <c>InvalidateAll</c> ran yet; we don't assume either way, so we
+    /// compute "prior runs" by reading the cache directly and add the
+    /// current run explicitly. If the cache hasn't loaded at all we compute
+    /// 0-based (wr = current-run-win ? 1.0 : 0.0) — a reasonable degraded
+    /// value vs. the previous hard 0.
+    /// </summary>
+    private static float ComputeLiveWinRate(bool isVictory)
+    {
+        try
+        {
+            var snap = RunHistoryAnalyzer.Instance.GetCached(null);
+            // snap reflects the set of runs loaded prior to this call. Assume
+            // the current run is NOT yet in it (InvalidateAll runs after
+            // upload is queued). Add current outcome explicitly.
+            int totalBefore = snap?.TotalRuns ?? 0;
+            int winsBefore  = snap?.Wins ?? 0;
+            int total = totalBefore + 1;
+            int wins = winsBefore + (isVictory ? 1 : 0);
+            return total > 0 ? (float)wins / total : 0f;
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"[RunDataCollector] ComputeLiveWinRate failed: {ex.Message}");
+            return 0f;
+        }
     }
 }

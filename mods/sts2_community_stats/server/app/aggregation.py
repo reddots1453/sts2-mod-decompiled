@@ -139,17 +139,34 @@ async def _aggregate_cards(
             result[cid].upgrade = r["upgrade_rate"] or 0
 
     # ── Shop buy rates (purchases / times offered in shop) ──
+    # Semantics: P(buy card | card was offered).
+    # The numerator MUST be scoped to "a purchase that was paired with an
+    # offering of the same card in the same run". Counting all purchases
+    # regardless of offering data produces ratios >1 whenever the offering
+    # wasn't captured — notably for pre-fix runs where MerchantRoom.Enter
+    # was silently unbound (zero offerings recorded) but BoughtColorless
+    # from MapHistory still contributed purchases. Observed in the wild:
+    # colorless cards hitting 500%+ because denominator = 1 new offering
+    # while numerator accumulated across several old imports.
     offering_rows = await conn.fetch(f"""
         SELECT card_id, COUNT(*) AS offered
         FROM shop_card_offerings
         {where}
         GROUP BY card_id
     """, *params)
+    # `where` uses bare column names (character, game_version, ascension);
+    # PostgreSQL resolves them to shop_purchases since shop_card_offerings
+    # only appears as a correlated subquery. Alias `sp` is only needed for
+    # the subquery's cross-reference `sco.run_id = sp.run_id`.
     purchase_rows = await conn.fetch(f"""
-        SELECT item_id, COUNT(*) AS bought
-        FROM shop_purchases
-        {where} AND item_type = 'card'
-        GROUP BY item_id
+        SELECT sp.item_id, COUNT(*) AS bought
+        FROM shop_purchases sp
+        {where} AND sp.item_type = 'card'
+          AND EXISTS (
+            SELECT 1 FROM shop_card_offerings sco
+            WHERE sco.run_id = sp.run_id AND sco.card_id = sp.item_id
+          )
+        GROUP BY sp.item_id
     """, *params)
     purchase_map = {r["item_id"]: r["bought"] for r in purchase_rows}
     for r in offering_rows:
@@ -157,7 +174,10 @@ async def _aggregate_cards(
         offered = r["offered"]
         bought = purchase_map.get(cid, 0)
         if cid in result and offered > 0:
-            result[cid].shop_buy = bought / offered
+            # Defensive min(): even with the EXISTS guard, repeat-offering
+            # rows within a single shop could theoretically produce
+            # bought > offered — clamp to prevent any >100% leak.
+            result[cid].shop_buy = min(1.0, bought / offered)
 
     return result
 

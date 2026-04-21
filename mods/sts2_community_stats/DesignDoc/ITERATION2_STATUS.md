@@ -1,7 +1,76 @@
 # 第二轮迭代 — 进度与上下文
 
-> 最后更新：2026-04-15（**Round 14 v6 — 贡献归因四连修（Frail / 同名卡 origin / Upgrade origin / Doom FIFO）**）
+> 最后更新：2026-04-20（**Round 15 — Beta 集成测试闭环 + supervisor 双线验收**）
 > 此文件供跨设备会话使用，确保新会话能完整理解当前状态
+
+---
+
+## Round 15（2026-04-20）— Beta 集成测试闭环 + supervisor 双线验收
+
+> 客户端/服务端 supervisor 并行交叉审查完成；服务端 INT-TEST T1-T7 端到端 VPS 回归全部验收通过；Beta 闭环进入"ORB 归因最后一公里"阶段。
+
+### 本轮 roadmap 变化
+
+| 任务 | 变化 | 备注 |
+|---|---|---|
+| S01 `[监工] supervisor-client` | done | 9/9 审查 + 6/6 修复 全部验收通过 |
+| S02 `[监工] supervisor-server` | in-progress → **done** | 部署通过 + 集成测试 T1-T7 验收通过（T5 阈值偏差已知）|
+| INT-TEST `T1-T7端到端VPS回归` | in-progress → **done** | M10 执行完毕，T5 阈值偏差已知 / T7 观察窗口证据充分 |
+| ORB-BUG `充能球Orb贡献归因错误` | in-progress | 仍待处理；归因链被其他实体效果污染 |
+
+**roadmap objective 改为**：`Stats the Spire Beta — 客户端P0闭环 + 集成测试完成 + Orb归因debug`
+
+### INT-TEST T1-T7 验收摘要
+
+测试环境：`statsthespire.duckdns.org`（64.176.85.164），容器 `sts2stats-api` / `sts2stats-db` / `sts2stats-redis` 均 healthy。
+
+| 测试 | 结论 | 关键证据 |
+|---|---|---|
+| **T1 Golden Path** | PASS | `POST /v1/runs → 200, run_id=1408`；runs + card_choices(2) + relic_records(1) + event_records(1) + shop_purchases(1) + card_removals(1) + contributions(3) 全部入库正确 |
+| **T2a Dedup** | PASS | 相同 `run_hash="test_t2_dup"` 二次 POST 返回 `{"status":"ok","run_id":null,"dedup":true}`，行数无变化（ON CONFLICT DO NOTHING 生效）|
+| **T2b win_rate 回填** | PASS | runs 从 0 回填 0.85 后，card_choices / relic_records 同步到 0.85 |
+| **T3 id_migration** | PASS | `CARD.TEST_OLD_CARD → TEST_NEW_CARD` 在 card_choices 和 source_type='CARD' 的 contributions 均翻译；`source_type='POWER'` 的 source_id **未**翻译（符合 `_normalize_payload_ids` 白名单）|
+| **T4 Bulk Cache** | PASS | 默认键 `bulk:IRONCLAD:0:1.0.0` 64ms→22ms，TTL 796s→780s；`asc_range=10-20` / `min_win_rate=0.5` 生成独立键 |
+| **T5 Rate Limit** | **PARTIAL**（功能正常 / 阈值偏差）| Query 60/min 在第 58 次触发首个 429（前期测试占用 2 次配额一致）；Upload VPS 实际 `RATE_LIMIT_UPLOAD=300/minute` 与规范默认 `10/minute` 不一致，**已知偏差**不阻塞生产 |
+| **T6 Health 脱敏** | PASS | 正常 200 `{status:healthy, db:ok, redis:ok, version:x.x.x}` 无连接串/密码/IP；stop db 后 503 `{status:unhealthy, db:error, redis:ok}`，错误字段仅 `error` 字面量，无异常堆栈泄漏 |
+| **T7 Precompute 观察** | PASS | `350 bundles computed in 4.1s`（5 chars × 7 asc_ranges × 10 versions），Redis 采样 TTL 683-685 落在 `600±20s` 窗口；APScheduler AsyncIOScheduler running, `precompute_all interval=600s` |
+
+**备注**：
+- T1 规范期待 `201 Created`，API 返回 `200 OK + JSON body`，业务语义正确不影响对接
+- T5 "未在 SSH 侧修改 .env 避免影响生产"，生产压测场景 300/min 功能正常
+- T7 的 4.1s 完成时间与 B10-FIX 后 `_count_runs` 单次化结论一致（修复前推测 ~12s）
+
+### 数据清理（测试收尾）
+
+```
+DELETE FROM runs WHERE run_hash LIKE 'test_t%';       -- 8 rows (id 1408/1410/1412-1417)
+DELETE FROM id_migrations WHERE old_id='TEST_OLD_CARD'; -- 1 row
+rm /tmp/t*.json                                        -- 成功
+```
+级联删除覆盖 card_choices / relic_records / event_records / shop_purchases / card_removals / contributions。
+
+### Round 15 未完成 / 待办清单
+
+| # | 项目 | 优先级 | 备注 |
+|---|---|---|---|
+| 1 | **ORB-BUG 充能球贡献归因错误** | P0 | 其他实体效果被错误归因到 Orb；下一轮工作焦点。建议 supervisor-client 接手 |
+| 2 | **T5 .env RATE_LIMIT_UPLOAD 阈值统一** | P1 | 下次部署时选择：(a) VPS `.env` 改回 `10/minute` 对齐规范；或 (b) 更新规范默认值到 `300/minute`；由 owner 决策 |
+| 3 | **T1 HTTP 201 vs 200** | P3 | 规范期待 `201 Created`，实际 `200 OK`；业务语义正确，若追求严格 RESTful 可后续修 |
+| 4 | **docker-compose.yml nginx 证书 bind mount**（Round 14 v5 残留）| P2 | 60-90 天 Let's Encrypt 续期前必修，否则证书续期后容器仍用旧证书 |
+| 5 | **DuckDNS → 真域名**（Round 14 v5 残留）| P2 | Cloudflare `.xyz` ¥10/年 |
+
+### 下次开机第一件事（跨设备）
+
+1. 读本节 §Round 15 + §Round 14 v6 了解最新状态
+2. 核对 roadmap：`& "D:\Tools\Golutra\golutra-cli.exe" run --command-file <payload>` 用 `roadmap.read` 查最新任务
+3. ORB-BUG 调试入口：`src/Collection/CombatTracker.cs` 的 Orb context 污染路径（历史记录见 Round 13 §核心技术发现 "Harmony async postfix 问题"）
+4. 服务端无需改动，T1-T7 已验收通过，生产稳定运行中
+5. 如需验证新打 run 的 power source_type：`ssh root@64.176.85.164 && docker compose exec -T db psql -U sts2stats -d sts2stats -c "SELECT source_type, COUNT(*) FROM contributions GROUP BY source_type;"`
+
+### Round 15 chat 留痕
+
+- 向 owner + 2 位 supervisor 发送 REPORT，messageId=`01KPM6WD6X9B34YS1NZYX24W8B`
+- conversationId `01KPHW1ZKY6T685EDAE7A0GMQA`
 
 ---
 
