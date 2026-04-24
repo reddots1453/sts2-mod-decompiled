@@ -158,11 +158,12 @@ async def get_bulk_stats(
     ver: str = Query(..., max_length=16),
     min_asc: int = Query(0, ge=0, le=20),
     max_asc: int = Query(20, ge=0, le=20),
+    min_wr: float = Query(0.0, ge=0.0, le=1.0),
 ):
     char = char.upper()
     redis = get_redis()
     asc_range = map_asc_range(min_asc, max_asc)
-    key = bulk_key(char, asc_range, ver)
+    key = bulk_key(char, asc_range, ver, min_wr)
 
     # Try Redis cache
     cached = await redis.get(key)
@@ -173,7 +174,7 @@ async def get_bulk_stats(
         )
 
     # Cache miss — compute on the fly
-    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc)
+    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc, min_wr)
     json_bytes = orjson.dumps(bundle.model_dump())
 
     # Store in Redis
@@ -193,13 +194,14 @@ async def get_card_stats(
     ver: str = Query(..., max_length=16),
     min_asc: int = Query(0, ge=0, le=20),
     max_asc: int = Query(20, ge=0, le=20),
+    min_wr: float = Query(0.0, ge=0.0, le=1.0),
 ):
     char = char.upper()
     card_ids = [c.strip() for c in cards.split(",") if c.strip()]
     if not card_ids or len(card_ids) > 50:
         raise HTTPException(400, "Provide 1-50 card IDs")
 
-    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc)
+    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc, min_wr)
     result = {cid: bundle.cards.get(cid) for cid in card_ids}
     return result
 
@@ -215,13 +217,14 @@ async def get_relic_stats(
     ver: str = Query(..., max_length=16),
     min_asc: int = Query(0, ge=0, le=20),
     max_asc: int = Query(20, ge=0, le=20),
+    min_wr: float = Query(0.0, ge=0.0, le=1.0),
 ):
     char = char.upper()
     relic_ids = [r.strip() for r in relics.split(",") if r.strip()]
     if not relic_ids or len(relic_ids) > 50:
         raise HTTPException(400, "Provide 1-50 relic IDs")
 
-    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc)
+    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc, min_wr)
     result = {rid: bundle.relics.get(rid) for rid in relic_ids}
     return result
 
@@ -237,9 +240,10 @@ async def get_event_stats(
     ver: str = Query(..., max_length=16),
     min_asc: int = Query(0, ge=0, le=20),
     max_asc: int = Query(20, ge=0, le=20),
+    min_wr: float = Query(0.0, ge=0.0, le=1.0),
 ):
     char = char.upper()
-    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc)
+    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc, min_wr)
     stats = bundle.events.get(event_id)
     if stats is None:
         raise HTTPException(404, f"No data for event {event_id}")
@@ -257,13 +261,14 @@ async def get_encounter_stats(
     ver: str = Query(..., max_length=16),
     min_asc: int = Query(0, ge=0, le=20),
     max_asc: int = Query(20, ge=0, le=20),
+    min_wr: float = Query(0.0, ge=0.0, le=1.0),
 ):
     char = char.upper()
     encounter_ids = [e.strip() for e in ids.split(",") if e.strip()]
     if not encounter_ids or len(encounter_ids) > 50:
         raise HTTPException(400, "Provide 1-50 encounter IDs")
 
-    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc)
+    bundle = await compute_bulk_stats(get_pool(), char, ver, min_asc, max_asc, min_wr)
     result = {eid: bundle.encounters.get(eid) for eid in encounter_ids}
     return result
 

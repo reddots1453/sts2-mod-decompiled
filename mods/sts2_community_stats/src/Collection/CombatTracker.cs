@@ -729,6 +729,21 @@ public sealed class CombatTracker
         }
     }
 
+    /// <summary>
+    /// 4.18 fix: attribute a pre-computed slice of prevented damage to a
+    /// specific debuff layer source. Used by AfterModifyDamage_Enemy when
+    /// iterating enemy-side debuff power modifiers — we pre-split the
+    /// `damage that would have been dealt without this modifier` by the
+    /// FIFO layer fractions and call this per slice. Keeps WEAK_POWER
+    /// mitigation on its separate OnWeakMitigation path while supporting
+    /// any other duration-based debuff (Slowed, etc.) on this unified path.
+    /// </summary>
+    public void OnDebuffPrevention(string sourceId, string sourceType, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrEmpty(sourceId)) return;
+        GetOrCreate(sourceId, sourceType).MitigatedByDebuff += amount;
+    }
+
     // ── Defense: Buffer / Intangible ────────────────────────
 
     public void OnBufferPrevention(int preventedDamage)

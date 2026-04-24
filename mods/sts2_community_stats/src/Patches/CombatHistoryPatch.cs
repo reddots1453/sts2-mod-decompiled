@@ -1163,6 +1163,50 @@ public static class EnemyDamageIntentPatch
                         if (prevented > 0)
                             CombatTracker.Instance.OnColossusMitigation(prevented, target.GetHashCode());
                     }
+                    // 4.18 restoration: generic debuff-on-dealer mitigation path.
+                    // For any OTHER power on the dealer with multiplier < 1 (i.e. a
+                    // debuff the player applied reducing enemy outgoing damage),
+                    // attribute the prevented damage back to whichever card/relic
+                    // applied the debuff via the FIFO layer table.
+                    //
+                    // WEAK_POWER is explicitly skipped — it owns the dedicated
+                    // OnWeakMitigation code path (called from AfterDamageDealt in
+                    // the core module), and double-attributing it here would
+                    // produce two rows in the contribution chart: one credited to
+                    // the card (from OnWeakMitigation) AND one credited to the
+                    // power ID itself (from this fallback). That's exactly the
+                    // "眼部攻击 + weak_power 双份" bug from the 4.18 changelog.
+                    else if (powerId != "WEAK_POWER")
+                    {
+                        if (power.Owner == null || power.Owner != dealer) continue;
+                        decimal multiplicative;
+                        try
+                        {
+                            multiplicative = power.ModifyDamageMultiplicative(
+                                target, baseDmg, props, dealer, cardSource);
+                        }
+                        catch { continue; }
+                        if (multiplicative <= 0m || multiplicative >= 1m) continue;
+
+                        int prevented = (int)(baseDmg / multiplicative - baseDmg);
+                        if (prevented <= 0) continue;
+
+                        var fractions = ContributionMap.Instance.GetDebuffSourceFractions(
+                            dealer.GetHashCode(), powerId);
+                        if (fractions.Count > 0)
+                        {
+                            foreach (var (srcId, srcType, frac) in fractions)
+                            {
+                                int share = (int)System.Math.Round(prevented * frac);
+                                if (share > 0)
+                                    CombatTracker.Instance.OnDebuffPrevention(srcId, srcType, share);
+                            }
+                        }
+                        // Intentionally no power-id fallback: if no layer is
+                        // recorded we drop the attribution rather than write
+                        // a row keyed by the power id (which would surface as
+                        // a bare "SLOWED_POWER"/"WEAK_POWER" bar in the chart).
+                    }
                 }
                 else if (mod is RelicModel relic)
                 {

@@ -33,7 +33,15 @@ def get_redis() -> aioredis.Redis:
 
 # ── Cache key helpers ───────────────────────────────────────
 
-def bulk_key(character: str, asc_range: str, version: str) -> str:
+def bulk_key(
+    character: str, asc_range: str, version: str, min_wr: float = 0.0,
+) -> str:
+    # min_wr == 0 keeps the original key layout so precomputed bundles and
+    # pre-existing cache entries continue to hit. Any non-zero filter writes
+    # under a distinct key — otherwise 30% and 50% requests would alias onto
+    # the unfiltered bundle and the F9 slider would appear to do nothing.
+    if min_wr > 0:
+        return f"bulk:{character}:{asc_range}:{version}:wr{min_wr:.2f}"
     return f"bulk:{character}:{asc_range}:{version}"
 
 

@@ -20,57 +20,51 @@ namespace CommunityStats.Patches;
 /// <summary>
 /// Top-bar potion-drop / card-drop odds indicators (PRD §3.9 + §3.17).
 ///
-/// **Round 9 lifecycle rewrite (dump-driven crash fix):**
+/// **4.18 rewrite + ChildOrderChanged hardening.**
 ///
-/// History:
-/// - Round 5 attached the indicators to the scene root and used a SetUpCombat
-///   postfix to toggle visibility per combat.
-/// - Round 7 reparented to `NTopBar.Map.GetParent()` so they sat in the native
-///   top-bar HBox at proper size.
-/// - The user reported a hard crash in `SlayTheSpire2.exe + 0xebf76b`
-///   (`EXCEPTION_ACCESS_VIOLATION` reading NULL+0x68) on the second combat of
-///   a run. Dump analysis showed it was triggered through this patch — the
-///   static `_potion / _cardDrop` fields outlive the NTopBar HBox they were
-///   parented under, so when Godot disposed the previous combat scene the
-///   indicators' native instances were freed; the next `EnsureAttachedToTopBar`
-///   call dereferenced the dead wrapper inside `_potion.GetParent()` and AV'd.
+/// The previous revision called <c>MoveChild</c> unconditionally every
+/// time <see cref="EnsureAttachedToTopBar"/> ran, which in turn ran on
+/// every Map-screen open / combat setup. Each call re-derived the Map
+/// button's current index and shuffled our indicators in front of it.
+/// When the game re-shuffled the top-bar HBox on its own (observed when
+/// the player clicks the map icon — the game's Map button briefly moves
+/// to the end of the HBox), our next pass would place the indicators
+/// relative to the new Map position, dumping them to the right side.
 ///
-/// PRD §3.9 / §3.17 round 9 mandate (user clarification):
-/// - Visibility and lifetime mirror the **native NTopBar Map / Deck buttons
-///   exactly** — NTopBar exists and is visible → indicators exist and are
-///   visible; NTopBar is freed → indicators are freed too. We achieve this
-///   by parenting the indicators as siblings of `NTopBar.Map` inside the
-///   same HBox; Godot's parent-child contract guarantees the children are
-///   QueueFree'd whenever the parent NTopBar HBox is destroyed.
-/// - Created **once** per run on `RunManager.SetUpNewSinglePlayer / MultiPlayer`
-///   postfix (NTopBar is guaranteed live by then).
-/// - **No manual destruction.** Godot reclaims them with NTopBar; the next
-///   `OnRunStarted` call sees `IsInstanceValid = false`, nulls the static
-///   slots, and lazy-creates fresh wrappers for the new run.
-/// - Combat events (`SetUpCombat`, `OnCombatEnded`, `Resume`,
-///   `CombatTracker.CombatDataUpdated`) only update the displayed numbers.
-///   They NEVER touch parent / child / index / Visible — visibility flows
-///   from the parent HBox automatically.
-/// - Every access to `_potion` / `_cardDrop` is gated through
-///   `IsAlive(...)` which calls `Godot.GodotObject.IsInstanceValid` and
-///   nulls the field if the wrapper has been freed.
-/// - The feature toggles (`PotionDropOdds`, `CardDropOdds`) still gate the
-///   indicators' own `Visible` property — disabling the toggle hides the
-///   single indicator without affecting siblings.
+/// Fix, mirroring the 4.18 DLL:
+/// - A <see cref="_positioned"/> latch makes <see cref="EnsureAttachedToTopBar"/>
+///   a no-op after the first successful placement for a given run. On
+///   run start we reset the latch and kick off <see cref="TryAttachDeferred"/>,
+///   which uses CallDeferred retries (up to <see cref="MaxAttachRetries"/>)
+///   to wait for <c>NRun.GlobalUi.TopBar</c> to come online.
+/// - <see cref="EnsureAttachedToTopBar"/> now returns <c>bool</c> so the
+///   retry loop knows when to stop.
+///
+/// **User-reported residual bug (post-4.18)**: the indicators still slide
+/// to the right of the Map button after the player *clicks* the map
+/// icon. Root cause: the game mutates child order inside its own Map
+/// handler, *after* our one-shot MoveChild finished. 4.18's latch
+/// prevents us from re-shuffling redundantly, but offers no defence
+/// against the game shuffling us. We add a <c>ChildOrderChanged</c>
+/// subscription that re-pins our four nodes to the front of the HBox
+/// whenever the host reports a reorder. Re-entry is guarded by a
+/// <c>_pinning</c> flag so our own MoveChild calls don't re-trigger the
+/// handler.
 /// </summary>
 [HarmonyPatch]
 public static class CombatUiOverlayPatch
 {
+    private const int MaxAttachRetries = 30;
+
     private static PotionOddsIndicator? _potion;
     private static CardDropOddsIndicator? _cardDrop;
     private static bool _subscribed;
+    private static bool _positioned;
+    private static int _attachRetriesLeft;
+    private static bool _orderSignalHooked;
+    private static Node? _hookedHost;
+    private static bool _pinning;
 
-    /// <summary>
-    /// Subscribe to live data updates once at mod init. The actual node
-    /// instances are not created here — they're built when a run starts via
-    /// `EnsureAttachedToTopBar`. NTopBar doesn't exist at mod init so any
-    /// attempt to create + parent here would silently fail.
-    /// </summary>
     public static void Attach()
     {
         Safe.Run(() =>
@@ -85,54 +79,69 @@ public static class CombatUiOverlayPatch
 
     // ── Run lifecycle hooks ─────────────────────────────────
 
-    /// <summary>
-    /// Called from `RunLifecyclePatch.OnRunStartSP/MP` postfix once a run
-    /// (single-player or multi) is fully constructed. Builds the indicator
-    /// nodes, parents them to the native top-bar HBox, primes their values,
-    /// and shows them. Idempotent — if a previous attach already succeeded
-    /// for this run we just refresh values.
-    /// </summary>
     public static void OnRunStarted()
     {
         Safe.Run(() =>
         {
-            EnsureAttachedToTopBar();
-            // Prime values from the current run state.
-            var runState = RunManager.Instance?.DebugOnlyGetState();
-            var player = runState?.Players?.FirstOrDefault();
-            if (player != null) RefreshValuesFromPlayer(player);
-            // Indicators are now visible for the entire run.
-            ShowAll();
+            _positioned = false;
+            _attachRetriesLeft = MaxAttachRetries;
+            TryAttachDeferred();
         });
     }
 
-    // No OnRunEnded hook — Godot's parent-child contract handles cleanup
-    // automatically. When NTopBar's HBox is freed (run ended → main menu)
-    // every child including our indicators is QueueFree'd by the engine.
-    // The next OnRunStarted call sees IsInstanceValid=false, nulls the
-    // static slots, and rebuilds fresh wrappers for the new run.
+    /// <summary>
+    /// Deferred-retry loop for the attach. NRun.GlobalUi.TopBar may not be
+    /// live yet on the first run-start postfix (especially for loaded saves).
+    /// Each attempt returns true once the wrappers are parented and pinned;
+    /// if not, we re-queue ourselves on the next frame up to 30 times.
+    /// </summary>
+    private static void TryAttachDeferred()
+    {
+        if (EnsureAttachedToTopBar())
+        {
+            var runState = RunManager.Instance?.DebugOnlyGetState();
+            var player = runState?.Players?.FirstOrDefault();
+            if (player != null) RefreshValuesFromPlayer(player);
+            ShowAll();
+            return;
+        }
+        if (_attachRetriesLeft-- <= 0) return;
+        try
+        {
+            Callable.From(() => Safe.Run(TryAttachDeferred)).CallDeferred();
+        }
+        catch { }
+    }
 
-    // ── Lazy attach to NTopBar (run-start only) ─────────────
+    // ── Lazy attach to NTopBar ──────────────────────────────
 
     /// <summary>
-    /// Build the indicator nodes (if not yet built or freed) and parent
-    /// them to the same HBox that holds NTopBar.Map / NTopBar.Deck so they
-    /// live in the natural top-bar flow with matching size and position.
+    /// Returns true once the indicators are live and parented to the TopBar
+    /// HBox. Does MoveChild exactly once per run (gated by <see cref="_positioned"/>).
+    /// Subscribes to the HBox's <c>ChildOrderChanged</c> signal the first
+    /// time we successfully position so subsequent game-initiated reorders
+    /// are caught by <see cref="OnHBoxChildOrderChanged"/>.
     /// </summary>
-    private static void EnsureAttachedToTopBar()
+    private static bool EnsureAttachedToTopBar()
     {
         var topBar = NRun.Instance?.GlobalUi?.TopBar;
-        if (topBar == null) return;
+        if (topBar == null) return false;
         var mapBtn = topBar.Map;
-        if (mapBtn == null || !Godot.GodotObject.IsInstanceValid(mapBtn)) return;
+        if (mapBtn == null || !Godot.GodotObject.IsInstanceValid(mapBtn)) return false;
         var hostHbox = mapBtn.GetParent();
-        if (hostHbox == null || !Godot.GodotObject.IsInstanceValid(hostHbox)) return;
+        if (hostHbox == null || !Godot.GodotObject.IsInstanceValid(hostHbox)) return false;
 
-        // Recreate any indicator whose wrapper is dead before reading from it.
-        // Round 9 round 3 (alignment fix): force `SizeFlagsVertical = ShrinkCenter`
-        // so the indicators sit at the same vertical baseline as the native
-        // Map / Deck buttons inside the host HBox (default is Top, which made
-        // them appear above the native buttons in the user's screenshot).
+        // Fast-path: already positioned and everything still alive.
+        if (_positioned
+            && IsAlive(ref _potion) && _potion!.GetParent() == hostHbox
+            && IsAlive(ref _cardDrop) && _cardDrop!.GetParent() == hostHbox)
+        {
+            return true;
+        }
+
+        bool builtPotion = false;
+        bool builtCardDrop = false;
+
         if (!IsAlive(ref _potion))
         {
             _potion = PotionOddsIndicator.Create();
@@ -140,17 +149,13 @@ public static class CombatUiOverlayPatch
             _potion.ZIndex = 100;
             _potion.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             hostHbox.AddChild(_potion);
+            builtPotion = true;
         }
         else if (_potion!.GetParent() != hostHbox)
         {
-            // Wrapper alive but attached elsewhere — reparent.
             _potion.GetParent()?.RemoveChild(_potion);
             hostHbox.AddChild(_potion);
-        }
-        else
-        {
-            // Same parent: still ensure alignment is correct (cheap idempotent set).
-            _potion.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            builtPotion = true;
         }
 
         if (!IsAlive(ref _cardDrop))
@@ -160,41 +165,91 @@ public static class CombatUiOverlayPatch
             _cardDrop.ZIndex = 100;
             _cardDrop.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
             hostHbox.AddChild(_cardDrop);
+            builtCardDrop = true;
         }
         else if (_cardDrop!.GetParent() != hostHbox)
         {
             _cardDrop.GetParent()?.RemoveChild(_cardDrop);
             hostHbox.AddChild(_cardDrop);
+            builtCardDrop = true;
         }
-        else
+
+        if (builtPotion || builtCardDrop || !_positioned)
         {
-            _cardDrop.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            EnsureSpacer(hostHbox, "StatsTheSpireSpacerA", 18);
+            EnsureSpacer(hostHbox, "StatsTheSpireSpacerB", 18);
+            PinToLeftOfMap(hostHbox, mapBtn);
+            HookChildOrderSignal(hostHbox);
+            _positioned = true;
         }
 
-        // Round 9 round 3: insert two narrow spacer Controls so the visual
-        // gap between potion → cardDrop → Map is +50% wider than the host
-        // HBox's default theme separation. We can't override the host's
-        // separation constant (it's owned by the game), so we add explicit
-        // spacers as siblings.
-        EnsureSpacer(hostHbox, "StatsTheSpireSpacerA", 18);
-        EnsureSpacer(hostHbox, "StatsTheSpireSpacerB", 18);
+        return true;
+    }
 
-        // Position both indicators + spacers BEFORE the Map button:
-        //   [potion] [spacerA] [cardDrop] [spacerB] [Map] [Deck] ...
+    /// <summary>
+    /// Position <c>[potion][spacerA][cardDrop][spacerB][Map]…</c>. Callable
+    /// both at first attach and from the <c>ChildOrderChanged</c> handler
+    /// when the game has reshuffled us elsewhere.
+    /// </summary>
+    private static void PinToLeftOfMap(Node hostHbox, Node mapBtn)
+    {
+        if (_pinning) return;
+        _pinning = true;
         try
         {
-            var mapIdx = mapBtn.GetIndex();
+            int mapIdx = mapBtn.GetIndex();
+            if (mapIdx <= 0) return;
             var spacerB = hostHbox.GetNodeOrNull<Control>("StatsTheSpireSpacerB");
             var spacerA = hostHbox.GetNodeOrNull<Control>("StatsTheSpireSpacerA");
-            if (mapIdx > 0)
-            {
-                if (spacerB != null) hostHbox.MoveChild(spacerB, mapIdx);
-                hostHbox.MoveChild(_cardDrop!, mapIdx);
-                if (spacerA != null) hostHbox.MoveChild(spacerA, mapIdx);
-                hostHbox.MoveChild(_potion!, mapIdx);
-            }
+            // Order matters: MoveChild shifts the other children, so insert
+            // back-to-front relative to the final visual order.
+            if (spacerB != null) hostHbox.MoveChild(spacerB, mapIdx);
+            if (_cardDrop != null) hostHbox.MoveChild(_cardDrop, mapIdx);
+            if (spacerA != null) hostHbox.MoveChild(spacerA, mapIdx);
+            if (_potion != null) hostHbox.MoveChild(_potion, mapIdx);
         }
         catch { }
+        finally { _pinning = false; }
+    }
+
+    private static void HookChildOrderSignal(Node hostHbox)
+    {
+        // Re-subscribe if the host HBox wrapper instance changed (e.g. the
+        // top bar was rebuilt between runs). Godot's event subscriptions
+        // are instance-scoped, so we track the last host we hooked.
+        if (_orderSignalHooked && _hookedHost == hostHbox) return;
+        try
+        {
+            if (_orderSignalHooked && _hookedHost != null
+                && Godot.GodotObject.IsInstanceValid(_hookedHost))
+            {
+                _hookedHost.ChildOrderChanged -= OnHBoxChildOrderChanged;
+            }
+            hostHbox.ChildOrderChanged += OnHBoxChildOrderChanged;
+            _hookedHost = hostHbox;
+            _orderSignalHooked = true;
+        }
+        catch { }
+    }
+
+    private static void OnHBoxChildOrderChanged()
+    {
+        // Ignore our own MoveChild calls.
+        if (_pinning) return;
+        Safe.Run(() =>
+        {
+            var topBar = NRun.Instance?.GlobalUi?.TopBar;
+            var mapBtn = topBar?.Map;
+            if (mapBtn == null || !Godot.GodotObject.IsInstanceValid(mapBtn)) return;
+            var hostHbox = mapBtn.GetParent();
+            if (hostHbox == null || !Godot.GodotObject.IsInstanceValid(hostHbox)) return;
+            // Skip if our nodes are already in the first four positions —
+            // avoids a MoveChild storm when the game inserts a transient
+            // sibling (e.g. a tween proxy).
+            if (IsAlive(ref _potion) && _potion!.GetIndex() == 0
+                && IsAlive(ref _cardDrop) && _cardDrop!.GetIndex() == 2) return;
+            PinToLeftOfMap(hostHbox, mapBtn);
+        });
     }
 
     private static void EnsureSpacer(Node hostHbox, string name, float widthPx)
@@ -210,11 +265,6 @@ public static class CombatUiOverlayPatch
         hostHbox.AddChild(spacer);
     }
 
-    /// <summary>
-    /// Validate the wrapper is still backed by a live native instance. If
-    /// the native side has been freed (Godot disposing the parent scene
-    /// reclaimed it), null the slot so callers know to rebuild.
-    /// </summary>
     private static bool IsAlive<T>(ref T? slot) where T : Godot.GodotObject
     {
         if (slot == null) return false;
@@ -230,15 +280,12 @@ public static class CombatUiOverlayPatch
     {
         Safe.Run(() =>
         {
-            // Round 9 round 2: re-add the lazy attach fallback because the
-            // SetUpSavedSinglePlayer hook fires BEFORE NRun.GlobalUi.TopBar
-            // is fully constructed — by SetUpCombat time the top bar
-            // definitely exists, so this is the right late-binding point.
-            // The previous round's crash that motivated removing this path
-            // was diagnosed via bisection to IntentHoverPatch (now fixed
-            // with CallDeferred), not this fallback.
+            // If Godot reclaimed the wrappers (scene dispose between
+            // combats), reset the latch so the next EnsureAttachedToTopBar
+            // rebuilds and re-pins rather than returning early.
             if (!IsAlive(ref _potion) || !IsAlive(ref _cardDrop))
             {
+                _positioned = false;
                 EnsureAttachedToTopBar();
                 ShowAll();
             }
@@ -248,15 +295,11 @@ public static class CombatUiOverlayPatch
     }
 
     /// <summary>
-    /// Round 15: attach indicators the moment the player opens the map
-    /// screen, so they appear before the first combat (previously the only
-    /// fallback was <see cref="AfterSetUpCombat"/>, which ran on combat
-    /// entry and left the indicators missing while the player was still
-    /// browsing the map). NMapScreen.Open is called every time the player
-    /// transitions to the map view (fresh run, between combats, after
-    /// shop / event / rest, resume from save). Idempotent — the
-    /// EnsureAttachedToTopBar / IsAlive guards skip work when the wrappers
-    /// are already attached.
+    /// Keep this hook for map-screen entry — it's a natural moment to
+    /// verify parent / position are still correct for users who saved &amp;
+    /// reloaded. The ChildOrderChanged signal makes it largely redundant
+    /// for the click-the-map-icon bug, but this covers the cold-load path
+    /// where the signal hasn't been hooked yet.
     /// </summary>
     [HarmonyPatch(typeof(MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen),
         nameof(MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen.Open))]
@@ -277,10 +320,6 @@ public static class CombatUiOverlayPatch
     [HarmonyPostfix]
     public static void AfterCombatEnded(CombatRoom __instance)
     {
-        // PRD §3.9 / §3.17 round 9: do NOT hide on combat end. Indicators
-        // remain visible across map / shop / event / reward screens. We
-        // only refresh values here so combat-driven pity changes show up
-        // immediately on the next non-combat screen.
         Safe.Run(() =>
         {
             var state = CombatManager.Instance?.DebugOnlyGetState();
@@ -290,12 +329,6 @@ public static class CombatUiOverlayPatch
         });
     }
 
-    /// <summary>
-    /// Round 9 fix: when a saved run is resumed mid-combat, `SetUpCombat`
-    /// is NOT called again, so we re-prime values here. The lifecycle hook
-    /// `OnRunStarted` covers the wrapper creation case (it fires on the
-    /// run-start postfix that runs before Resume).
-    /// </summary>
     [HarmonyPatch(typeof(CombatRoom), nameof(CombatRoom.Resume))]
     [HarmonyPostfix]
     public static void AfterCombatRoomResume(CombatRoom __instance)
@@ -352,8 +385,6 @@ public static class CombatUiOverlayPatch
 
     private static Player? ResolveLocalPlayer(CombatState state)
     {
-        // Prefer the local-context player; fall back to first player so
-        // single-player runs (where NetId may not be set yet) still work.
         Player? me = null;
         try { me = LocalContext.GetMe(state); } catch { }
         if (me == null) me = state.Players?.FirstOrDefault();
