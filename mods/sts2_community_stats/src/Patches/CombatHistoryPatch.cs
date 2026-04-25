@@ -213,25 +213,19 @@ public static class CombatHistoryPatch
 // is attributed back to the card that applied the power.
 // ═══════════════════════════════════════════════════════════
 
-[HarmonyPatch]
-public static class PowerApplyPatch
-{
-    [HarmonyPatch(typeof(PowerModel), nameof(PowerModel.ApplyInternal))]
-    [HarmonyPostfix]
-    public static void AfterApplyInternal(PowerModel __instance, Creature owner)
-    {
-        Safe.Run(() =>
-        {
-            var powerId = __instance.Id.Entry;
-            if (string.IsNullOrEmpty(powerId)) return;
-
-            int creatureHash = owner.GetHashCode();
-            bool isPlayerTarget = owner.IsPlayer;
-
-            CombatTracker.Instance.OnPowerApplied(powerId, __instance.Amount, creatureHash, isPlayerTarget);
-        });
-    }
-}
+// 4.18 fix: PowerApplyPatch (AfterApplyInternal) removed in favour of the
+// unified DebuffDurationPatch.AfterSetAmount path. Reason: ApplyInternal
+// fires AFTER SetAmount has already updated __instance.Amount to the new
+// cumulative value, so the only amount our postfix could see was the
+// running total. Feeding that into RecordDebuffLayer made each new
+// Vulnerable/Poison/etc application's layer carry duration = total stacks
+// (e.g. layer #2 had duration 2 instead of the 1 it actually added),
+// skewing the FIFO fractions and — combined with per-turn DecrementDebuffLayers
+// — eventually collapsing every multi-source debuff to a single surviving
+// layer that swallowed all the credit. SetAmount runs first AND has access
+// to both __state (prior) and amount (post), so its postfix can compute
+// the true delta and feed that to OnPowerApplied. See DebuffDurationPatch
+// below for the replacement.
 
 /// <summary>
 /// Manual RelicHookContext patcher. Sets/clears _activeRelicId around relic hook methods
@@ -1255,20 +1249,37 @@ public static class DebuffDurationPatch
     {
         Safe.Run(() =>
         {
-            // Only care about duration decrements (amount < old) on non-player creatures
-            if (amount >= __state) return;
+            if (amount == __state) return;
             var owner = __instance.Owner;
-            if (owner == null || owner.IsPlayer) return;
+            if (owner == null) return;
 
             var powerId = __instance.Id.Entry;
             if (string.IsNullOrEmpty(powerId)) return;
 
-            // Only decrement for duration-based debuffs we track (Vulnerable, Weak)
-            if (powerId != "VULNERABLE_POWER" && powerId != "WEAK_POWER") return;
+            int creatureHash = owner.GetHashCode();
+            bool isPlayer = owner.IsPlayer;
 
-            int decremented = __state - amount;
-            for (int i = 0; i < decremented; i++)
-                ContributionMap.Instance.DecrementDebuffLayers(owner.GetHashCode(), powerId);
+            if (amount > __state)
+            {
+                // 4.18 fix: feed OnPowerApplied the DELTA, not the new total.
+                // This makes every new application of a duration-based debuff
+                // (Vulnerable/Poison/etc) record its own FIFO layer with the
+                // duration it actually contributed, so multi-source attribution
+                // splits proportionally instead of collapsing to one source.
+                int delta = amount - __state;
+                CombatTracker.Instance.OnPowerApplied(powerId, delta, creatureHash, isPlayer);
+            }
+            else if (!isPlayer
+                && (powerId == "VULNERABLE_POWER" || powerId == "WEAK_POWER"))
+            {
+                // Per-turn decrement: tick FIFO layers down by the lost stacks
+                // so layers expire in application order. Limited to the two
+                // duration-based debuffs we explicitly track to avoid
+                // accidentally rewriting unrelated power semantics.
+                int decremented = __state - amount;
+                for (int i = 0; i < decremented; i++)
+                    ContributionMap.Instance.DecrementDebuffLayers(creatureHash, powerId);
+            }
         });
     }
 }
