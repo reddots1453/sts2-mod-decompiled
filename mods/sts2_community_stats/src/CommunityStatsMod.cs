@@ -103,6 +103,7 @@ public static class CommunityStatsMod
         Patches.CardUpgradePatch.SubscribeRefresh();
         Patches.CardRemovalPatch.SubscribeRefresh();
         Patches.RelicHoverPatch.SubscribeRefresh();
+        Patches.MapPointPatch.SubscribeRefresh();
 
         // Register ModManager.OnMetricsUpload hook for run data upload
         RunLifecyclePatch.RegisterMetricsHook();

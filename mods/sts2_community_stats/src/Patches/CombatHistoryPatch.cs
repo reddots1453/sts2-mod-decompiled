@@ -653,11 +653,49 @@ public static class PowerHookContextPatcher
         Safe.Run(() =>
         {
             var powerId = __instance.Id.Entry;
-            CombatTracker.Instance.SetActivePowerSource(powerId);
+            if (string.IsNullOrEmpty(powerId)) return;
+
+            // Resolve source: try the global _powerSources map first (player
+            // buffs like Strength / Vigor / DemonForm). For enemy-side
+            // debuffs the global map is intentionally empty (Fix 3.1) — fall
+            // back to the per-enemy _debuffLayers FIFO head so hooks like
+            // StranglePower.AfterCardPlayed (which directly calls
+            // CreatureCmd.Damage on its enemy owner) attribute the
+            // Unblockable/Unpowered damage back to the card that applied
+            // the debuff instead of dropping it as UNTRACKED.
+            var source = ContributionMap.Instance.GetPowerSource(powerId);
+            if (source == null)
+            {
+                try
+                {
+                    var owner = __instance.Owner;
+                    if (owner != null && !owner.IsPlayer)
+                    {
+                        source = ContributionMap.Instance.GetDebuffHeadSource(
+                            owner.GetHashCode(), powerId);
+                    }
+                }
+                catch { }
+            }
+
+            if (source != null)
+            {
+                CombatTracker.Instance.SetActivePowerSourceManual(
+                    powerId, source.SourceId, source.SourceType);
+            }
+            else
+            {
+                // No known source — keep the legacy behaviour of caching the
+                // powerId so OnDamageDealt at least knows we're inside a
+                // power-hook context. _activePowerSourceId stays null →
+                // attribution falls through to whatever single-source
+                // resolver picks up next.
+                CombatTracker.Instance.SetActivePowerSource(powerId);
+            }
+
             // Also set pending draw/block/damage source for async power hooks.
             // These persist through async await because they're AsyncLocal-backed.
             // Consumed by OnCardDrawn/OnBlockGained after use.
-            var source = ContributionMap.Instance.GetPowerSource(powerId);
             if (source != null)
             {
                 if (_powerMultiDrawIds.Contains(powerId))
@@ -724,6 +762,17 @@ public static class PowerHookContextPatcher
         TryPatch(harmony, typeof(EnvenomPower), "AfterDamageGiven", prefix, postfix);
         TryPatch(harmony, typeof(NoxiousFumesPower), "AfterSideTurnStart", prefix, postfix);
         TryPatch(harmony, typeof(InfiniteBladesPower), "BeforeHandDraw", prefix, postfix);
+        // Strangle: BeforeCardPlayed records the per-card amount, AfterCardPlayed
+        // calls CreatureCmd.Damage with Unblockable+Unpowered against the enemy
+        // owner. Without this patch the extra damage runs with no active
+        // context — falling back to the playing card's source ID (or
+        // UNTRACKED), so the bonus damage was attributed to whichever card
+        // happened to trigger the hook rather than the card that applied
+        // Strangle. Setting the active power-source context here lets
+        // OnDamageDealt's indirect path resolve to the FIFO head of
+        // _debuffLayers[(enemy, "STRANGLE_POWER")] (the applier card).
+        TryPatch(harmony, typeof(StranglePower), "BeforeCardPlayed", prefix, postfix);
+        TryPatch(harmony, typeof(StranglePower), "AfterCardPlayed", prefix, postfix);
 
         // ── Defect ──
         TryPatch(harmony, typeof(StormPower), "AfterCardPlayed", prefix, postfix);
@@ -1493,14 +1542,51 @@ public static class CardUpgradeTrackerPatch
 
             if (damageDelta <= 0 && blockDelta <= 0) return;
 
-            // Store the delta for later attribution when the upgraded card is played.
-            // Source = the card that triggered the upgrade (e.g., Armaments), or "upgrade" fallback.
-            // Fix D: also capture the upgrader's origin so potion-generated vs deck-native
-            // upgraders (e.g. SKILL_POTION Armaments vs deck Armaments) attribute to distinct buckets.
+            // Store the delta for later attribution when the upgraded card is
+            // played. Resolve the upgrader along the same priority chain as
+            // ResolveSource so any active context counts:
+            //   power-hook > relic > potion > card > "upgrade"
+            //
+            // The previous implementation only checked ActiveCardId, which
+            // silently dropped any upgrade fired from a relic / potion / power
+            // hook with no card playing — most notably BELLOWS, which calls
+            // CardCmd.Upgrade on every hand card from inside its
+            // AfterPlayerTurnStart hook (no card play in flight). Those
+            // upgrade deltas were attributed to the literal "upgrade" string
+            // and never appeared on a relic/card row in the contribution
+            // chart. Fix D's origin tracking only kicks in when the upgrader
+            // itself was a card (potion-generated Armaments vs deck-native
+            // Armaments), so we keep that path conditional on ActiveCardId.
             var tracker = CombatTracker.Instance;
-            string sourceId = tracker.ActiveCardId ?? "upgrade";
-            string sourceType = tracker.ActiveCardId != null ? "card" : "upgrade";
-            string? upgraderOrigin = tracker.ActiveCardId != null ? tracker.ActiveCardOrigin : null;
+            string sourceId;
+            string sourceType;
+            string? upgraderOrigin = null;
+            if (tracker.ActivePowerSourceId != null)
+            {
+                sourceId = tracker.ActivePowerSourceId;
+                sourceType = tracker.ActivePowerSourceType ?? "power";
+            }
+            else if (tracker.ActiveRelicId != null)
+            {
+                sourceId = tracker.ActiveRelicId;
+                sourceType = "relic";
+            }
+            else if (tracker.ActivePotionId != null)
+            {
+                sourceId = tracker.ActivePotionId;
+                sourceType = "potion";
+            }
+            else if (tracker.ActiveCardId != null)
+            {
+                sourceId = tracker.ActiveCardId;
+                sourceType = "card";
+                upgraderOrigin = tracker.ActiveCardOrigin;
+            }
+            else
+            {
+                sourceId = "upgrade";
+                sourceType = "upgrade";
+            }
             ContributionMap.Instance.RecordUpgradeDelta(card.GetHashCode(),
                 damageDelta, blockDelta, sourceId, sourceType, upgraderOrigin);
         });

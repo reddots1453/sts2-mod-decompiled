@@ -135,37 +135,39 @@ public static class ShopPricePanel
     }
 
     /// <summary>
-    /// Ask the game to compute the current card-removal cost. Constructs a
-    /// throwaway <see cref="MerchantCardRemovalEntry"/>; its constructor calls
-    /// <c>CalcCost</c>, which runs the authoritative formula
-    /// (<c>BaseCost + PriceIncrease * player.ExtraFields.CardShopRemovalsUsed</c>)
-    /// with live Inflation-ascension and removal-count inputs — no numbers
-    /// hardcoded in this mod.
+    /// Compute the card-removal cost from the raw STS2 formula and apply
+    /// our discount multiplier exactly once.
     ///
-    /// The returned <c>.Cost</c> is raw (pre-discount) because the getter only
-    /// applies <c>Hook.ModifyMerchantPrice</c> when the player is inside a
-    /// MerchantRoom; on the map hover panel the player is not, so the
-    /// membership/courier discount is layered on top via <paramref name="multiplier"/>
-    /// same as the card / relic / potion rows. When <paramref name="player"/> is
-    /// null (e.g. Neow-screen preview) we get 0 and fall back nowhere — the
-    /// caller just won't see a meaningful number, which is acceptable since no
-    /// merchant price table is relevant without a player in a run.
+    /// Decompiled <see cref="MerchantCardRemovalEntry"/>:
+    /// <code>
+    /// public override void CalcCost() {
+    ///     _cost = 75 + 25 * _player.ExtraFields.CardShopRemovalsUsed;
+    /// }
+    /// public int Cost {
+    ///     get {
+    ///         decimal num = _cost;
+    ///         if (_player.RunState.CurrentRoom is MerchantRoom)
+    ///             num = Hook.ModifyMerchantPrice(... _cost);
+    ///         return (int)num;
+    ///     }
+    /// }
+    /// </code>
+    ///
+    /// Earlier this method called <c>entry.Cost</c> and multiplied by
+    /// <paramref name="multiplier"/>. That double-counted the discount when
+    /// the player was already inside a MerchantRoom: the getter applied
+    /// MembershipCard's ×0.5 once, then we multiplied by another ×0.5,
+    /// turning a 150 raw price into 38 (≈ 150 × 0.25) instead of 75. From
+    /// the map hover (player not in MerchantRoom) the bug was invisible
+    /// because the getter passed the cost through unchanged. Reading from
+    /// the formula directly gives a single, deterministic discount path
+    /// regardless of the player's current room.
     /// </summary>
     private static int ComputeRemovalCost(Player? player, int cardRemovalsUsed, float multiplier)
     {
-        if (player == null) return 0;
-        try
-        {
-            var entry = new MerchantCardRemovalEntry(player);
-            // Constructor already computed _cost via CalcCost() reading the
-            // player's ExtraFields.CardShopRemovalsUsed. `cardRemovalsUsed` is
-            // the same value our caller read from Traverse; we keep the param
-            // so that if the game ever exposes removal count via another path
-            // we can swap without touching call sites.
-            _ = cardRemovalsUsed;
-            return (int)Math.Round(entry.Cost * multiplier);
-        }
-        catch { return 0; }
+        _ = player; // kept for signature compatibility / future use
+        int rawCost = 75 + 25 * Math.Max(0, cardRemovalsUsed);
+        return (int)Math.Round(rawCost * multiplier);
     }
 
     private static int TryGetGold(Player? player)

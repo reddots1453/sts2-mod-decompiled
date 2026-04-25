@@ -385,6 +385,22 @@ public sealed class CombatTracker
         }
     }
 
+    /// <summary>
+    /// Set the active power-source context for an enemy-side debuff hook
+    /// (Strangle, Poison, Slowed, etc) where the resolved source comes from
+    /// the per-enemy <c>_debuffLayers</c> table rather than the global
+    /// <c>_powerSources</c> map. <see cref="SetActivePowerSource"/> can't
+    /// see those entries because enemy debuffs don't pollute the global
+    /// table (Fix 3.1). Callers pass the FIFO head source they fetched via
+    /// <see cref="ContributionMap.GetDebuffHeadSource"/>.
+    /// </summary>
+    public void SetActivePowerSourceManual(string powerId, string sourceId, string sourceType)
+    {
+        _activePowerId = powerId;
+        _activePowerSourceId = sourceId;
+        _activePowerSourceType = sourceType;
+    }
+
     public void ClearActivePowerSource()
     {
         _activePowerSourceId = null;
