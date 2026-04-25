@@ -719,25 +719,37 @@ public sealed class CombatTracker
 
             if (isIndirect)
             {
-                // 4.18 fix: if the indirect tick comes from a power that has
-                // multiple recorded sources (e.g. Poison applied by both
-                // Strike+ and Necronomicon), split the damage by the
-                // amount each source contributed instead of crediting it
-                // all to whichever was applied first. The orb path keeps
-                // its existing single-source attribution because orb
-                // context already names the originating card uniquely.
+                // PRD I1 — multi-source stack debuff (Poison/etc): split the
+                // tick by current per-source layer.Duration. Each existing
+                // stack contributes 1 damage to this tick, and AfterSetAmount's
+                // FIFO DecrementDebuffLayers ensures expired stacks no longer
+                // contribute on subsequent turns. _debuffLayers is keyed by
+                // (enemy_hash, powerId) so each enemy carries its own
+                // multi-source FIFO stack — the targetHash here is the
+                // self-damaged enemy.
+                //
+                // Orb-channelled damage skips this path: orb context already
+                // names the originating card uniquely (the channeling card).
+                // Player buff hooks (Rage / Juggernaut / etc) also fall
+                // through naturally — _debuffLayers won't have an entry for
+                // those power ids on the enemy, so fractions.Count==0 and we
+                // route through the existing single-source resolver.
                 bool distributed = false;
                 if (!hasOrbContext && _activePowerId != null && directDamage > 0)
                 {
-                    var sources = ContributionMap.Instance.GetPowerSources(_activePowerId);
-                    if (sources != null && sources.Count > 1)
+                    var fractions = ContributionMap.Instance.GetDebuffSourceFractions(
+                        targetHash, _activePowerId);
+                    if (fractions.Count > 1)
                     {
-                        var slices = ContributionMap.Instance.DistributeByPowerSources(
-                            _activePowerId, directDamage);
-                        foreach (var (srcId, srcType, share) in slices)
+                        int allocated = 0;
+                        for (int i = 0; i < fractions.Count; i++)
                         {
+                            int share = (i == fractions.Count - 1)
+                                ? directDamage - allocated
+                                : (int)Math.Round(directDamage * fractions[i].Fraction);
                             if (share > 0)
-                                GetOrCreate(srcId, srcType).AttributedDamage += share;
+                                GetOrCreate(fractions[i].SourceId, fractions[i].SourceType).AttributedDamage += share;
+                            allocated += share;
                         }
                         distributed = true;
                     }
@@ -765,17 +777,14 @@ public sealed class CombatTracker
         int prevented = (int)Math.Round(actualDamage / weakMultiplier - actualDamage);
         if (prevented <= 0) return;
 
-        // H1: Use FIFO fractional attribution for multi-source Weak
-        var fractions = ContributionMap.Instance.GetDebuffSourceFractions(dealerHash, "WEAK_POWER");
-        if (fractions.Count > 0)
-        {
-            foreach (var (sourceId, sourceType, frac) in fractions)
-            {
-                int share = (int)Math.Round(prevented * frac);
-                if (share > 0)
-                    GetOrCreate(sourceId, sourceType).MitigatedByDebuff += share;
-            }
-        }
+        // PRD DEF-2c — FIFO head-source attribution: Weak is a boolean debuff
+        // (single 0.75x multiplier regardless of stack count), so the entire
+        // turn's mitigation belongs to whichever source's layer is at the
+        // queue head. Pro-rating by stack count would credit a later applier
+        // for damage Weak prevented before that source even existed.
+        var head = ContributionMap.Instance.GetDebuffHeadSource(dealerHash, "WEAK_POWER");
+        if (head != null)
+            GetOrCreate(head.SourceId, head.SourceType).MitigatedByDebuff += prevented;
     }
 
     /// <summary>

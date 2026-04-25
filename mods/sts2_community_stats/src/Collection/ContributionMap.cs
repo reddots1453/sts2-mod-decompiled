@@ -383,6 +383,30 @@ public class ContributionMap
     }
 
     /// <summary>
+    /// PRD M5 / DEF-2c — FIFO head-source attribution for boolean debuffs
+    /// (Vulnerable / Weak): the current turn's modifier credit goes 100% to
+    /// whichever source's layer is at the front of the queue. The per-turn
+    /// DecrementDebuffLayers tick consumes the head until it expires, at
+    /// which point the next source takes over.
+    ///
+    /// Distinct from <see cref="GetDebuffSourceFractions"/>: that method
+    /// pro-rates by current layer.Duration which is the right behaviour for
+    /// stack-style debuffs (Poison) where every existing stack contributes
+    /// 1 damage on every tick. Boolean debuffs only have ONE multiplicative
+    /// effect per turn regardless of stack count, so pro-rating their bonus
+    /// would credit later sources for damage they didn't cause.
+    /// </summary>
+    public PowerSource? GetDebuffHeadSource(int creatureHash, string powerId)
+    {
+        var key = (creatureHash, powerId);
+        if (_debuffLayers.TryGetValue(key, out var layers) && layers.Count > 0)
+        {
+            return new PowerSource(layers[0].SourceId, layers[0].SourceType);
+        }
+        return GetDebuffSource(creatureHash, powerId);
+    }
+
+    /// <summary>
     /// Decrement debuff layers at turn end (FIFO: earliest layers consumed first).
     /// </summary>
     public void DecrementDebuffLayers(int creatureHash, string powerId)

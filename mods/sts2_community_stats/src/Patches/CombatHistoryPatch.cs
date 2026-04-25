@@ -1028,26 +1028,26 @@ public static class DamageModifierPatch
         decimal subTotal = vulnBaseDelta + phrogDelta + crueltyDelta + debilitateDelta;
         if (subTotal <= 0) return;
 
-        // Vulnerable base — split among FIFO sources (Fix-4)
+        // PRD M5 — FIFO head-source attribution for Vulnerable. Vulnerable
+        // is a boolean ×1.5 multiplier (stack count only affects duration,
+        // not magnitude), so the entire turn's bonus belongs to whichever
+        // applier sits at the FIFO queue head. Per-turn DecrementDebuffLayers
+        // ticks the head down each turn so the next source promotes when
+        // the head expires.
         int vulnShare = (int)Math.Round(totalContrib * (vulnBaseDelta / subTotal));
         if (vulnShare > 0 && target != null)
         {
-            var fractions = ContributionMap.Instance.GetDebuffSourceFractions(target.GetHashCode(), "VULNERABLE_POWER");
-            if (fractions.Count > 0)
+            var head = ContributionMap.Instance.GetDebuffHeadSource(
+                target.GetHashCode(), "VULNERABLE_POWER");
+            if (head != null)
             {
-                foreach (var (srcId, srcType, frac) in fractions)
-                {
-                    int srcShare = (int)Math.Round(vulnShare * frac);
-                    if (srcShare > 0)
-                        modList.Add(new ContributionMap.ModifierContribution(srcId, srcType, srcShare));
-                }
+                modList.Add(new ContributionMap.ModifierContribution(
+                    head.SourceId, head.SourceType, vulnShare));
             }
             else
             {
-                var vulnSource = ContributionMap.Instance.GetPowerSource("VULNERABLE_POWER");
-                string vsId = vulnSource?.SourceId ?? "VULNERABLE_POWER";
-                string vsType = vulnSource?.SourceType ?? "power";
-                modList.Add(new ContributionMap.ModifierContribution(vsId, vsType, vulnShare));
+                modList.Add(new ContributionMap.ModifierContribution(
+                    "VULNERABLE_POWER", "power", vulnShare));
             }
         }
 
@@ -1270,12 +1270,23 @@ public static class DebuffDurationPatch
                 CombatTracker.Instance.OnPowerApplied(powerId, delta, creatureHash, isPlayer);
             }
             else if (!isPlayer
-                && (powerId == "VULNERABLE_POWER" || powerId == "WEAK_POWER"))
+                && (powerId == "VULNERABLE_POWER" || powerId == "WEAK_POWER"
+                    || powerId == "POISON_POWER"))
             {
-                // Per-turn decrement: tick FIFO layers down by the lost stacks
-                // so layers expire in application order. Limited to the two
-                // duration-based debuffs we explicitly track to avoid
-                // accidentally rewriting unrelated power semantics.
+                // Per-turn decrement: tick FIFO layers down by the lost
+                // stacks so layers expire in application order.
+                //
+                // VUL/WEAK: each turn power.amount decreases by 1, the head
+                // layer's Duration drops by 1, and when it hits 0 the next
+                // applier promotes to the head (PRD M5 / DEF-2c).
+                //
+                // POISON: each turn power.amount = stacks_remaining drops
+                // by 1 after the tick fires. We attribute that lost stack
+                // to whichever source contributed the FIFO-head stack so
+                // the per-source totals sum exactly to the enemy's total
+                // poison damage (PRD I1). Without this, multi-source poison
+                // would either over-attribute (no decrement, fractions
+                // never converge) or under-attribute (stacks "leak").
                 int decremented = __state - amount;
                 for (int i = 0; i < decremented; i++)
                     ContributionMap.Instance.DecrementDebuffLayers(creatureHash, powerId);
