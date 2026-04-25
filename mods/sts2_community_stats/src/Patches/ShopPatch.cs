@@ -271,7 +271,15 @@ public static class ShopPatch
             label.Position = new Vector2(0, 200);
             label.Size = new Vector2(160, 30);
             label.MouseFilter = Control.MouseFilterEnum.Ignore;
-            label.ZIndex = 100;
+            // Round 16 fix: ZIndex was 100 — large enough to break out of the
+            // shop screen's render layer, so the label kept floating on top
+            // of the deck/map/pause overlays the player opened *over* the
+            // shop. Set to a small positive value so the label still wins
+            // the z-fight against the card art it sits on, but stays inside
+            // its parent's CanvasLayer / scene-tree visibility cascade. When
+            // the shop screen is hidden behind a modal overlay, the entire
+            // NMerchantCard (label included) is hidden too.
+            label.ZIndex = 5;
             slot.AddChild(label);
             label.Visible = true;
             Safe.Info($"[ShopBuyRate] card={cardId} attached ({pathTag}) slotSize={slot.Size}");
@@ -333,7 +341,12 @@ public static class ShopPatch
 
             label.SetMeta(StatsLabelMeta, true);
             slot.AddChild(label);
-            label.ZIndex = 100;
+            // Round 16 fix: ZIndex was 100 → broke out of the shop screen's
+            // render layer, leaving the label visible on top of deck / map /
+            // pause overlays opened over the shop. Drop to 5: still wins
+            // against the relic icon sitting on the same node, but stays
+            // bound to its parent's visibility cascade.
+            label.ZIndex = 5;
             label.MouseFilter = Control.MouseFilterEnum.Ignore;
             // Relic box: wider to fit fontSize=14 text "购买 12.3%".
             label.AnchorLeft = 1f;

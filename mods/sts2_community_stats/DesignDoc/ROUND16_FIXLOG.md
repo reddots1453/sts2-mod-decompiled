@@ -203,7 +203,64 @@ ContributionPanel.ShowRunReplay(summary);
 
 ---
 
-## E. 疑问汇总
+## D2. 第二批已实施(commit `26626c8`)— 测试场景
+
+| TS | 项 | 操作 | 预期 |
+|---|---|---|---|
+| **TS-Removal** | C7 删牌费用双重折扣 | 删 3 次牌(`CardShopRemovalsUsed=3`)→ 进 shop 看价格表 | 删牌价 = **150**;有 MembershipCard = **75**(不再是 38);有 TheCourier = **120**;两者同时 = **60** |
+| **TS-Map-Filter** | C5 地图危险度 F9 立即刷新 | F9 设 min_wr=0(基准)→ 看战斗节点的死亡率/平均伤害 → F9 改 min_wr=0.5 Apply → 不关 F9 直接看地图 | overlay 文字立即变化(数字下降,反映高胜率玩家样本) |
+| **TS-Strangle** | C1 紧勒额外伤害 | Silent 装紧勒(amount=2),先打紧勒命中敌人,再打 2 张牌 | 贡献图 STRANGLE 的 AttributedDamage = **2+2=4**(每张牌触发 2 unblockable),`UNTRACKED` 行不再出现 |
+| **TS-Bellows** | C2 风箱(BELLOWS)升级源泛化 | 装 BELLOWS,第 1 回合手牌中的 STRIKE 已被升级为 STRIKE+,打出 STRIKE+ | 贡献图中 BELLOWS 出现"升级伤害"贡献(STRIKE+ 比 STRIKE 多打的 +3),不再被归到字面量 "upgrade" |
+
+## D3. 第三批已实施(本次 commit)— 测试场景
+
+| TS | 项 | 操作 | 预期 |
+|---|---|---|---|
+| **TS-RunSummary** | C3 已结束 run 本局汇总 | 完整通关一局 → 在历史记录详情查"本局贡献图表" | 显示**整 run 累加**(所有战斗 source 都在,而非只最后一场 boss);标题/总伤害与本 run 实际经过对得上 |
+| **TS-RunSummary-SaveQuit** | C3 同上但跨 save+quit | 打 2 场战斗 → save+quit → 重进游戏继续打 1 场 → 通关 → 看本局贡献 | 累加 = 3 场全部战斗(disk reassemble fallback 仅在内存空时触发) |
+| **TS-Shop-Modal** | C6 商店 label 跨面板 | 进商店 → 打开牌组 / 地图 / 设置 / 暂停菜单 | "购买率 X%" label 不再浮在新面板上层(要么跟商店面板一起被遮挡,要么完全隐藏) |
+| **TS-Sample-Count** | C8 样本数语义 | F9 中 character=ALL min_asc=0 max_asc=20 看"数据范围: N 局";然后看任意一张常见卡的大图 | 该卡 sample 数 ≤ N(不再是 N 的几倍) |
+| **TS-Potion-Odds** | C4 药水掉落 | (无需改动,反编译已核实)hover 顶栏药水图标 | 第一行显示"精英战 = 当前+12.5%",顶栏数字本身是普通战基础几率(STS2 设计如此) |
+
+---
+
+## E. C4 调研结果(无需改动)
+
+对照反编译 `MegaCrit.Sts2.Core.Odds.PotionRewardOdds.Roll`:
+
+```csharp
+float currentValue = base.CurrentValue;        // 当前持久几率
+bool flag = Hook.ShouldForcePotionReward(...);
+float num = _rng.NextFloat();
+if (num < currentValue || flag)
+    base.CurrentValue -= 0.1f;                 // 掉了 → 下次 -10%
+else
+    base.CurrentValue += 0.1f;                 // 没掉 → 下次 +10%
+float num2 = ((roomType != Elite) ? 0f : 0.25f);  // eliteBonus
+if (!flag)
+    return num < currentValue + num2 * 0.5f;   // 实际判定 = base + 0.125 (精英) | base (普通)
+return true;
+```
+
+mod 当前实现(`PotionOddsIndicator.cs`):
+- 顶栏主显示:`currentValue × 100%` —— 普通战基础几率 ✓(对应 `num < currentValue`)
+- hover 第一行:`(currentValue + 0.125) × 100%` —— 精英战实际几率 ✓(对应 `num < currentValue + 0.125`)
+- hover 后续行:连续 N 战累积概率 —— miss-path 模拟 +0.1/战(±0.1 持久偏移),公式正确
+
+**结论**:逻辑完全符合反编译,**无需改动**。如果你看到具体某个数字不对,请提供:(a) 当前 floor / 房间类型,(b) mod 顶栏显示的数字,(c) 你期望的数字 + 推导依据,我再核查。
+
+---
+
+## F. 仍待修(0 项,所有 8 项已闭环或文档化)
+
+R16 全部修复完毕。剩余风险点:
+- C3 fix 假设 in-memory `RunTotals` 是权威数据 —— 如果未来发现 in-memory 在某些路径意外被 Reset 又来不及从 disk hydrate,可能漏数。当前已知所有 Reset 点在 OnRunStart,后续战斗会再 AddCombat 累加,disk fallback 只在 cold-load 后立即 upload 的极罕见路径生效。
+- C6 ZIndex=5 假设 NMerchantCard 处于普通 CanvasLayer。若用户测试发现 label 仍跨面板(说明商店真的在更高 CanvasLayer),需追加 patch 监听 modal screen 的 OnShow/OnHide 强制 toggle。
+- C8 sample_size 改 COUNT(DISTINCT run_id)只覆盖 cards / relics。events / encounters 仍是 COUNT(*),如果用户看见 encounter 样本数仍然异常大,扩展同款修法到 `_aggregate_events` / `_aggregate_encounters`。
+
+---
+
+## G. 疑问汇总(已闭环或保留)
 
 1. **Q1** Strangle 额外伤害归因模型(队头独占 vs 比例分摊)?
 2. **Q2** "升级源标记"机制是否泛化到 BELLOWS 之外的批量升级源?

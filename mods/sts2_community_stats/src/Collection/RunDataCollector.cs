@@ -161,9 +161,26 @@ public static class RunDataCollector
                 // Round 14 v5+ post-test fix: save+quit+resume between combats
                 // can clear in-memory run totals (OnRunStart → Reset, live.json
                 // hydration is best-effort). Every combat end DOES write a
-                // per-combat snapshot to disk, so reassemble the run totals
-                // from those authoritative files before serializing.
-                ContributionPersistence.AssembleAndHydrateRunTotals(seed!);
+                // per-combat snapshot to disk, so we can reassemble totals
+                // from those authoritative files when in-memory state is gone.
+                //
+                // Round 16 fix: ONLY hydrate from disk when in-memory totals
+                // are empty. The previous unconditional call also fired when
+                // RunContributionAggregator was already complete (the normal
+                // played-through-without-quitting path), and HydrateRunTotals
+                // is "Clear + replace", not a merge. If even a single
+                // per-combat .json failed to write (or its floor number
+                // collided with another combat overwriting it on disk), the
+                // disk reassembly returned a strict subset of memory and we
+                // happily replaced the correct in-memory totals with that
+                // subset — typically leaving only the most recent combat
+                // visible, which is exactly the user-reported "本局汇总 =
+                // 最后一场" symptom. Trust memory in the live path; only
+                // fall back to disk reassembly if memory has nothing.
+                if (RunContributionAggregator.Instance.RunTotals.Count == 0)
+                {
+                    ContributionPersistence.AssembleAndHydrateRunTotals(seed!);
+                }
 
                 ContributionPersistence.SaveRunSummary(
                     seed!,

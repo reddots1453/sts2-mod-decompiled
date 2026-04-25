@@ -138,12 +138,20 @@ async def _aggregate_cards(
     where, params = _where_with_asc(char, ver, lo, hi, min_wr)
 
     # ── Pick rate & win rate from card_choices ──
+    # Round 16: sample_size is COUNT(DISTINCT run_id) — the number of runs
+    # that offered this card at least once — not COUNT(*) (the number of
+    # rewards rows containing this card). The latter inflates by avg
+    # rewards-per-run (≈ 3-5 for any common card) and was confusing UX:
+    # F9 says "数据范围: 1000 局" but a Strike's "样本: 4500" appeared
+    # 4× larger. pick_rate / win_rate stay row-based (out of every offer,
+    # how often was it picked / did the picker win) — those semantics
+    # need the raw row count, not distinct runs.
     rows = await conn.fetch(f"""
         SELECT
             card_id,
             AVG(was_picked::int)::real       AS pick_rate,
             AVG(CASE WHEN was_picked THEN win::int END)::real AS win_rate,
-            COUNT(*)                          AS sample_size
+            COUNT(DISTINCT run_id)            AS sample_size
         FROM card_choices
         {where}
         GROUP BY card_id
@@ -235,11 +243,14 @@ async def _aggregate_relics(
 ) -> dict[str, RelicStats]:
     where, params = _where_with_asc(char, ver, lo, hi, min_wr)
 
+    # Round 16: relic_records already has at most one row per (run, relic),
+    # so COUNT(DISTINCT run_id) ≡ COUNT(*) in practice — kept here for
+    # symmetry with cards and to stay safe if the schema ever changes.
     rows = await conn.fetch(f"""
         SELECT
             relic_id,
-            AVG(win::int)::real  AS win_rate,
-            COUNT(*)             AS sample_size
+            AVG(win::int)::real           AS win_rate,
+            COUNT(DISTINCT run_id)        AS sample_size
         FROM relic_records
         {where}
         GROUP BY relic_id
