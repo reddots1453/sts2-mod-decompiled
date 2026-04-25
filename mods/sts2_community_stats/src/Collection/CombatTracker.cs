@@ -34,6 +34,13 @@ public sealed class CombatTracker
     private static readonly AsyncLocal<string?> _activePotionIdAL = new();
     private static readonly AsyncLocal<string?> _activePowerSourceIdAL = new();
     private static readonly AsyncLocal<string?> _activePowerSourceTypeAL = new();
+    // 4.18 fix: also remember the power id itself (e.g. "POISON_POWER") so
+    // OnDamageDealt's indirect-damage path can ask for ALL recorded sources
+    // and split the tick proportionally. The single _activePowerSourceId
+    // above is only the first source — without this companion field, a
+    // multi-application Poison would credit the entire tick to whoever
+    // applied it first.
+    private static readonly AsyncLocal<string?> _activePowerIdAL = new();
     private static readonly AsyncLocal<string?> _pendingDrawSourceIdAL = new();
     private static readonly AsyncLocal<string?> _pendingDrawSourceTypeAL = new();
     // P2-3: N-count pending draw (CentennialPuzzle draws N cards from a single hook).
@@ -94,6 +101,11 @@ public sealed class CombatTracker
     {
         get => _activePowerSourceTypeAL.Value;
         set => _activePowerSourceTypeAL.Value = value;
+    }
+    private string? _activePowerId
+    {
+        get => _activePowerIdAL.Value;
+        set => _activePowerIdAL.Value = value;
     }
 
     // Track DamageResult objects already processed by DamageReceived,
@@ -247,6 +259,7 @@ public sealed class CombatTracker
         _activePotionId = null;
         _activePowerSourceId = null;
         _activePowerSourceType = null;
+        _activePowerId = null;
         _encounterId = encounterId;
         _encounterType = encounterType;
         _damageTakenByPlayer = 0;
@@ -358,6 +371,12 @@ public sealed class CombatTracker
 
     public void SetActivePowerSource(string powerId)
     {
+        // 4.18 fix: cache the raw powerId in addition to the resolved single
+        // source. OnDamageDealt's indirect path uses _activePowerId to ask
+        // ContributionMap for ALL recorded sources of this power and split
+        // the tick proportionally, restoring credit to every card that
+        // applied it (Poison from a Strike + Necronomicon stack, etc.).
+        _activePowerId = powerId;
         var source = ContributionMap.Instance.GetPowerSource(powerId);
         if (source != null)
         {
@@ -370,6 +389,7 @@ public sealed class CombatTracker
     {
         _activePowerSourceId = null;
         _activePowerSourceType = null;
+        _activePowerId = null;
     }
 
     /// <summary>Force-clear ALL context. Called between tests to prevent stale state.
@@ -386,6 +406,7 @@ public sealed class CombatTracker
         _activeRelicId = null;
         _activePowerSourceId = null;
         _activePowerSourceType = null;
+        _activePowerId = null;
         _pendingDrawSourceId = null;
         _pendingDrawSourceType = null;
         _pendingDrawRemainingAL.Value = null;
@@ -697,9 +718,37 @@ public sealed class CombatTracker
                 || (cardSourceId == null && _activePowerSourceId != null);
 
             if (isIndirect)
-                GetOrCreate(sourceId2, sourceType2).AttributedDamage += directDamage;
+            {
+                // 4.18 fix: if the indirect tick comes from a power that has
+                // multiple recorded sources (e.g. Poison applied by both
+                // Strike+ and Necronomicon), split the damage by the
+                // amount each source contributed instead of crediting it
+                // all to whichever was applied first. The orb path keeps
+                // its existing single-source attribution because orb
+                // context already names the originating card uniquely.
+                bool distributed = false;
+                if (!hasOrbContext && _activePowerId != null && directDamage > 0)
+                {
+                    var sources = ContributionMap.Instance.GetPowerSources(_activePowerId);
+                    if (sources != null && sources.Count > 1)
+                    {
+                        var slices = ContributionMap.Instance.DistributeByPowerSources(
+                            _activePowerId, directDamage);
+                        foreach (var (srcId, srcType, share) in slices)
+                        {
+                            if (share > 0)
+                                GetOrCreate(srcId, srcType).AttributedDamage += share;
+                        }
+                        distributed = true;
+                    }
+                }
+                if (!distributed)
+                    GetOrCreate(sourceId2, sourceType2).AttributedDamage += directDamage;
+            }
             else
+            {
                 GetOrCreate(sourceId2, sourceType2).DirectDamage += directDamage;
+            }
         }
 
         modifiers.Clear();
