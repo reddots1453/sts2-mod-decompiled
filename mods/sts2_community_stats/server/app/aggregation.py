@@ -18,6 +18,7 @@ async def compute_bulk_stats(
     min_asc: int,
     max_asc: int,
     min_wr: float = 0.0,
+    branch: str = "all",
 ) -> BulkStatsBundle:
     """Run all aggregation queries and assemble a complete bundle.
 
@@ -29,11 +30,11 @@ async def compute_bulk_stats(
     """
 
     async with pool.acquire() as conn:
-        total_runs = await _count_runs(conn, character, version, min_asc, max_asc, min_wr)
-        cards = await _aggregate_cards(conn, character, version, min_asc, max_asc, min_wr)
-        relics = await _aggregate_relics(conn, character, version, min_asc, max_asc, min_wr)
-        events = await _aggregate_events(conn, character, version, min_asc, max_asc, min_wr)
-        encounters = await _aggregate_encounters(conn, character, version, min_asc, max_asc, min_wr)
+        total_runs = await _count_runs(conn, character, version, min_asc, max_asc, min_wr, branch)
+        cards = await _aggregate_cards(conn, character, version, min_asc, max_asc, min_wr, branch)
+        relics = await _aggregate_relics(conn, character, version, min_asc, max_asc, min_wr, branch)
+        events = await _aggregate_events(conn, character, version, min_asc, max_asc, min_wr, branch)
+        encounters = await _aggregate_encounters(conn, character, version, min_asc, max_asc, min_wr, branch)
 
     bundle = BulkStatsBundle(
         generated_at=datetime.now(timezone.utc).isoformat(),
@@ -45,8 +46,8 @@ async def compute_bulk_stats(
     )
 
     logger.info(
-        "Aggregated %s asc%d-%d ver=%s wr>=%.2f: %d runs, %d cards, %d relics, %d events, %d encounters",
-        character, min_asc, max_asc, version, min_wr,
+        "Aggregated %s asc%d-%d ver=%s br=%s wr>=%.2f: %d runs, %d cards, %d relics, %d events, %d encounters",
+        character, min_asc, max_asc, version, branch, min_wr,
         total_runs, len(cards), len(relics), len(events), len(encounters),
     )
     return bundle
@@ -55,8 +56,8 @@ async def compute_bulk_stats(
 # ── Internal query functions ────────────────────────────────
 
 
-def _build_where(char: str, ver: str) -> tuple[list, list, int]:
-    """Shared char/version conditions. Returns (conditions, params, next_idx).
+def _build_where(char: str, ver: str, branch: str = "all") -> tuple[list, list, int]:
+    """Shared char/version/branch conditions. Returns (conditions, params, next_idx).
 
     The caller is responsible for appending the ascension BETWEEN clause
     plus any win-rate filter — see ``_where_with_asc`` and ``_where_runs_only``.
@@ -75,11 +76,17 @@ def _build_where(char: str, ver: str) -> tuple[list, list, int]:
         params.append(ver)
         idx += 1
 
+    if branch != "all":
+        conditions.append(f"branch = ${idx}")
+        params.append(branch)
+        idx += 1
+
     return conditions, params, idx
 
 
 def _where_with_asc(
     char: str, ver: str, lo: int, hi: int, min_wr: float = 0.0,
+    branch: str = "all",
 ) -> tuple[str, list]:
     """WHERE for a detail table (card_choices / event_choices / encounter_records /
     final_deck / shop_card_offerings / shop_purchases / relic_records / …).
@@ -90,7 +97,7 @@ def _where_with_asc(
     ``runs.id`` (PRIMARY KEY) and, when ``min_wr > 0``, ``idx_runs_win_rate``
     keeps the inner scan bounded.
     """
-    conditions, params, idx = _build_where(char, ver)
+    conditions, params, idx = _build_where(char, ver, branch)
     conditions.append(f"ascension BETWEEN ${idx} AND ${idx + 1}")
     params.extend([lo, hi])
     idx += 2
@@ -105,11 +112,12 @@ def _where_with_asc(
 
 def _where_runs_only(
     char: str, ver: str, lo: int, hi: int, min_wr: float = 0.0,
+    branch: str = "all",
 ) -> tuple[str, list]:
     """WHERE for the ``runs`` table itself. ``runs`` doesn't have a ``run_id``
     column, so we can't use the subquery form — hit the local column directly.
     """
-    conditions, params, idx = _build_where(char, ver)
+    conditions, params, idx = _build_where(char, ver, branch)
     conditions.append(f"ascension BETWEEN ${idx} AND ${idx + 1}")
     params.extend([lo, hi])
     idx += 2
@@ -123,8 +131,9 @@ def _where_runs_only(
 async def _count_runs(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
     min_wr: float = 0.0,
+    branch: str = "all",
 ) -> int:
-    where, params = _where_runs_only(char, ver, lo, hi, min_wr)
+    where, params = _where_runs_only(char, ver, lo, hi, min_wr, branch)
     row = await conn.fetchval(
         f"SELECT COUNT(*) FROM runs {where}", *params,
     )
@@ -134,8 +143,9 @@ async def _count_runs(
 async def _aggregate_cards(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
     min_wr: float = 0.0,
+    branch: str = "all",
 ) -> dict[str, CardStats]:
-    where, params = _where_with_asc(char, ver, lo, hi, min_wr)
+    where, params = _where_with_asc(char, ver, lo, hi, min_wr, branch)
 
     # ── Pick rate & win rate from card_choices ──
     # Round 16: sample_size is COUNT(DISTINCT run_id) — the number of runs
@@ -172,7 +182,7 @@ async def _aggregate_cards(
         {where}
         GROUP BY card_id
     """, *params)
-    total_runs = await _count_runs(conn, char, ver, lo, hi, min_wr)
+    total_runs = await _count_runs(conn, char, ver, lo, hi, min_wr, branch)
     if total_runs > 0:
         for r in removal_rows:
             cid = r["card_id"]
@@ -240,8 +250,9 @@ async def _aggregate_cards(
 async def _aggregate_relics(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
     min_wr: float = 0.0,
+    branch: str = "all",
 ) -> dict[str, RelicStats]:
-    where, params = _where_with_asc(char, ver, lo, hi, min_wr)
+    where, params = _where_with_asc(char, ver, lo, hi, min_wr, branch)
 
     # Round 16: relic_records already has at most one row per (run, relic),
     # so COUNT(DISTINCT run_id) ≡ COUNT(*) in practice — kept here for
@@ -256,7 +267,7 @@ async def _aggregate_relics(
         GROUP BY relic_id
     """, *params)
 
-    total_runs = await _count_runs(conn, char, ver, lo, hi, min_wr)
+    total_runs = await _count_runs(conn, char, ver, lo, hi, min_wr, branch)
 
     result: dict[str, RelicStats] = {}
     for r in rows:
@@ -286,8 +297,9 @@ async def _aggregate_relics(
 async def _aggregate_events(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
     min_wr: float = 0.0,
+    branch: str = "all",
 ) -> dict[str, EventStats]:
-    where, params = _where_with_asc(char, ver, lo, hi, min_wr)
+    where, params = _where_with_asc(char, ver, lo, hi, min_wr, branch)
 
     # ── Static events (option_index >= 0, no combo_key) ──
     rows = await conn.fetch(f"""
@@ -385,8 +397,9 @@ async def _aggregate_events(
 async def _aggregate_encounters(
     conn: asyncpg.Connection, char: str, ver: str, lo: int, hi: int,
     min_wr: float = 0.0,
+    branch: str = "all",
 ) -> dict[str, EncounterStats]:
-    where, params = _where_with_asc(char, ver, lo, hi, min_wr)
+    where, params = _where_with_asc(char, ver, lo, hi, min_wr, branch)
 
     rows = await conn.fetch(f"""
         SELECT

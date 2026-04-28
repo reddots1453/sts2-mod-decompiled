@@ -121,6 +121,9 @@ class RunUploadPayload(BaseModel):
     # Optional dedup hash for history import (PRD §3.19.3)
     run_hash: str | None = Field(None, max_length=64)
 
+    # Branch: "release" / "beta" / "unknown" (default for old clients)
+    branch: str = Field("unknown", max_length=8)
+
     @field_validator("character")
     @classmethod
     def character_upper(cls, v: str) -> str:

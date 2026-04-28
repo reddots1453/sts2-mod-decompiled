@@ -42,6 +42,9 @@ public class FilterSettings
     [JsonPropertyName("game_version")]
     public string? GameVersion { get; set; }          // null = current, "all" = all versions
 
+    [JsonPropertyName("branch")]
+    public string? Branch { get; set; }               // null = auto, "all" = all, "release"/"beta" = specific
+
     [JsonPropertyName("auto_match_ascension")]
     public bool AutoMatchAscension { get; set; } = false;
 
@@ -95,6 +98,7 @@ public class FilterSettings
         if (MinPlayerWinRate.HasValue) parts.Add($"min_wr={MinPlayerWinRate.Value:F2}");
         if (NumPlayers.HasValue) parts.Add($"num_players={NumPlayers.Value}");
         if (GameVersion != null) parts.Add($"ver={Uri.EscapeDataString(GameVersion)}");
+        if (Branch != null) parts.Add($"branch={Uri.EscapeDataString(Branch)}");
         return parts.Count > 0 ? "?" + string.Join("&", parts) : "";
     }
 
@@ -120,11 +124,12 @@ public class FilterSettings
             && MinPlayerWinRate == other.MinPlayerWinRate
             && NumPlayers == other.NumPlayers
             && GameVersion == other.GameVersion
+            && Branch == other.Branch
             && MyDataOnly == other.MyDataOnly;
     }
 
     public override int GetHashCode() =>
-        System.HashCode.Combine(ResolveCharacter(), MinAscension, MaxAscension, MinPlayerWinRate, NumPlayers, GameVersion, MyDataOnly);
+        System.HashCode.Combine(ResolveCharacter(), MinAscension, MaxAscension, MinPlayerWinRate, NumPlayers, GameVersion, Branch, MyDataOnly);
 
     public void Save()
     {

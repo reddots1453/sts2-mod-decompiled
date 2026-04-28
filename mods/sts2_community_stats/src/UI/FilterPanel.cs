@@ -20,6 +20,7 @@ public partial class FilterPanel : PanelContainer
     private SpinBox? _maxAscSpinBox;
     private CheckBox? _autoMatchAscCheckbox;
     private OptionButton? _versionDropdown;
+    private OptionButton? _branchDropdown;
     private SpinBox? _minWinRateSpinBox;
     private Label? _sampleSizeLabel;
     private CheckBox? _uploadCheckbox;
@@ -46,10 +47,30 @@ public partial class FilterPanel : PanelContainer
 
     public static event Action? FilterApplied;
 
+    private static L.Lang _builtLanguage;
     public static FilterPanel Instance => _instance ??= CreatePanel();
+
+    /// <summary>
+    /// Rebuild the panel from scratch to pick up a new language.
+    /// Preserves visibility and re-attaches to the same SceneTree parent.
+    /// Only call when the panel is NOT currently in ApplyAndClose (i.e. from
+    /// Toggle or from a deferred handler).
+    /// </summary>
+    public static void RebuildForLanguage()
+    {
+        if (_instance == null || !GodotObject.IsInstanceValid(_instance)) return;
+        var wasVisible = _instance.Visible;
+        var parent = _instance.GetParent();
+        _instance.QueueFree();
+        _instance = CreatePanel();
+        _builtLanguage = L.Current;
+        parent?.AddChild(_instance);
+        if (wasVisible) _instance.Visible = true;
+    }
 
     private static FilterPanel CreatePanel()
     {
+        _builtLanguage = L.Current;
         var panel = new FilterPanel();
         panel.Name = "CommunityStatsFilter";
         panel.Visible = false;
@@ -147,6 +168,23 @@ public partial class FilterPanel : PanelContainer
         var savedVer = ModConfig.CurrentFilter.GameVersion == "all" ? 1 : 0;
         panel._versionDropdown.Selected = savedVer;
         AddLabeledControl(dataGrid, L.Get("settings.version"), panel._versionDropdown);
+
+        // Branch dropdown
+        panel._branchDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        panel._branchDropdown.AddItem(L.Get("settings.br_auto"), 0);
+        panel._branchDropdown.AddItem(L.Get("settings.br_release"), 1);
+        panel._branchDropdown.AddItem(L.Get("settings.br_beta"), 2);
+        panel._branchDropdown.AddItem(L.Get("settings.br_all"), 3);
+        var savedBr = ModConfig.CurrentFilter.Branch;
+        var brIdx = savedBr switch
+        {
+            "release" => 1,
+            "beta" => 2,
+            "all" => 3,
+            _ => 0,
+        };
+        panel._branchDropdown.Selected = brIdx;
+        AddLabeledControl(dataGrid, L.Get("settings.branch"), panel._branchDropdown);
 
         // Language dropdown
         panel._langDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -384,6 +422,12 @@ public partial class FilterPanel : PanelContainer
 
     private static string TryGetCharTitle<T>(string fallbackKey) where T : CharacterModel
     {
+        // When the mod is in English mode, prefer L.Get (official EN names
+        // like "Ironclad") over the game's Title which follows the game's
+        // display language and may still be Chinese when only the mod was
+        // switched to English.
+        if (L.Current == L.Lang.EN)
+            return L.Get(fallbackKey);
         try
         {
             var t = ModelDb.Character<T>().Title.GetFormattedText();
@@ -397,6 +441,11 @@ public partial class FilterPanel : PanelContainer
 
     public static void Toggle()
     {
+        // If the language changed since the panel was last built, rebuild
+        // it now so all labels pick up the new language.
+        if (_builtLanguage != L.Current)
+            RebuildForLanguage();
+
         var panel = Instance;
         if (panel.Visible)
         {
@@ -446,10 +495,17 @@ public partial class FilterPanel : PanelContainer
             ModConfig.EnableUpload = _uploadCheckbox?.ButtonPressed ?? true;
 
             var langIdx = _langDropdown?.Selected ?? 0;
-            L.Current = langIdx == 1 ? L.Lang.EN : L.Lang.CN;
-            ModConfig.Language = langIdx == 1 ? "EN" : "CN";
+            var newLang = langIdx == 1 ? L.Lang.EN : L.Lang.CN;
+            var langChanged = newLang != L.Current;
+            if (langChanged)
+            {
+                L.Current = newLang;
+                ModConfig.Language = langIdx == 1 ? "EN" : "CN";
+            }
 
             var filter = ModConfig.CurrentFilter;
+            // Snapshot before mutation to detect data-affecting changes.
+            var prevFilterJson = System.Text.Json.JsonSerializer.Serialize(filter);
             filter.AutoMatchAscension = _autoMatchAscCheckbox?.ButtonPressed ?? false;
             if (!filter.AutoMatchAscension)
             {
@@ -460,26 +516,50 @@ public partial class FilterPanel : PanelContainer
             filter.MinPlayerWinRate = wrPercent > 0 ? wrPercent / 100f : null;
             var verIdx = _versionDropdown?.Selected ?? 0;
             filter.GameVersion = verIdx == 1 ? "all" : null;
+            var brIdx = _branchDropdown?.Selected ?? 0;
+            filter.Branch = brIdx switch
+            {
+                1 => "release",
+                2 => "beta",
+                3 => "all",
+                _ => null,
+            };
             filter.MyDataOnly = _myDataCheckbox?.ButtonPressed ?? false;
 
             var charIdx = _characterDropdown?.Selected ?? 0;
             if (charIdx < 0 || charIdx >= _characterModes.Length) charIdx = 0;
             filter.CharacterFilterMode = _characterModes[charIdx];
 
-            Safe.Info($"[DIAG:FilterPanel] verIdx={verIdx}, GameVersion={filter.GameVersion}, CharMode={filter.CharacterFilterMode}, MinAsc={filter.MinAscension}, MaxAsc={filter.MaxAscension}, AutoAsc={filter.AutoMatchAscension}");
-
-            filter.Save();
-
+            var togglesChanged = false;
             foreach (var (key, cb) in _toggleCheckboxes)
             {
-                ModConfig.Toggles.SetByName(key, cb.ButtonPressed);
+                var old = ModConfig.Toggles.GetByName(key);
+                var cur = cb.ButtonPressed;
+                if (old != cur) togglesChanged = true;
+                ModConfig.Toggles.SetByName(key, cur);
             }
 
+            var filterChanged = System.Text.Json.JsonSerializer.Serialize(filter) != prevFilterJson;
+            var dataChanged = filterChanged || togglesChanged;
+
+            Safe.Info($"[DIAG:FilterPanel] langChanged={langChanged}, dataChanged={dataChanged}, filterChanged={filterChanged}, togglesChanged={togglesChanged}");
+
+            filter.Save();
             Safe.Run(() => ModConfig.SaveSettings());
 
-            Safe.Info("[DIAG:FilterPanel] About to invoke FilterApplied event");
-            FilterApplied?.Invoke();
-            Safe.Info("[DIAG:FilterPanel] FilterApplied invoked, hiding panel");
+            if (dataChanged)
+            {
+                Safe.Info("[DIAG:FilterPanel] About to invoke FilterApplied event");
+                FilterApplied?.Invoke();
+                Safe.Info("[DIAG:FilterPanel] FilterApplied invoked, hiding panel");
+            }
+            else if (langChanged)
+            {
+                // Language-only change: LanguageChanged already fired via
+                // L.Current setter above. UI patches that subscribe to it
+                // re-render immediately without reloading data.
+                Safe.Info("[DIAG:FilterPanel] Language-only change, skipping data reload");
+            }
             Visible = false;
         });
     }

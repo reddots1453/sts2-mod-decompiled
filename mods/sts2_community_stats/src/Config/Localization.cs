@@ -8,7 +8,26 @@ public static class L
 {
     public enum Lang { EN, CN }
 
-    public static Lang Current { get; set; } = Lang.CN;
+    private static Lang _current = Lang.CN;
+    public static Lang Current
+    {
+        get => _current;
+        set
+        {
+            if (_current != value)
+            {
+                _current = value;
+                LanguageChanged?.Invoke();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fires when Current changes (F9 language dropdown). Subscribers
+    /// should re-render visible UI with the new language but do NOT
+    /// need to reload data — the numbers haven't changed.
+    /// </summary>
+    public static event Action? LanguageChanged;
 
     public static string Get(string key) =>
         Current == Lang.CN
@@ -47,11 +66,16 @@ public static class L
         ["settings.version"] = "Version:",
         ["settings.ver_current"] = "Current",
         ["settings.ver_all"] = "All Versions",
+        ["settings.branch"] = "Branch:",
+        ["settings.br_auto"] = "Auto (my branch)",
+        ["settings.br_release"] = "Release",
+        ["settings.br_beta"] = "Beta",
+        ["settings.br_all"] = "All Branches",
         ["settings.sample"] = "Filtered data: {0} runs",
         ["settings.no_data"] = "No data loaded",
         ["settings.apply"] = "Apply",
         ["settings.upload"] = "Upload run data",
-        ["settings.language"] = "Language:",
+        ["settings.language"] = "语言 / Language",
         // PRD §3.18 — character filter (F9 + CareerStats)
         ["settings.character"] = "Data Source (Character):",
         ["settings.char_auto"] = "Auto-match current",
@@ -200,6 +224,8 @@ public static class L
         // Intent state machine (§3.10)
         ["intent.unavailable"] = "State machine data unavailable",
         ["intent.conditional"] = "conditional",
+        ["intent.initial"] = "Initial",
+        ["intent.no_metadata"] = "(no intent metadata)",
 
         // Career stats (§3.11)
         ["career.title"] = "Career Statistics",
@@ -337,11 +363,16 @@ public static class L
         ["settings.version"] = "版本:",
         ["settings.ver_current"] = "当前版本",
         ["settings.ver_all"] = "所有版本",
+        ["settings.branch"] = "分支:",
+        ["settings.br_auto"] = "自动（我的分支）",
+        ["settings.br_release"] = "正式版",
+        ["settings.br_beta"] = "测试版",
+        ["settings.br_all"] = "所有分支",
         ["settings.sample"] = "数据范围: {0} 局",
         ["settings.no_data"] = "未加载数据",
         ["settings.apply"] = "应用",
         ["settings.upload"] = "上传游玩数据",
-        ["settings.language"] = "语言:",
+        ["settings.language"] = "语言 / Language",
         // PRD §3.18 — 角色筛选（F9 + 个人生涯统计）
         ["settings.character"] = "数据来源（角色）:",
         ["settings.char_auto"] = "自动匹配当前角色",
@@ -490,6 +521,8 @@ public static class L
         // Intent state machine (§3.10)
         ["intent.unavailable"] = "状态机数据不可用",
         ["intent.conditional"] = "条件",
+        ["intent.initial"] = "初始",
+        ["intent.no_metadata"] = "(无意图元数据)",
 
         // Career stats (§3.11)
         ["career.title"] = "个人生涯统计",

@@ -40,6 +40,9 @@ ASC_RANGES: list[tuple[int, int]] = [
     (0, 4), (5, 9), (10, 14), (15, 19), (20, 20),
 ]
 
+# ── Branch dimension ─────────────────────────────────────────
+BRANCHES: list[str] = ["release", "beta"]
+
 # ── Security ────────────────────────────────────────────────
 BLOCKED_MOD_VERSIONS: set[str] = set(
     os.getenv("BLOCKED_MOD_VERSIONS", "").split(",")

@@ -135,6 +135,7 @@ public sealed class ApiClient : IDisposable
     public async Task<BulkStatsBundle?> GetBulkStatsAsync(string character, FilterSettings filter)
     {
         var version = VersionManager.GetEffectiveVersion(filter);
+        var branch = BranchManager.GetEffectiveBranch(filter);
         // filter.ToQueryString() already emits char= from ResolveCharacter(); strip
         // it so we don't send the parameter twice (server takes the first, but some
         // intermediaries reject the dup).
@@ -142,10 +143,12 @@ public sealed class ApiClient : IDisposable
         var aux = qs.Length > 0 ? qs[1..] : "";
         var auxParts = aux.Length > 0
             ? aux.Split('&').Where(p => !p.StartsWith("char=", StringComparison.Ordinal)
-                                     && !p.StartsWith("ver=", StringComparison.Ordinal))
+                                     && !p.StartsWith("ver=", StringComparison.Ordinal)
+                                     && !p.StartsWith("branch=", StringComparison.Ordinal))
             : System.Array.Empty<string>();
         var auxJoined = string.Join("&", auxParts);
         var url = $"stats/bulk?char={Uri.EscapeDataString(character)}&ver={Uri.EscapeDataString(version)}"
+                + $"&branch={Uri.EscapeDataString(branch)}"
                 + (auxJoined.Length > 0 ? "&" + auxJoined : "");
 
         return await GetAsync<BulkStatsBundle>(url);

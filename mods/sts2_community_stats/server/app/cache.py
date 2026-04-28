@@ -35,14 +35,18 @@ def get_redis() -> aioredis.Redis:
 
 def bulk_key(
     character: str, asc_range: str, version: str, min_wr: float = 0.0,
+    branch: str = "all",
 ) -> str:
     # min_wr == 0 keeps the original key layout so precomputed bundles and
     # pre-existing cache entries continue to hit. Any non-zero filter writes
     # under a distinct key — otherwise 30% and 50% requests would alias onto
     # the unfiltered bundle and the F9 slider would appear to do nothing.
+    base = f"bulk:{character}:{asc_range}:{version}"
+    if branch != "all":
+        base += f":br{branch}"
     if min_wr > 0:
-        return f"bulk:{character}:{asc_range}:{version}:wr{min_wr:.2f}"
-    return f"bulk:{character}:{asc_range}:{version}"
+        base += f":wr{min_wr:.2f}"
+    return base
 
 
 def map_asc_range(min_asc: int, max_asc: int) -> str:
