@@ -1,5 +1,5 @@
 {
-  "api_base_url": "http://64.176.85.164/v1",
+  "api_base_url": "https://statsthespire.xyz/v1",
   "query_timeout_ms": 10000,
   "upload_timeout_ms": 30000
 }

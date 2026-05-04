@@ -10,8 +10,9 @@ namespace CommunityStats.Api;
 
 /// <summary>
 /// HttpClient wrapper for all server communication.
-/// Forces HTTPS unless the target is an IP address (no valid TLS cert)
-/// or the user explicitly opted into HTTP via config.json.
+/// All traffic is forced over HTTPS. The AllowHttp config flag exists
+/// as a GFW workaround (SNI-blocking of some domains); when enabled,
+/// an HTTP base URL is used as-is instead of being upgraded.
 /// </summary>
 public sealed class ApiClient : IDisposable
 {
@@ -24,37 +25,17 @@ public sealed class ApiClient : IDisposable
         PropertyNameCaseInsensitive = true
     };
 
-    private static bool IsIpAddress(string host)
-    {
-        // Quick check: IPv4 dotted-decimal or bracketed IPv6.
-        if (System.Net.IPAddress.TryParse(host, out _)) return true;
-        if (host.StartsWith('[') && host.EndsWith(']')
-            && System.Net.IPAddress.TryParse(host[1..^1], out _)) return true;
-        return false;
-    }
-
     private ApiClient()
     {
         // BaseAddress MUST end with '/' for relative URL resolution to work correctly.
         var baseUrl = ModConfig.ApiBaseUrl.TrimEnd('/') + "/";
 
-        var uri = new Uri(baseUrl);
-        var isIpTarget = IsIpAddress(uri.Host);
-
-        // Force HTTPS unless:
-        // (a) target is an IP address (no valid TLS cert), or
-        // (b) user explicitly opted into HTTP (GFW SNI-blocking workaround).
-        var allowHttp = isIpTarget || ModConfig.AllowHttp;
-
-        if (!allowHttp && baseUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        // Force HTTPS unless user explicitly opted into HTTP (GFW workaround).
+        if (!ModConfig.AllowHttp
+            && baseUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
         {
             baseUrl = baseUrl.Replace("http://", "https://");
             Safe.Warn($"[ApiClient] Upgraded base URL to HTTPS: {baseUrl}");
-        }
-
-        if (isIpTarget)
-        {
-            Safe.Info($"[ApiClient] IP target detected — using HTTP (no TLS cert for IP): {baseUrl}");
         }
 
         _queryClient = new HttpClient
