@@ -10,7 +10,7 @@ public static class ModConfig
     public const string ModVersion = "2.0.0";
 
     // Server (can be overridden via config.json for local testing)
-    public static string ApiBaseUrl { get; set; } = "https://statsthespire.xyz/v1";
+    public static string ApiBaseUrl { get; set; } = "https://statsthespire.org/v1";
     public static int QueryTimeoutMs { get; set; } = 5000;
     public static int UploadTimeoutMs { get; set; } = 30000;
 
