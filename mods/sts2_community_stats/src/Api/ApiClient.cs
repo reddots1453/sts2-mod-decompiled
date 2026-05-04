@@ -1,7 +1,5 @@
 using System.Linq;
-using System.Net;
 using System.Net.Http.Headers;
-using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
 using CommunityStats.Config;
@@ -12,14 +10,12 @@ namespace CommunityStats.Api;
 
 /// <summary>
 /// HttpClient wrapper for all server communication.
-/// Handles upload, bulk/on-demand queries, retries, and offline fallback.
-/// All traffic is forced over HTTPS with explicit TLS 1.2+.
+/// All traffic is forced over HTTPS.
 /// </summary>
 public sealed class ApiClient : IDisposable
 {
     public static ApiClient Instance { get; } = new();
 
-    private readonly HttpClientHandler _handler;
     private readonly HttpClient _queryClient;
     private readonly HttpClient _uploadClient;
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -27,38 +23,12 @@ public sealed class ApiClient : IDisposable
         PropertyNameCaseInsensitive = true
     };
 
-    private static HttpClientHandler CreateHandler()
-    {
-        return new HttpClientHandler
-        {
-            // Require TLS 1.2 or higher. The server only enables TLSv1.2 + TLSv1.3.
-            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
-
-            // Follow HTTP→HTTPS redirects (e.g. if base URL is accidentally http://).
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5,
-
-            // Never send credentials to origins other than the API server.
-            UseDefaultCredentials = false,
-
-            // Disable decompression at handler level — GZipMiddleware handles this on
-            // the server side for large responses. Client-side decompression would
-            // double-process and break GZip-wrapped ORJSON responses.
-            AutomaticDecompression = DecompressionMethods.None,
-        };
-    }
-
     private ApiClient()
     {
         // BaseAddress MUST end with '/' for relative URL resolution to work correctly.
-        // Without trailing slash, HttpClient treats paths starting without '/' as
-        // relative to the parent, and paths with '/' as absolute from host root.
         var baseUrl = ModConfig.ApiBaseUrl.TrimEnd('/') + "/";
 
-        // Always force HTTPS. The AllowHttp config flag is ignored for the query
-        // client — plaintext HTTP silently leaks request paths and filter parameters
-        // (character, ascension range, win-rate threshold). The upload path already
-        // carries no PII, but defense-in-depth says encrypt everything.
+        // Always force HTTPS.
         if (baseUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
         {
             baseUrl = baseUrl.Replace("http://", "https://");
@@ -71,9 +41,7 @@ public sealed class ApiClient : IDisposable
             baseUrl = "https://" + baseUrl;
         }
 
-        _handler = CreateHandler();
-
-        _queryClient = new HttpClient(_handler, disposeHandler: false)
+        _queryClient = new HttpClient
         {
             BaseAddress = new Uri(baseUrl),
             Timeout = TimeSpan.FromMilliseconds(ModConfig.QueryTimeoutMs)
@@ -81,13 +49,15 @@ public sealed class ApiClient : IDisposable
         _queryClient.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json"));
         _queryClient.DefaultRequestHeaders.Add("X-Mod-Version", ModConfig.ModVersion);
+        _queryClient.DefaultRequestHeaders.Add("User-Agent", $"StatsTheSpire/{ModConfig.ModVersion}");
 
-        _uploadClient = new HttpClient(_handler, disposeHandler: false)
+        _uploadClient = new HttpClient
         {
             BaseAddress = new Uri(baseUrl),
             Timeout = TimeSpan.FromMilliseconds(ModConfig.UploadTimeoutMs)
         };
         _uploadClient.DefaultRequestHeaders.Add("X-Mod-Version", ModConfig.ModVersion);
+        _uploadClient.DefaultRequestHeaders.Add("User-Agent", $"StatsTheSpire/{ModConfig.ModVersion}");
     }
 
     // ── Upload ──────────────────────────────────────────────
@@ -266,6 +236,5 @@ public sealed class ApiClient : IDisposable
     {
         _queryClient.Dispose();
         _uploadClient.Dispose();
-        _handler.Dispose();
     }
 }
