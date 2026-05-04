@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.14.0 (2026-05-04) — 网络安全加固 + 正式域名迁移
+
+> 全面审查客户端-服务端通信安全，修复多个 P0/P1 级别漏洞；从 DuckDNS 临时域名迁移到 statsthespire.org 正式域名。
+
+### 安全加固
+
+- **P0**：API 端口绑定从 `0.0.0.0:5080` 改为 `127.0.0.1:5080`，禁止外部绕过 nginx TLS 直接访问
+- **P0**：nginx `server_name` + SSL 证书路径修正，统一使用正式域名
+- **P1**：FastAPI 层新增请求体大小限制中间件（413 on >1MB），纵深防御
+- **P1**：`/health` 端点添加限流（nginx `30r/m` + FastAPI `30r/m`）
+- **P1**：Redis 密码认证支持（`REDIS_PASSWORD` 环境变量，空值向后兼容）
+- **P1**：Pydantic 模型严格校验：`branch`（pattern）、`character`（白名单）、`run_hash`（hex32 格式）
+- **P2**：nginx 新增安全头：`Referrer-Policy`、`Permissions-Policy`、`Content-Security-Policy`
+- **P2**：HSTS 限制为当前域名（移除 `includeSubDomains`）
+
+### 客户端 HTTPS 强制
+
+- `ApiClient.cs`：无条件强制 HTTPS（`AllowHttp` 作为显式 opt-in 保留）
+- 新增 `User-Agent: StatsTheSpire/x.x` 便于服务端日志追踪
+- `ModConfig.cs` 默认 URL 更新为 `https://statsthespire.org/v1`
+
+### 域名迁移
+
+- DuckDNS (`statsthespire.duckdns.org`) → 正式域名 `statsthespire.org`
+- Let's Encrypt 证书自动签发，有效期至 2026-08-02
+- nginx 移除 `ssl_prefer_server_ciphers` 和显式 `ssl_ciphers`，使用 nginx 默认值以保证最大兼容性
+- nginx `http2` 指令从 `listen` 参数迁移为独立指令
+
+### 修复
+
+- `BranchManager.cs`：修正 `PlatformUtil.GetPlatformBranch()` 返回类型（enum 非 string），用 `ToString() == "Public"` 判断分支
+
+### 已知限制
+
+- `.xyz` TLD 被 GFW 在权威 DNS 层阻断（SERVFAIL），不可用
+- `.org` TLD 国内正常解析，HTTPS 全链路可用
+- 境内用户如遇 DNS 问题可临时设 `allow_http: true` + IP 直连（游戏数据非敏感，明文可接受）
+
+---
+
 ## v0.13.1 (2026-04-15) — Map/TopBar UI 回归修复
 
 > v0.13.0 发布后用户报告两个 UI 功能丢失，以及相关的边界 case。本 patch 版本定位并修复。
