@@ -14,8 +14,8 @@ public static class BranchManager
     public const string All = "all";
 
     /// <summary>
-    /// The player's current branch. "public" or null (non-Steam / API failure)
-    /// maps to "release"; any other value maps to "beta".
+    /// The player's current branch. Steam "public" branch maps to "release";
+    /// any non-public branch (beta branches) maps to "beta".
     /// </summary>
     public static string CurrentBranch
     {
@@ -24,11 +24,9 @@ public static class BranchManager
             try
             {
                 var platformBranch = PlatformUtil.GetPlatformBranch();
-                return platformBranch switch
-                {
-                    null or "public" => Release,
-                    _ => Beta,
-                };
+                // PlatformBranch is a game-side enum. "Public" = the default
+                // Steam branch; anything else is a beta/preview branch.
+                return platformBranch.ToString() == "Public" ? Release : Beta;
             }
             catch
             {
