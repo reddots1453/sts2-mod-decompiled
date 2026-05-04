@@ -13,7 +13,10 @@ async def init_redis() -> aioredis.Redis:
     global _redis
     if _redis is None:
         logger.info("Connecting to Redis: %s", config.REDIS_URL)
-        _redis = aioredis.from_url(config.REDIS_URL, decode_responses=True)
+        kwargs: dict = {"decode_responses": True}
+        if config.REDIS_PASSWORD:
+            kwargs["password"] = config.REDIS_PASSWORD
+        _redis = aioredis.from_url(config.REDIS_URL, **kwargs)
         await _redis.ping()
         logger.info("Redis connected")
     return _redis

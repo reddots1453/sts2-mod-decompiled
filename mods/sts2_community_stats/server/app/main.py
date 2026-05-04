@@ -77,6 +77,33 @@ app = FastAPI(
 # Gzip for large bulk responses
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+
+# ── Middleware: request body size limit ───────────────────────
+# Defense-in-depth against oversized payloads. nginx enforces the
+# same limit (client_max_body_size 1m), but if someone reaches the
+# API container directly (misconfigured firewall / Docker network),
+# FastAPI still rejects before streaming the body to memory/disk.
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            cl = int(content_length)
+            if cl > config.MAX_REQUEST_BODY_SIZE:
+                logger.warning(
+                    "Rejected oversized request: %d bytes (limit=%d) from %s",
+                    cl, config.MAX_REQUEST_BODY_SIZE,
+                    request.client.host if request.client else "unknown",
+                )
+                return ORJSONResponse(
+                    status_code=413,
+                    content={"error": "Request body too large."},
+                )
+        except ValueError:
+            pass
+    return await call_next(request)
+
+
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
@@ -109,7 +136,8 @@ async def check_mod_version(request: Request, call_next):
 # ── Health ──────────────────────────────────────────────────
 
 @app.get("/health")
-async def health():
+@limiter.limit(config.RATE_LIMIT_HEALTH)
+async def health(request: Request):
     errors = {}
     try:
         pool = get_pool()
