@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.14.1 (2026-05-06) — Bug 修复
+
+### 怪物意图状态机面板残留修复
+
+- 怪物死亡时若鼠标仍悬停，`OnUnfocus` 不触发 → 面板永久残留，只能重启清除。
+- `IntentHoverPatch` 新增 `ForceHideAll()` 方法，战斗开始/结束时遍历 scene root 移除所有 intent 面板。
+- `ShowPanel` 增加 `IsInsideTree()` + `IsDead` 有效性检查，拒绝为已死/已移除的怪物创建面板。
+- `ForceHideAll` 改为按 metadata 标记（`PanelMeta`）查找面板，而非面板名称（`InfoModPanel.Create()` 固定设 `Name = "InfoModPanel"`，所有面板共享同名导致查找失败）。
+
+### save&load 后 avg Damage per turn 数据失真修复
+
+- `RunContributionAggregator._encounters` 从未被持久化到 `_live.json`。
+- save&load 后 `_runTotals` 恢复（伤害数据完整）但 `_encounters` 为空 → `TotalRunTurns = 0` → DPS 显示 "—"。打完一场后回合数仅 1 场但伤害为全部历史累计 → 数值严重膨胀。
+- `LiveContributionSnapshot` 新增 `Encounters` 字段，`BuildLiveSnapshot` 包含 encounter 记录，`HydrateFromLiveSnapshot` 恢复；`ContributionPersistence` 新增 `EncounterDto` 序列化支持。
+
+---
+
 ## v0.14.0 (2026-05-04) — 网络安全加固 + 正式域名迁移
 
 > 全面审查客户端-服务端通信安全，修复多个 P0/P1 级别漏洞；从 DuckDNS 临时域名迁移到 statsthespire.org 正式域名。

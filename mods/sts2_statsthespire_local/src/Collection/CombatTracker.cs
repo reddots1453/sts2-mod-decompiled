@@ -1,4 +1,3 @@
-using CommunityStats.Api;
 using CommunityStats.Util;
 
 namespace CommunityStats.Collection;

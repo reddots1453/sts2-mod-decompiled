@@ -39,6 +39,7 @@ public static class CombatLifecyclePatch
             };
             var floor = RunDataCollector.CurrentFloor;
 
+            // Clean up any leaked intent panels from the previous combat.
             IntentHoverPatch.ForceHideAll();
 
             CombatTracker.Instance.OnCombatStart(encounterId, encounterType, floor);
@@ -77,6 +78,9 @@ public static class CombatLifecyclePatch
     {
         Safe.Run(() =>
         {
+            // Clean up any lingering intent panels immediately when combat ends.
+            // Monsters that died while the mouse was hovering over them won't
+            // fire OnUnfocus, so the panel stays orphaned on the scene root.
             IntentHoverPatch.ForceHideAll();
 
             CombatTracker.Instance.OnCombatEnd();

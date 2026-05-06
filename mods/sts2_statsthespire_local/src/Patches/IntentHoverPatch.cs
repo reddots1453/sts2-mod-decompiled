@@ -163,6 +163,7 @@ public static class IntentHoverPatch
                 }
             }
 
+            // Clear hover state so a stale _shownOn doesn't block the next Show.
             _shownOn = null;
             _pendingTarget = null;
             _pendingShow = false;
@@ -182,12 +183,15 @@ public static class IntentHoverPatch
         {
             if (creatureNode.HasMeta(PanelMeta)) return;
 
+            // Reject dead or removed creatures — the node may still be in the
+            // tree during the dying animation but the Entity is gone/nulled.
             if (!creatureNode.IsInsideTree()) return;
 
             var entity = creatureNode.Entity;
             if (entity == null) return;
             if (entity.IsPlayer) return;
             if (entity.Monster == null) return;
+            // Reject dead creatures — panel should never show for corpses.
             if (entity.IsDead) return;
 
             var panel = IntentStateMachinePanel.Create(entity);
