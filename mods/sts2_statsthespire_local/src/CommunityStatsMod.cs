@@ -1,3 +1,4 @@
+using CommunityStats.Api;
 using CommunityStats.Config;
 using CommunityStats.Patches;
 using CommunityStats.UI;
@@ -22,7 +23,11 @@ public static class CommunityStatsMod
 
     public static void Initialize()
     {
-        Safe.Info($"Stats the Spire v{ModConfig.ModVersion} initializing...");
+        Safe.Info($"Stats the Spire (Local) v{ModConfig.ModVersion} initializing...");
+
+        // Apply any pending update (.new DLL downloaded last session).
+        Updater.Instance.Edition = "local";
+        Updater.TryApplyPendingUpdate();
 
         // Load saved settings (feature toggles, language, etc.) from disk.
         ModConfig.LoadOverrides();
@@ -32,6 +37,9 @@ public static class CommunityStatsMod
 
         // Ensure data directories exist
         ModConfig.EnsureDirectories();
+
+        // Background: check for mod updates.
+        _ = Updater.Instance.CheckForUpdateAsync();
 
         // Prune contribution snapshots older than 90 days.
         ContributionPersistence.PruneOldFiles();

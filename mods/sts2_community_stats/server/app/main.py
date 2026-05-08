@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import orjson
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, Response, HTTPException, Query
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import ORJSONResponse, FileResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -316,3 +316,49 @@ async def get_versions():
             "SELECT version FROM game_versions WHERE is_active = TRUE ORDER BY first_seen DESC"
         )
     return [r["version"] for r in rows]
+
+
+# ── Auto-update ──────────────────────────────────────────────
+
+import os as _os  # noqa: E402
+
+_UPDATES_ROOT = _os.path.join(_os.path.dirname(__file__), "..", "..", "updates")
+_KNOWN_EDITIONS = {"community", "local"}
+
+
+@app.get("/v1/meta/update-info")
+@limiter.limit("30/minute")
+async def get_update_info(
+    request: Request,
+    edition: str = Query("community", max_length=16),
+    current: str = Query("0.0.0", max_length=16),
+):
+    if edition not in _KNOWN_EDITIONS:
+        raise HTTPException(400, f"Unknown edition: {edition}")
+    version_path = _os.path.join(_UPDATES_ROOT, edition, "version.txt")
+    try:
+        with open(version_path) as f:
+            latest = f.read().strip()
+    except FileNotFoundError:
+        latest = "0.0.0"
+    return {
+        "edition": edition,
+        "latest": latest,
+        "update_available": latest != current,
+        "download_url": f"/v1/updates/{edition}/sts2_community_stats.dll",
+    }
+
+
+@app.get("/v1/updates/{edition}/sts2_community_stats.dll")
+@limiter.limit("30/minute")
+async def download_update(
+    request: Request,
+    edition: str,
+):
+    if edition not in _KNOWN_EDITIONS:
+        raise HTTPException(400, f"Unknown edition: {edition}")
+    dll_path = _os.path.join(_UPDATES_ROOT, edition, "sts2_community_stats.dll")
+    if not _os.path.exists(dll_path):
+        raise HTTPException(404, "Update not found")
+    return FileResponse(dll_path, media_type="application/octet-stream",
+                        filename="sts2_community_stats.dll")

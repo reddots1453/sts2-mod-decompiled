@@ -22,6 +22,7 @@ public static class ModConfig
     /// send data over HTTP unless explicitly opted-in.
     /// </summary>
     public static bool AllowHttp { get; set; } = false;
+    public static bool AutoUpdate { get; set; } = true;
 
     // User preferences
     public static bool EnableUpload { get; set; } = true;
@@ -112,6 +113,8 @@ public static class ModConfig
                 UploadTimeoutMs = ut.GetInt32();
             if (root.TryGetProperty("allow_http", out var ah))
                 AllowHttp = ah.GetBoolean();
+            if (root.TryGetProperty("auto_update", out var au))
+                AutoUpdate = au.GetBoolean();
             if (root.TryGetProperty("enable_upload", out var eu))
                 EnableUpload = eu.GetBoolean();
             if (root.TryGetProperty("language", out var lang))
@@ -153,6 +156,7 @@ public static class ModConfig
             {
                 ["language"] = Language,
                 ["feature_toggles"] = Toggles,
+                ["auto_update"] = AutoUpdate,
                 ["enable_upload"] = EnableUpload,
                 ["use_my_data_only"] = UseMyDataOnly,
                 ["history_import_completed"] = HistoryImportCompleted,

@@ -19,6 +19,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./updates:/updates:ro     # Auto-update DLL files for client download
     restart: unless-stopped
     logging:
       driver: json-file

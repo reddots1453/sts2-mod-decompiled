@@ -32,8 +32,14 @@ public static class CommunityStatsMod
         // Sync language setting
         L.Current = ModConfig.Language == "EN" ? L.Lang.EN : L.Lang.CN;
 
+        // Apply any pending update (.new DLL downloaded last session).
+        Updater.TryApplyPendingUpdate();
+
         // Ensure data directories exist
         ModConfig.EnsureDirectories();
+
+        // Background: check for mod updates.
+        _ = Updater.Instance.CheckForUpdateAsync();
 
         // Prune contribution snapshots older than 90 days (PRD §3.12).
         ContributionPersistence.PruneOldFiles();

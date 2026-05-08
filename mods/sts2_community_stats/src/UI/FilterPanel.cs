@@ -19,8 +19,9 @@ public partial class FilterPanel : PanelContainer
     private SpinBox? _minAscSpinBox;
     private SpinBox? _maxAscSpinBox;
     private CheckBox? _autoMatchAscCheckbox;
-    private OptionButton? _versionDropdown;
-    private OptionButton? _branchDropdown;
+    private OptionButton? _versionSlotDropdown;
+    // Version slots: each entry maps a dropdown index to (GameVersion, Branch, Label).
+    private readonly List<(string? GameVersion, string? Branch, string Label)> _versionSlots = new();
     private SpinBox? _minWinRateSpinBox;
     private Label? _sampleSizeLabel;
     private CheckBox? _uploadCheckbox;
@@ -161,30 +162,10 @@ public partial class FilterPanel : PanelContainer
         panel._characterDropdown.Selected = savedIdx >= 0 ? savedIdx : 0;
         AddLabeledControl(dataGrid, L.Get("settings.character"), panel._characterDropdown);
 
-        // Version dropdown
-        panel._versionDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        panel._versionDropdown.AddItem(L.Get("settings.ver_current"), 0);
-        panel._versionDropdown.AddItem(L.Get("settings.ver_all"), 1);
-        var savedVer = ModConfig.CurrentFilter.GameVersion == "all" ? 1 : 0;
-        panel._versionDropdown.Selected = savedVer;
-        AddLabeledControl(dataGrid, L.Get("settings.version"), panel._versionDropdown);
-
-        // Branch dropdown
-        panel._branchDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        panel._branchDropdown.AddItem(L.Get("settings.br_auto"), 0);
-        panel._branchDropdown.AddItem(L.Get("settings.br_release"), 1);
-        panel._branchDropdown.AddItem(L.Get("settings.br_beta"), 2);
-        panel._branchDropdown.AddItem(L.Get("settings.br_all"), 3);
-        var savedBr = ModConfig.CurrentFilter.Branch;
-        var brIdx = savedBr switch
-        {
-            "release" => 1,
-            "beta" => 2,
-            "all" => 3,
-            _ => 0,
-        };
-        panel._branchDropdown.Selected = brIdx;
-        AddLabeledControl(dataGrid, L.Get("settings.branch"), panel._branchDropdown);
+        // Version slot dropdown — combines version + branch into a single list.
+        panel._versionSlotDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        panel.PopulateVersionDropdown();
+        AddLabeledControl(dataGrid, L.Get("settings.version"), panel._versionSlotDropdown);
 
         // Language dropdown
         panel._langDropdown = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -437,6 +418,100 @@ public partial class FilterPanel : PanelContainer
         return L.Get(fallbackKey);
     }
 
+    // ── Version slot dropdown (combined version + branch) ──────
+
+    /// <summary>
+    /// Build the combined version dropdown. Static entries (auto, all) are
+    /// populated immediately; version+branch combos are fetched async from
+    /// the API and appended when available.
+    /// </summary>
+    private void PopulateVersionDropdown()
+    {
+        if (_versionSlotDropdown == null) return;
+
+        _versionSlots.Clear();
+        _versionSlotDropdown.Clear();
+
+        // Slot 0: auto — follows the user's current game version + branch.
+        _versionSlots.Add((null, null, L.Get("settings.ver_auto")));
+        _versionSlotDropdown.AddItem(_versionSlots[0].Label, 0);
+
+        // Slot 1: all — aggregates across all versions and branches.
+        _versionSlots.Add(("all", "all", L.Get("settings.ver_all")));
+        _versionSlotDropdown.AddItem(_versionSlots[1].Label, 1);
+
+        // Restore saved selection. Default to auto (index 0) if the saved
+        // filter doesn't match any slot yet (slots from API haven't loaded).
+        var saved = ModConfig.CurrentFilter;
+        var selectedIdx = FindVersionSlotIndex(saved);
+        _versionSlotDropdown.Selected = selectedIdx >= 0 ? selectedIdx : 0;
+
+        // Kick off async fetch of version+branch combos from the API.
+        _ = PopulateVersionSlotsAsync();
+    }
+
+    /// <summary>
+    /// Refresh the version dropdown: re-fetch versions from the API and
+    /// rebuild the list. Called each time the panel opens.
+    /// </summary>
+    private static void RefreshVersionDropdown(FilterPanel panel)
+    {
+        panel.PopulateVersionDropdown();
+    }
+
+    private int FindVersionSlotIndex(FilterSettings filter)
+    {
+        for (int i = 0; i < _versionSlots.Count; i++)
+        {
+            var slot = _versionSlots[i];
+            if (slot.GameVersion == filter.GameVersion && slot.Branch == filter.Branch)
+                return i;
+        }
+        return -1;
+    }
+
+    private async System.Threading.Tasks.Task PopulateVersionSlotsAsync()
+    {
+        List<string>? versions = null;
+        try
+        {
+            versions = await ApiClient.Instance.GetAvailableVersionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"[FilterPanel] Failed to fetch version list: {ex.Message}");
+            return;
+        }
+
+        if (versions == null || versions.Count == 0) return;
+
+        // Sort descending: newest first.
+        versions.Sort((a, b) => string.CompareOrdinal(b, a));
+
+        // Save current selection before modifying the dropdown.
+        var saved = ModConfig.CurrentFilter;
+        var prevIdx = _versionSlotDropdown?.Selected ?? 0;
+
+        // Append version+branch combos.
+        foreach (var ver in versions)
+        {
+            foreach (var branch in new[] { BranchManager.Release, BranchManager.Beta })
+            {
+                var brLabel = branch == BranchManager.Release
+                    ? L.Get("settings.br_release")
+                    : L.Get("settings.br_beta");
+                var label = $"{ver} {brLabel}";
+                _versionSlots.Add((ver, branch, label));
+                _versionSlotDropdown?.AddItem(label);
+            }
+        }
+
+        // Restore selection: find the slot that matches the saved filter.
+        var newIdx = FindVersionSlotIndex(saved);
+        if (newIdx >= 0 && _versionSlotDropdown != null)
+            _versionSlotDropdown.Selected = newIdx;
+    }
+
     // ── Show / hide lifecycle ───────────────────────────────
 
     public static void Toggle()
@@ -467,6 +542,10 @@ public partial class FilterPanel : PanelContainer
                 PopulateCharacterDropdown(panel._characterDropdown);
                 panel._characterDropdown.Selected = savedIdx >= 0 ? savedIdx : 0;
             }
+
+            // Refresh version dropdown to pick up any newly available versions.
+            if (panel._versionSlotDropdown != null)
+                RefreshVersionDropdown(panel);
 
             panel.Visible = true;
             panel.UpdateSampleSizeLabel();
@@ -514,16 +593,18 @@ public partial class FilterPanel : PanelContainer
             }
             var wrPercent = (int?)_minWinRateSpinBox?.Value ?? 0;
             filter.MinPlayerWinRate = wrPercent > 0 ? wrPercent / 100f : null;
-            var verIdx = _versionDropdown?.Selected ?? 0;
-            filter.GameVersion = verIdx == 1 ? "all" : null;
-            var brIdx = _branchDropdown?.Selected ?? 0;
-            filter.Branch = brIdx switch
+            var slotIdx = _versionSlotDropdown?.Selected ?? 0;
+            if (slotIdx >= 0 && slotIdx < _versionSlots.Count)
             {
-                1 => "release",
-                2 => "beta",
-                3 => "all",
-                _ => null,
-            };
+                var slot = _versionSlots[slotIdx];
+                filter.GameVersion = slot.GameVersion;
+                filter.Branch = slot.Branch;
+            }
+            else
+            {
+                filter.GameVersion = null;
+                filter.Branch = null;
+            }
             filter.MyDataOnly = _myDataCheckbox?.ButtonPressed ?? false;
 
             var charIdx = _characterDropdown?.Selected ?? 0;
