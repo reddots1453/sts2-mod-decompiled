@@ -111,6 +111,14 @@ public static class CommunityStatsMod
         // Listen for filter changes to trigger data re-fetch
         FilterPanel.FilterApplied += OnFilterApplied;
 
+        // Language-only changes: re-render all visible UI immediately with
+        // current StatsProvider data — no API reload needed.
+        Config.L.LanguageChanged += () =>
+        {
+            Safe.Info("[LangChanged] triggering immediate UI re-render");
+            Safe.Run(() => StatsProvider.FireDataRefreshed());
+        };
+
         // Register hotkeys and attach UI panels to scene tree
         Safe.Run(() => RegisterHotkeys());
 

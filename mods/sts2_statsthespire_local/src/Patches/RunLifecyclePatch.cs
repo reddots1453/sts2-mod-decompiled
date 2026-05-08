@@ -1,4 +1,3 @@
-using CommunityStats.Api;
 using CommunityStats.Collection;
 using CommunityStats.Config;
 using CommunityStats.Util;
@@ -28,32 +27,6 @@ public static class RunLifecyclePatch
             // per run (lifetime mirrors NTopBar's). Defer one frame so
             // NRun.GlobalUi.TopBar is fully laid out by the time we attach.
             CommunityStats.Patches.CombatUiOverlayPatch.OnRunStarted();
-
-            var players = state.Players;
-            Safe.Info($"[DIAG:RunLifecycle] state.Players={players != null}, count={players?.Count}");
-
-            var player = players?.FirstOrDefault();
-            Safe.Info($"[DIAG:RunLifecycle] player={player != null}");
-
-            var runCharacter = player?.Character?.Id.Entry;
-            Safe.Info($"[DIAG:RunLifecycle] character={runCharacter ?? "NULL"}");
-
-            if (runCharacter != null)
-            {
-                // PRD §3.18 — preload uses the *filter-resolved* character so a
-                // user who has manually pinned (e.g.) "SILENT" still sees Silent
-                // data when starting an Ironclad run. Falls back to the run's
-                // own character only when the filter resolves to null.
-                var filter = ModConfig.CurrentFilter;
-                var preloadChar = filter.ResolveCharacter() ?? runCharacter;
-                Safe.Info($"[DIAG:RunLifecycle] Launching PreloadForRunAsync for {preloadChar} (mode={filter.CharacterFilterMode})");
-                Safe.RunAsync(() =>
-                    StatsProvider.Instance.PreloadForRunAsync(preloadChar, filter));
-            }
-            else
-            {
-                Safe.Warn("[DIAG:RunLifecycle] character is null, skipping preload");
-            }
         });
     }
 
@@ -77,16 +50,6 @@ public static class RunLifecyclePatch
             RunDataCollector.OnRunStart();
             TryHydrateLiveState(state?.Rng?.StringSeed);
             CommunityStats.Patches.CombatUiOverlayPatch.OnRunStarted();
-
-            var player = state?.Players?.FirstOrDefault();
-            var runCharacter = player?.Character?.Id.Entry;
-            if (runCharacter != null)
-            {
-                var filter = ModConfig.CurrentFilter;
-                var preloadChar = filter.ResolveCharacter() ?? runCharacter;
-                Safe.RunAsync(() =>
-                    StatsProvider.Instance.PreloadForRunAsync(preloadChar, filter));
-            }
         });
     }
 
@@ -112,24 +75,6 @@ public static class RunLifecyclePatch
             RunDataCollector.OnRunStart();
             TryHydrateLiveState(state?.Rng?.StringSeed);
             CommunityStats.Patches.CombatUiOverlayPatch.OnRunStarted();
-
-            // PRD §3.15 — multiplayer compat: prefer the local player; fall back to
-            // Players[0] only if LocalContext is unavailable. We must never crash
-            // when state or its Players list is null.
-            if (state == null) return;
-
-            MegaCrit.Sts2.Core.Entities.Players.Player? player = null;
-            try { player = MegaCrit.Sts2.Core.Context.LocalContext.GetMe(state); } catch { }
-            if (player == null) player = state.Players?.FirstOrDefault();
-
-            var runCharacter = player?.Character?.Id.Entry;
-            if (runCharacter != null)
-            {
-                var filter = ModConfig.CurrentFilter;
-                var preloadChar = filter.ResolveCharacter() ?? runCharacter;
-                Safe.RunAsync(() =>
-                    StatsProvider.Instance.PreloadForRunAsync(preloadChar, filter));
-            }
         });
     }
 

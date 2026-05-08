@@ -69,9 +69,13 @@ public sealed class RunContributionAggregator
     /// <summary>
     /// Restore run totals from a save+quit snapshot. Round 8 §3.6.1.
     /// Replaces (not merges) the in-memory totals with the supplied dict.
+    /// Does nothing when totals is empty — an empty snapshot should never
+    /// wipe data that is already in memory (defense against corrupted or
+    /// mid-first-combat _live.json files).
     /// </summary>
     public void HydrateRunTotals(IReadOnlyDictionary<string, ContributionAccum> totals)
     {
+        if (totals.Count == 0) return;
         _runTotals.Clear();
         foreach (var (k, v) in totals) _runTotals[k] = v;
     }

@@ -207,7 +207,6 @@ public sealed class RunHistoryAnalyzer
             loaded.Add(history);
         }
 
-        // Recent-runs filter: sort newest-first, take top N.
         if (recentCount > 0 && loaded.Count > recentCount)
         {
             loaded.Sort((a, b) => b.StartTime.CompareTo(a.StartTime));

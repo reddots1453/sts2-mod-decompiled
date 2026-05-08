@@ -234,6 +234,7 @@ public static class ContributionPersistence
                 Encounters = snapshot.Encounters?.Select(ToEncounterDto).ToList() ?? new(),
             };
             File.WriteAllText(path, JsonSerializer.Serialize(dto, JsonOpts));
+            Godot.GD.Print($"[StatsTheSpire] SaveLiveState: wrote to {path}, runTotalEntries={dto.RunTotals.Count}, encounters={dto.Encounters.Count}");
         });
     }
 

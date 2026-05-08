@@ -20,9 +20,6 @@ using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.ValueProps;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
-// v0.105.0+: CombatState extracted to ICombatState interface.
-// Build for beta (>=v0.105) with: dotnet build -p:DefineConstants=STS2_GE_V105
-// Build for stable (<v0.105) without the constant.
 #if STS2_GE_V105
 using CombatStateType = MegaCrit.Sts2.Core.Combat.ICombatState;
 #else
@@ -2897,7 +2894,6 @@ public static class TempStrengthRevertPatch
 public static class CardGenerationOriginPatch
 {
     [HarmonyPatch(typeof(Hook), nameof(Hook.AfterCardGeneratedForCombat))]
-    // v0.105.0+: bool addedByPlayer → Player? creator (semantic change)
 #if STS2_GE_V105
     [HarmonyPostfix]
     public static void AfterCardGenerated(CardModel card, Player? creator)
@@ -3286,8 +3282,7 @@ public static class OrbPassivePatch
     }
 
     /// <summary>
-    /// Record all orb value modifiers (Focus power + relics like Infused Core)
-    /// so they get credited as ModifierDamage/ModifierBlock when the orb fires.
+    /// Record all orb value modifiers (Focus power + relics like Infused Core).
     /// </summary>
     internal static void SetOrbValueContribs(OrbModel orb)
     {
@@ -3295,7 +3290,6 @@ public static class OrbPassivePatch
         var player = orb.Owner;
         if (player?.Creature == null) return;
 
-        // Focus — additive per-point bonus from Focus power
         var focusSource = ContributionMap.Instance.GetPowerSource("FOCUS_POWER")
                        ?? ContributionMap.Instance.GetPowerSource("FOCUS");
         if (focusSource != null)
@@ -3307,7 +3301,6 @@ public static class OrbPassivePatch
                     (int)focusPower.Amount);
         }
 
-        // Infused Core — +1 per Lightning orb (v0.105.0 buff)
         if (orb is LightningOrb)
         {
             var infusedCore = player.GetRelic<InfusedCore>();

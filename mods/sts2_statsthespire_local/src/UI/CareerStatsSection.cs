@@ -40,7 +40,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private string? _characterFilter;
     private int _minAscension;
-    private int _recentRunsCount; // 0 = all runs
+    private int _recentRunsCount;
     private CareerStatsData? _data;
 
     private CareerStatsSection() { }

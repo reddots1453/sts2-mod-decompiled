@@ -7,20 +7,20 @@ using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
+#if STS2_GE_V105
+using CombatStateType = MegaCrit.Sts2.Core.Combat.ICombatState;
+#else
+using CombatStateType = MegaCrit.Sts2.Core.Combat.CombatState;
+#endif
+
 namespace CommunityStats.Patches;
 
-/// <summary>
-/// Patches CombatManager to track combat start/end for contribution tracking
-/// and show the contribution panel after combat.
-/// Uses CombatManager.SetUpCombat (sync, non-override) instead of CombatRoom.Enter
-/// (async override, which Harmony struggles to resolve).
-/// </summary>
 [HarmonyPatch]
 public static class CombatLifecyclePatch
 {
     [HarmonyPatch(typeof(CombatManager), nameof(CombatManager.SetUpCombat))]
     [HarmonyPostfix]
-    public static void AfterSetUpCombat(CombatManager __instance, CombatState state)
+    public static void AfterSetUpCombat(CombatManager __instance, CombatStateType state)
     {
         Safe.Run(() =>
         {

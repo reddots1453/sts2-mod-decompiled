@@ -10,7 +10,7 @@ public static class ModConfig
     public const string ModVersion = "2.0.0";
 
     // Server (can be overridden via config.json for local testing)
-    public static string ApiBaseUrl { get; set; } = "https://statsthespire.org.cn/v1";
+    public static string ApiBaseUrl { get; set; } = "https://statsthespire.org/v1";
     public static int QueryTimeoutMs { get; set; } = 5000;
     public static int UploadTimeoutMs { get; set; } = 30000;
 
@@ -84,14 +84,11 @@ public static class ModConfig
 
     /// <summary>
     /// Load config overrides from disk. Reads shipped config.json first, then
-    /// user's mod_prefs.json from AppData (overrides take priority — survives
-    /// mod updates and directory permission issues).
+    /// user's mod_prefs.json from AppData (overrides take priority).
     /// </summary>
     public static void LoadOverrides()
     {
-        // Phase 1: shipped defaults (config.json next to the DLL)
         ApplyConfigFile(ConfigPath);
-        // Phase 2: user prefs (AppData, always writable — overrides shipped defaults)
         ApplyConfigFile(PrefsPath);
     }
 
@@ -138,12 +135,11 @@ public static class ModConfig
             if (root.TryGetProperty("history_import_completed", out var hic))
                 HistoryImportCompleted = hic.GetBoolean();
         }
-        catch { /* ignore malformed config */ }
+        catch { }
     }
 
     /// <summary>
     /// Save current settings (feature toggles, language, preferences) to AppData.
-    /// Uses PrefsPath so settings survive mod updates and directory permissions.
     /// </summary>
     public static void SaveSettings()
     {
@@ -167,6 +163,6 @@ public static class ModConfig
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(PrefsPath, json);
         }
-        catch { /* ignore write failures */ }
+        catch { }
     }
 }

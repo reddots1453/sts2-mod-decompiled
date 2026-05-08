@@ -185,7 +185,9 @@ public sealed class CombatTracker
         // save+quit recovery (PRD §3.6.1).
         try
         {
-            Util.ContributionPersistence.SaveLiveState(BuildLiveSnapshot(combatInProgress: true));
+            var snap = BuildLiveSnapshot(combatInProgress: true);
+            Godot.GD.Print($"[StatsTheSpire] SaveLiveState: combatInProgress=true, runTotalEntries={snap.RunTotals?.Count ?? 0}, encounters={snap.Encounters?.Count ?? 0}, currentCombatEntries={snap.CurrentCombat?.Count ?? 0}");
+            Util.ContributionPersistence.SaveLiveState(snap);
         }
         catch (Exception ex)
         {
@@ -302,7 +304,9 @@ public sealed class CombatTracker
         // save+quit between combats keeps the run-totals tab populated.
         try
         {
-            Util.ContributionPersistence.SaveLiveState(BuildLiveSnapshot(combatInProgress: false));
+            var snap = BuildLiveSnapshot(combatInProgress: false);
+            Godot.GD.Print($"[StatsTheSpire] SaveLiveState post-combat: combatInProgress=false, runTotalEntries={snap.RunTotals?.Count ?? 0}, encounters={snap.Encounters?.Count ?? 0}");
+            Util.ContributionPersistence.SaveLiveState(snap);
         }
         catch { }
     }
@@ -700,15 +704,14 @@ public sealed class CombatTracker
                 }
             }
 
-            // Focus contribution split: when orb is the source, split Focus bonus as ModifierDamage
-            var focusContrib = ContributionMap.Instance.PendingOrbFocusContrib;
-            if (focusContrib != null && focusContrib.Value.amount > 0)
+            // Orb value contributions (Focus + relics like Infused Core).
+            foreach (var c in ContributionMap.Instance.ConsumeOrbValueContribs())
             {
-                int focusAmount = Math.Min(focusContrib.Value.amount, directDamage);
-                if (focusAmount > 0)
+                int amount = Math.Min(c.amount, directDamage);
+                if (amount > 0)
                 {
-                    GetOrCreate(focusContrib.Value.sourceId, focusContrib.Value.sourceType).ModifierDamage += focusAmount;
-                    directDamage -= focusAmount;
+                    GetOrCreate(c.sourceId, c.sourceType).ModifierDamage += amount;
+                    directDamage -= amount;
                 }
             }
 
@@ -758,6 +761,7 @@ public sealed class CombatTracker
                 bool distributed = false;
                 if (!hasOrbContext && _activePowerId != null && directDamage > 0)
                 {
+                    // Try debuff-layer fractions first (Poison, Doom — per-enemy stacks)
                     var fractions = ContributionMap.Instance.GetDebuffSourceFractions(
                         targetHash, _activePowerId);
                     if (fractions.Count > 1)
@@ -773,6 +777,25 @@ public sealed class CombatTracker
                             allocated += share;
                         }
                         distributed = true;
+                    }
+
+                    // Fall back to global power-source distribution for player
+                    // buffs with multiple sources (Thorns: BronzeScales + Abrasion,
+                    // FlameBarrier from multiple relics/cards, etc.)
+                    if (!distributed)
+                    {
+                        var powerSources = ContributionMap.Instance.GetPowerSources(_activePowerId);
+                        if (powerSources != null && powerSources.Count > 1)
+                        {
+                            var dist = ContributionMap.Instance.DistributeByPowerSources(
+                                _activePowerId, directDamage);
+                            foreach (var (sid, stype, share) in dist)
+                            {
+                                if (share > 0)
+                                    GetOrCreate(sid, stype).AttributedDamage += share;
+                            }
+                            distributed = true;
+                        }
                     }
                 }
                 if (!distributed)
@@ -920,17 +943,15 @@ public sealed class CombatTracker
                 modifiers.Clear();
             }
 
-            // Focus contribution split for Frost orb: Focus bonus is treated as a
-            // modifier entry too, so it only credits when block is actually used.
-            var focusContrib = ContributionMap.Instance.PendingOrbFocusContrib;
-            if (focusContrib != null && focusContrib.Value.amount > 0)
+            // Orb value contributions (Focus + relics) for Frost orb block bonus.
+            foreach (var c in ContributionMap.Instance.ConsumeOrbValueContribs())
             {
-                int focusAmount = Math.Min(focusContrib.Value.amount, amount);
-                if (focusAmount > 0)
+                int amt = Math.Min(c.amount, amount);
+                if (amt > 0)
                 {
                     modifierList ??= new List<(string, string, int)>();
-                    modifierList.Add((focusContrib.Value.sourceId, focusContrib.Value.sourceType, focusAmount));
-                    modifierTotal += focusAmount;
+                    modifierList.Add((c.sourceId, c.sourceType, amt));
+                    modifierTotal += amt;
                 }
             }
 
@@ -1420,41 +1441,40 @@ public sealed class CombatTracker
     /// </summary>
     public void FlushForgeSubBars()
     {
-        if (_forgeLog.Count == 0) return;
-
-        // Aggregate by sourceId
-        var aggregated = new Dictionary<string, (string sourceType, int count, int totalAmount)>();
-        foreach (var (srcId, srcType, amt) in _forgeLog)
+        // Aggregate forge sources if any. Forge log may be empty on replay
+        // (Sword Sage / Replay mechanic) — still write base damage below.
+        if (_forgeLog.Count > 0)
         {
-            if (aggregated.TryGetValue(srcId, out var existing))
-                aggregated[srcId] = (srcType, existing.count + 1, existing.totalAmount + amt);
-            else
-                aggregated[srcId] = (srcType, 1, amt);
+            var aggregated = new Dictionary<string, (string sourceType, int count, int totalAmount)>();
+            foreach (var (srcId, srcType, amt) in _forgeLog)
+            {
+                if (aggregated.TryGetValue(srcId, out var existing))
+                    aggregated[srcId] = (srcType, existing.count + 1, existing.totalAmount + amt);
+                else
+                    aggregated[srcId] = (srcType, 1, amt);
+            }
+
+            foreach (var (rawSrcId, (srcType, count, totalAmt)) in aggregated)
+            {
+                string srcId = rawSrcId;
+                if (srcType == "power" && srcId.EndsWith("_POWER", StringComparison.Ordinal))
+                    srcId = srcId.Substring(0, srcId.Length - "_POWER".Length);
+                string key = $"FORGE:{srcId}";
+                var accum = GetOrCreate(key, srcType);
+                accum.OriginSourceId = "SOVEREIGN_BLADE";
+                accum.DirectDamage += totalAmt;
+                accum.TimesPlayed += count;
+            }
         }
 
-        // Write sub-bar entries: "FORGE:SOURCE_ID" with OriginSourceId = "SOVEREIGN_BLADE"
-        // P2-2: Normalize Power sources — FurnacePower's Id.Entry is "FURNACE_POWER"
-        // but tests (and users) expect the sub-bar key "FORGE:FURNACE" / "FORGE:BULWARK"
-        // (the variant name, not the power suffix). Strip the trailing "_POWER" so
-        // the format is FORGE:<VARIANT>.
-        foreach (var (rawSrcId, (srcType, count, totalAmt)) in aggregated)
-        {
-            string srcId = rawSrcId;
-            if (srcType == "power" && srcId.EndsWith("_POWER", StringComparison.Ordinal))
-                srcId = srcId.Substring(0, srcId.Length - "_POWER".Length);
-            string key = $"FORGE:{srcId}";
-            var accum = GetOrCreate(key, srcType);
-            accum.OriginSourceId = "SOVEREIGN_BLADE";
-            accum.DirectDamage += totalAmt;
-            accum.TimesPlayed += count;
-        }
-
-        // Also write base damage entry (SovereignBlade starts at 10)
+        // Base damage entry — SovereignBlade starts at 10. Uses += so
+        // Replay mechanics (Sword Sage) accumulate correctly across
+        // multiple OnPlay calls within the same combat.
         const int baseDamage = 10;
         var baseAccum = GetOrCreate("FORGE:BASE", "card");
         baseAccum.OriginSourceId = "SOVEREIGN_BLADE";
-        baseAccum.DirectDamage = baseDamage; // fixed, not additive
-        baseAccum.TimesPlayed = 1;
+        baseAccum.DirectDamage += baseDamage;
+        baseAccum.TimesPlayed += 1;
     }
 
     // ── Healing ──────────────────────────────────────────────
