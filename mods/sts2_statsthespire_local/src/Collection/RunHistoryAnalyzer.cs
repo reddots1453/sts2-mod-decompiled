@@ -211,16 +211,15 @@ public sealed class RunHistoryAnalyzer
         {
             loaded.Sort((a, b) => b.StartTime.CompareTo(a.StartTime));
             loaded = loaded.Take(recentCount).ToList();
+            Godot.GD.Print($"[StatsTheSpire] BuildSnapshot: recent filter applied, trimmed to {loaded.Count} runs");
         }
 
         Safe.Info($"[RunHistoryAnalyzer] BuildSnapshot: loaded {loaded.Count} histories (filter={characterFilter ?? "all"}, minAsc={minAscension}, recent={recentCount})");
         if (loaded.Count == 0)
         {
-            // Round 9 round 36: bundles must reset to Empty when no histories
-            // match, otherwise stale data leaks across filter changes.
             _cardBundle = LocalCardStatsBundle.Empty;
             _relicBundle = LocalRelicStatsBundle.Empty;
-            return CareerStatsData.Empty(characterFilter, minAscension);
+            return CareerStatsData.Empty(characterFilter, minAscension, recentCount);
         }
 
         // Sort newest first by StartTime for rolling-window calculation.

@@ -228,7 +228,7 @@ public static class L
         ["intent.no_metadata"] = "(no intent metadata)",
 
         // Career stats (§3.11)
-        ["career.title"] = "History Data Filter",
+        ["career.title"] = "Career Statistics",
         ["career.summary_title"] = "Summary",
         ["career.character"] = "Character",
         ["career.recent_runs"] = "Recent Runs",
@@ -530,7 +530,7 @@ public static class L
         ["intent.no_metadata"] = "(无意图元数据)",
 
         // Career stats (§3.11)
-        ["career.title"] = "历史数据筛选",
+        ["career.title"] = "个人生涯统计",
         ["career.summary_title"] = "数据汇总",
         ["career.character"] = "角色",
         ["career.recent_runs"] = "最近对局",
