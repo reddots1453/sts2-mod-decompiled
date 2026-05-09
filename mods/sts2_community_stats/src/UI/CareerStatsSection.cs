@@ -1070,9 +1070,15 @@ public sealed partial class CareerStatsSection : VBoxContainer
         var statsByEnc = _data?.BossStats ?? new Dictionary<string, BossEncounterStats>();
         var allIds = AllKnownBossEncounterIds();
         // Add any extra ids the player has data for that aren't in ModelDb
-        // (paranoid catch — modded encounters etc.).
+        // (paranoid catch — modded encounters etc.). On beta, also filter out
+        // bosses that were removed from beta (historical data still has them).
+        var isBeta = CommunityStats.Config.BranchManager.CurrentBranch
+            == CommunityStats.Config.BranchManager.Beta;
         foreach (var id in statsByEnc.Keys)
+        {
+            if (isBeta && BetaRemovedBosses.Contains(id)) continue;
             if (!allIds.Contains(id)) allIds.Add(id);
+        }
 
         if (allIds.Count == 0)
         {

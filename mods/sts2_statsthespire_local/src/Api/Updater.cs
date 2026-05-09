@@ -3,25 +3,24 @@ using System.Net.Http;
 using System.Text.Json;
 using CommunityStats.Config;
 using CommunityStats.Util;
+using Godot;
 
 namespace CommunityStats.Api;
 
 /// <summary>
-/// Auto-update system for mod DLLs. Works identically for community
-/// ("community") and local ("local") editions.
-///
-/// Flow:
+/// Auto-update system. Flow:
 ///   1. TryApplyPendingUpdate — if .new file exists, replace old DLL
-///   2. CheckForUpdateAsync — query server, download if newer
+///   2. CheckForUpdateAsync — query server, show dialog, download if user accepts
 /// </summary>
 public sealed class Updater
 {
     public static Updater Instance { get; } = new();
 
-    /// <summary>Edition string sent to the API.</summary>
     public string Edition { get; set; } = "community";
 
-    /// <summary>Called from mod init before the first API call.</summary>
+    private static string? _pendingUpdateVersion;
+
+    /// <summary>Called from mod init.</summary>
     public static void TryApplyPendingUpdate()
     {
         Safe.Run(() =>
@@ -32,15 +31,12 @@ public sealed class Updater
 
             if (!File.Exists(newPath)) return;
 
-            // Delete old DLL and rename .new to .dll. If the DLL is locked
-            // (game still running), the rename will fail and we try again
-            // next launch.
             try
             {
                 if (File.Exists(currentPath))
                     File.Delete(currentPath);
                 File.Move(newPath, currentPath);
-                Safe.Info($"[Updater] Applied pending update: {Path.GetFileName(newPath)} → {Path.GetFileName(currentPath)}");
+                Safe.Info($"[Updater] Applied pending update: {newPath} → {currentPath}");
             }
             catch (Exception ex)
             {
@@ -50,8 +46,8 @@ public sealed class Updater
     }
 
     /// <summary>
-    /// Fire-and-forget: check the server for a newer version. If found,
-    /// download the DLL to a .new file for next launch.
+    /// Background check. If a newer version is found, shows a dialog on the
+    /// main thread asking the user whether to download.
     /// </summary>
     public async System.Threading.Tasks.Task CheckForUpdateAsync()
     {
@@ -61,35 +57,119 @@ public sealed class Updater
             return;
         }
 
-        await System.Threading.Tasks.Task.Run(async () =>
+        UpdateInfo? info;
+        try
         {
-            try
-            {
-                var info = await FetchUpdateInfoAsync();
-                if (info == null || !info.UpdateAvailable) return;
+            info = await FetchUpdateInfoAsync();
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"[Updater] Update check failed: {ex.Message}");
+            return;
+        }
 
-                Safe.Info($"[Updater] New version available: {info.Latest} (current: {ModConfig.ModVersion})");
+        if (info == null || !info.UpdateAvailable) return;
 
-                var downloaded = await DownloadDllAsync(info.DownloadUrl);
-                if (!downloaded) return;
+        Safe.Info($"[Updater] New version available: {info.Latest} (current: {ModConfig.ModVersion})");
 
-                // Persist so we show the notice next startup too.
-                var noticePath = GetUpdateNoticePath();
-                File.WriteAllText(noticePath, info.Latest);
-            }
-            catch (Exception ex)
-            {
-                Safe.Warn($"[Updater] Update check failed: {ex.Message}");
-            }
-        });
+        // Marshal to main thread to show dialog.
+        _pendingUpdateVersion = info.Latest;
+        Callable.From(() => ShowUpdateDialog(info.Latest, info.DownloadUrl)).CallDeferred();
     }
+
+    private static void ShowUpdateDialog(string version, string downloadUrl)
+    {
+        try
+        {
+            var tree = Engine.GetMainLoop() as SceneTree;
+            if (tree?.Root == null) return;
+
+            var dialog = new ConfirmationDialog();
+            dialog.Title = "Stats the Spire";
+            dialog.DialogText = string.Format(L.Get("update.found"), version, ModConfig.ModVersion);
+            dialog.OkButtonText = L.Get("update.download_yes");
+            dialog.CancelButtonText = L.Get("update.download_no");
+            dialog.Exclusive = true;
+            dialog.AlwaysOnTop = true;
+
+            dialog.Confirmed += () =>
+            {
+                dialog.QueueFree();
+                StartDownload(version, downloadUrl);
+            };
+            dialog.Canceled += () => dialog.QueueFree();
+            dialog.CloseRequested += () => dialog.QueueFree();
+
+            tree.Root.AddChild(dialog);
+            dialog.PopupCentered();
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"[Updater] Failed to show dialog: {ex.Message}");
+        }
+    }
+
+    private static async void StartDownload(string version, string downloadUrl)
+    {
+        Safe.Info($"[Updater] User accepted update to {version}, downloading...");
+
+        bool ok;
+        try
+        {
+            ok = await DownloadDllAsync(downloadUrl);
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"[Updater] Download failed: {ex.Message}");
+            ShowMessageDialog(string.Format(L.Get("update.failed"), version));
+            return;
+        }
+
+        if (ok)
+        {
+            var noticePath = GetUpdateNoticePath();
+            File.WriteAllText(noticePath, version);
+            ShowMessageDialog(string.Format(L.Get("update.ready"), version));
+        }
+        else
+        {
+            ShowMessageDialog(string.Format(L.Get("update.failed"), version));
+        }
+    }
+
+    private static void ShowMessageDialog(string message)
+    {
+        try
+        {
+            var tree = Engine.GetMainLoop() as SceneTree;
+            if (tree?.Root == null) return;
+
+            var dialog = new AcceptDialog();
+            dialog.Title = "Stats the Spire";
+            dialog.DialogText = message;
+            dialog.OkButtonText = "OK";
+            dialog.Exclusive = true;
+            dialog.AlwaysOnTop = true;
+            dialog.Confirmed += () => dialog.QueueFree();
+            dialog.CloseRequested += () => dialog.QueueFree();
+
+            tree.Root.AddChild(dialog);
+            dialog.PopupCentered();
+        }
+        catch (Exception ex)
+        {
+            Safe.Warn($"[Updater] Failed to show message: {ex.Message}");
+        }
+    }
+
+    // ── Internal ────────────────────────────────────────────
 
     private static async Task<UpdateInfo?> FetchUpdateInfoAsync()
     {
-        var url = $"v1/meta/update-info?edition={Uri.EscapeDataString(Instance.Edition)}"
+        var url = $"meta/update-info?edition={Uri.EscapeDataString(Instance.Edition)}"
                 + $"&current={Uri.EscapeDataString(ModConfig.ModVersion)}";
 
-        using var client = new HttpClient
+        using var client = new System.Net.Http.HttpClient
         {
             BaseAddress = new Uri(ModConfig.ApiBaseUrl.TrimEnd('/') + "/"),
             Timeout = TimeSpan.FromSeconds(10),
@@ -105,7 +185,7 @@ public sealed class Updater
 
     private static async Task<bool> DownloadDllAsync(string downloadUrl)
     {
-        using var client = new HttpClient
+        using var client = new System.Net.Http.HttpClient
         {
             BaseAddress = new Uri(ModConfig.ApiBaseUrl.TrimEnd('/') + "/"),
             Timeout = TimeSpan.FromSeconds(60),
@@ -113,7 +193,7 @@ public sealed class Updater
         client.DefaultRequestHeaders.Add("X-Mod-Version", ModConfig.ModVersion);
 
         var bytes = await client.GetByteArrayAsync(downloadUrl);
-        if (bytes.Length < 100_000) // sanity — DLL should be 600+ KB
+        if (bytes.Length < 100_000)
         {
             Safe.Warn($"[Updater] Downloaded DLL too small ({bytes.Length} bytes), ignoring");
             return false;
@@ -122,60 +202,23 @@ public sealed class Updater
         var dllDir = GetDllDirectory();
         var newPath = Path.Combine(dllDir, "sts2_community_stats.dll.new");
         await File.WriteAllBytesAsync(newPath, bytes);
-        Safe.Info($"[Updater] Downloaded update to {newPath} ({bytes.Length} bytes) — will apply on next launch");
+        Safe.Info($"[Updater] Downloaded to {newPath} ({bytes.Length} bytes)");
         return true;
     }
 
-    /// <summary>
-    /// Returns the notice text if a pending update was downloaded, or null.
-    /// Caller should show a toast/notice to the user.
-    /// </summary>
-    public static string? GetPendingUpdateVersion()
-    {
-        try
-        {
-            var noticePath = GetUpdateNoticePath();
-            if (File.Exists(noticePath))
-            {
-                var ver = File.ReadAllText(noticePath).Trim();
-                if (!string.IsNullOrEmpty(ver)) return ver;
-            }
-
-            // Also check if a .new file exists — this means we downloaded
-            // an update but haven't shown the notice yet.
-            var dllDir = GetDllDirectory();
-            var newPath = Path.Combine(dllDir, "sts2_community_stats.dll.new");
-            if (File.Exists(newPath))
-                return "new";
-        }
-        catch { }
-        return null;
-    }
-
-    /// <summary>Delete the update notice file (called after showing toast).</summary>
-    public static void ClearUpdateNotice()
-    {
-        try
-        {
-            var path = GetUpdateNoticePath();
-            if (File.Exists(path)) File.Delete(path);
-        }
-        catch { }
-    }
-
-    private static string GetDllDirectory()
-    {
-        var asmLocation = typeof(Updater).Assembly.Location;
-        return Path.GetDirectoryName(asmLocation)!;
-    }
+    private static string GetDllDirectory() =>
+        Path.GetDirectoryName(typeof(Updater).Assembly.Location)!;
 
     private static string GetUpdateNoticePath() =>
         Path.Combine(ModConfig.DataDir, "update_notice.txt");
 
     private class UpdateInfo
     {
+        [System.Text.Json.Serialization.JsonPropertyName("latest")]
         public string Latest { get; set; } = "";
+        [System.Text.Json.Serialization.JsonPropertyName("update_available")]
         public bool UpdateAvailable { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("download_url")]
         public string DownloadUrl { get; set; } = "";
     }
 }

@@ -75,9 +75,11 @@ public static class L
         ["settings.auto_update"] = "Auto-update mod",
         ["settings.language"] = "语言 / Language",
         // Auto-update
-        ["update.found"] = "New version {0} available — downloading...",
-        ["update.ready"] = "Update to v{0} ready. Restart the game to apply.",
-        ["update.failed"] = "Update download failed. Will retry next launch.",
+        ["update.found"] = "发现新版本 {0}。是否下载更新？\n\n（当前版本：{1}）",
+        ["update.download_yes"] = "下载",
+        ["update.download_no"] = "以后再说",
+        ["update.ready"] = "已下载 v{0} 更新。\n\n重启游戏后自动生效。",
+        ["update.failed"] = "下载 v{0} 失败。下次启动时会重试。",
         // PRD §3.18 — character filter (F9 + CareerStats)
         ["settings.character"] = "Data Source (Character):",
         ["settings.char_auto"] = "Auto-match current",

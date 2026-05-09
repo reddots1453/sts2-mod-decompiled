@@ -27,6 +27,7 @@ public static class CommunityStatsMod
 
         // Apply any pending update (.new DLL downloaded last session).
         Updater.Instance.Edition = "local";
+        Safe.Info($"[Updater] Edition=local, AutoUpdate={ModConfig.AutoUpdate}, Version={ModConfig.ModVersion}");
         Updater.TryApplyPendingUpdate();
 
         // Load saved settings (feature toggles, language, etc.) from disk.
@@ -39,6 +40,7 @@ public static class CommunityStatsMod
         ModConfig.EnsureDirectories();
 
         // Background: check for mod updates.
+        Safe.Info("[Updater] Kicking off background update check...");
         _ = Updater.Instance.CheckForUpdateAsync();
 
         // Prune contribution snapshots older than 90 days.
