@@ -57,7 +57,7 @@ public static class L
         ["chart.self_damage_suffix"] = "self-damage",
 
         // FilterPanel / Settings
-        ["settings.title"] = "Stats the Spire — Settings",
+        ["settings.title"] = "Stats the Spire — 这是新版!",
         ["settings.section_basic"] = "Basic Settings",
         ["settings.auto_asc"] = "Auto-match my Ascension",
         ["settings.min_asc"] = "Min Ascension:",
@@ -75,11 +75,8 @@ public static class L
         ["settings.auto_update"] = "Auto-update mod",
         ["settings.language"] = "语言 / Language",
         // Auto-update
-        ["update.found"] = "发现新版本 {0}。是否下载更新？\n\n（当前版本：{1}）",
-        ["update.download_yes"] = "下载",
-        ["update.download_no"] = "以后再说",
-        ["update.ready"] = "已下载 v{0} 更新。\n\n重启游戏后自动生效。",
-        ["update.failed"] = "下载 v{0} 失败。下次启动时会重试。",
+        ["update.found"] = "New version {0} available.\n\n(current: {1})\n\nClose the game and run update.bat\nto update to the latest version.",
+        ["update.ok"] = "OK",
         // PRD §3.18 — character filter (F9 + CareerStats)
         ["settings.character"] = "Data Source (Character):",
         ["settings.char_auto"] = "Auto-match current",
@@ -363,7 +360,7 @@ public static class L
         ["chart.self_damage_suffix"] = "自伤",
 
         // FilterPanel / Settings
-        ["settings.title"] = "Stats the Spire — 设置",
+        ["settings.title"] = "Stats the Spire — 这是新版!",
         ["settings.section_basic"] = "基础设置",
         ["settings.auto_asc"] = "自动匹配我的进阶",
         ["settings.min_asc"] = "最低进阶:",
@@ -381,9 +378,8 @@ public static class L
         ["settings.auto_update"] = "自动更新mod",
         ["settings.language"] = "语言 / Language",
         // Auto-update
-        ["update.found"] = "发现新版本 {0}，下载中...",
-        ["update.ready"] = "已下载 v{0} 更新。重启游戏生效。",
-        ["update.failed"] = "更新下载失败，下次启动重试。",
+        ["update.found"] = "发现新版本 {0}。\n\n（当前版本：{1}）\n\n请关闭游戏后运行 update.bat\n更新到最新版本。",
+        ["update.ok"] = "确定",
         // PRD §3.18 — 角色筛选（F9 + 个人生涯统计）
         ["settings.character"] = "数据来源（角色）:",
         ["settings.char_auto"] = "自动匹配当前角色",
