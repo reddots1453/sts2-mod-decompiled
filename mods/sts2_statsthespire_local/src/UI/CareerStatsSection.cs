@@ -40,7 +40,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private string? _characterFilter;
     private int _minAscension;
-    private int _recentRunsCount;
+    private int _recentRunsCount; // 0 = all runs
     private CareerStatsData? _data;
 
     private CareerStatsSection() { }
@@ -1223,18 +1223,31 @@ public sealed partial class CareerStatsSection : VBoxContainer
     /// (across all 4 acts in code) so the dropdown can show 0-encounter rows
     /// alongside the ones the player has actually fought.
     /// </summary>
+    /// <summary>
+    /// Bosses that were removed from the beta branch but still exist in
+    /// release. We hide these from beta users to avoid showing an empty
+    /// placeholder row with 0 encounters.
+    /// </summary>
+    private static readonly HashSet<string> BetaRemovedBosses = new()
+    {
+        "DOORMAKER_BOSS", // v0.105 beta replaced with new act-3 boss
+    };
+
     private static List<string> AllKnownBossEncounterIds()
     {
         var seen = new HashSet<string>();
         var result = new List<string>();
         try
         {
+            var isBeta = CommunityStats.Config.BranchManager.CurrentBranch
+                == CommunityStats.Config.BranchManager.Beta;
             foreach (var act in MegaCrit.Sts2.Core.Models.ModelDb.Acts)
             {
                 foreach (var enc in act.AllBossEncounters)
                 {
                     var id = enc.Id.Entry;
                     if (string.IsNullOrEmpty(id)) continue;
+                    if (isBeta && BetaRemovedBosses.Contains(id)) continue;
                     if (seen.Add(id)) result.Add(id);
                 }
             }

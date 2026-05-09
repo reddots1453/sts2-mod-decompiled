@@ -68,17 +68,11 @@ public sealed class RunHistoryAnalyzer
             if (_cache.TryGetValue(key, out var v)) return v;
         }
 
-        // Disk fallback only for the unfiltered (asc=0) snapshot — we don't
-        // persist per-ascension snapshots.
-        //
-        // Round 9 round 49: do NOT seed the in-memory `_cache` from disk here.
-        // The disk cache only stores CareerStatsData, not the per-card /
-        // per-relic bundles. If we wrote it back into `_cache`, the next
-        // LoadAllAsync would short-circuit on the cache hit and never run
-        // BuildSnapshot — leaving LocalCards / LocalRelics empty until the
-        // player finished a run (which forces invalidation). The card library
-        // and relic collection would render zeros across the entire session.
-        if (minAscension == 0)
+        // Disk fallback only for the unfiltered (asc=0, no recent cap) snapshot
+        // — we don't persist per-ascension or recent-count snapshots. If the
+        // caller requests a recentCount filter, skip disk so we don't return
+        // stale unfiltered data.
+        if (minAscension == 0 && recentCount == 0)
         {
             return CareerStatsCache.Load(characterFilter);
         }
