@@ -77,6 +77,11 @@ public static class L
         // Auto-update
         ["update.found"] = "New version {0} available.\n\n(current: {1})\n\nClose the game and run update.bat\nto update to the latest version.",
         ["update.ok"] = "OK",
+        ["update.pending"] = "An update was downloaded last session.\n\nClose the game and run update.bat to apply it.",
+        ["update.download_yes"] = "Download",
+        ["update.download_no"] = "Later",
+        ["update.failed"] = "Failed to download update {0}.\n\nCheck your network or try again later.",
+        ["update.ready"] = "Version {0} downloaded.\n\nClose the game and run update.bat to apply the update.",
         // PRD §3.18 — character filter (F9 + CareerStats)
         ["settings.character"] = "Data Source (Character):",
         ["settings.char_auto"] = "Auto-match current",
@@ -380,6 +385,11 @@ public static class L
         // Auto-update
         ["update.found"] = "发现新版本 {0}。\n\n（当前版本：{1}）\n\n请关闭游戏后运行 update.bat\n更新到最新版本。",
         ["update.ok"] = "确定",
+        ["update.pending"] = "上次已下载更新文件。\n\n请关闭游戏后运行 update.bat 以应用更新。",
+        ["update.download_yes"] = "下载",
+        ["update.download_no"] = "稍后",
+        ["update.failed"] = "下载更新 {0} 失败。\n\n请检查网络或稍后重试。",
+        ["update.ready"] = "版本 {0} 已下载。\n\n请关闭游戏后运行 update.bat 以应用更新。",
         // PRD §3.18 — 角色筛选（F9 + 个人生涯统计）
         ["settings.character"] = "数据来源（角色）:",
         ["settings.char_auto"] = "自动匹配当前角色",

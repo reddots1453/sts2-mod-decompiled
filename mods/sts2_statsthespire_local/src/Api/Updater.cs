@@ -16,7 +16,7 @@ public sealed class Updater
 {
     public static Updater Instance { get; } = new();
 
-    public string Edition { get; set; } = "community";
+    public string Edition { get; set; } = "local";
 
     /// <summary>
     /// Called from mod init. Checks for .new file + existing update.bat
@@ -27,7 +27,7 @@ public sealed class Updater
         Safe.Run(() =>
         {
             var dllDir = GetDllDirectory();
-            var newPath = Path.Combine(dllDir, "sts2_community_stats.dll.new");
+            var newPath = Path.Combine(dllDir, "sts2_statsthespire_local.dll.new");
             if (!File.Exists(newPath)) return;
 
             var batPath = Path.Combine(dllDir, "update.bat");
@@ -136,13 +136,13 @@ public sealed class Updater
             "@echo off\r\n" +
             "echo Stats the Spire — Applying Update...\r\n" +
             "cd /d \"%~dp0\"\r\n" +
-            "if not exist \"sts2_community_stats.dll.new\" (\r\n" +
+            "if not exist \"sts2_statsthespire_local.dll.new\" (\r\n" +
             "  echo No update found.\r\n" +
             "  pause\r\n" +
             "  exit /b 1\r\n" +
             ")\r\n" +
-            "echo Replacing sts2_community_stats.dll ...\r\n" +
-            "move /Y \"sts2_community_stats.dll.new\" \"sts2_community_stats.dll\"\r\n" +
+            "echo Replacing sts2_statsthespire_local.dll ...\r\n" +
+            "move /Y \"sts2_statsthespire_local.dll.new\" \"sts2_statsthespire_local.dll\"\r\n" +
             "if %errorlevel% equ 0 (\r\n" +
             "  echo Update applied successfully!\r\n" +
             "  del \"%~nx0\" 2>nul\r\n" +
@@ -314,7 +314,7 @@ public sealed class Updater
         }
 
         var dllDir = GetDllDirectory();
-        var newPath = Path.Combine(dllDir, "sts2_community_stats.dll.new");
+        var newPath = Path.Combine(dllDir, "sts2_statsthespire_local.dll.new");
         await File.WriteAllBytesAsync(newPath, bytes);
         Safe.Info($"[Updater] Downloaded to {newPath} ({bytes.Length} bytes)");
         return true;
