@@ -8,9 +8,9 @@ using Godot;
 namespace CommunityStats.Api;
 
 /// <summary>
-/// Auto-update: the mod checks for new versions and downloads the DLL.
-/// DLL replacement is handled by a batch script (update.bat) that the
-/// user runs after closing the game — no in-process file replacement.
+/// Auto-update: the mod checks for new versions and notifies the user.
+/// The actual download and file replacement is done by update.bat,
+/// which the user runs after closing the game.
 /// </summary>
 public sealed class Updater
 {
@@ -19,29 +19,8 @@ public sealed class Updater
     public string Edition { get; set; } = "local";
 
     /// <summary>
-    /// Called from mod init. Checks for .new file + existing update.bat
-    /// and shows a reminder if an update was downloaded but not yet applied.
-    /// </summary>
-    public static void RemindPendingUpdate()
-    {
-        Safe.Run(() =>
-        {
-            var dllDir = GetDllDirectory();
-            var newPath = Path.Combine(dllDir, "sts2_statsthespire_local.dll.new");
-            if (!File.Exists(newPath)) return;
-
-            var batPath = Path.Combine(dllDir, "update.bat");
-            if (File.Exists(batPath))
-            {
-                Callable.From(() => ShowMessageDialog(
-                    L.Get("update.pending"))).CallDeferred();
-            }
-        });
-    }
-
-    /// <summary>
     /// Background check. If a newer version is found, shows a dialog
-    /// asking the user whether to download.
+    /// telling the user to run update.bat.
     /// </summary>
     public async System.Threading.Tasks.Task CheckForUpdateAsync()
     {
@@ -65,12 +44,14 @@ public sealed class Updater
         if (info == null || !info.UpdateAvailable) return;
 
         Safe.Info($"[Updater] New version available: {info.Latest} (current: {ModConfig.ModVersion})");
-        Callable.From(() => ShowUpdateDialog(info.Latest, info.DownloadUrl)).CallDeferred();
+
+        // Marshal to main thread to show dialog.
+        Callable.From(() => ShowUpdateDialog(info.Latest)).CallDeferred();
     }
 
     // ── Dialog ──────────────────────────────────────────────
 
-    private static void ShowUpdateDialog(string version, string downloadUrl)
+    private static void ShowUpdateDialog(string version)
     {
         try
         {
@@ -87,98 +68,16 @@ public sealed class Updater
             AddMessage(vbox, msg, 400);
 
             var btnRow = AddButtonRow(vbox);
-            var downloadBtn = MakeButton(L.Get("update.download_yes"), new Color(0.2f, 0.6f, 0.2f));
-            var laterBtn = MakeButton(L.Get("update.download_no"), new Color(0.35f, 0.35f, 0.35f));
-            btnRow.AddChild(downloadBtn);
-            btnRow.AddChild(laterBtn);
-
-            downloadBtn.Pressed += () =>
-            {
-                backdrop.QueueFree();
-                StartDownload(version, downloadUrl);
-            };
-            laterBtn.Pressed += () => backdrop.QueueFree();
-            RegisterEscClose(backdrop);
-            downloadBtn.GrabFocus();
-        }
-        catch (Exception ex)
-        {
-            Safe.Warn($"[Updater] Failed to show dialog: {ex.Message}");
-        }
-    }
-
-    private static async void StartDownload(string version, string downloadUrl)
-    {
-        Safe.Info($"[Updater] Downloading {version}...");
-
-        bool ok;
-        try
-        {
-            ok = await DownloadDllAsync(downloadUrl);
-        }
-        catch (Exception ex)
-        {
-            Safe.Warn($"[Updater] Download failed: {ex.Message}");
-            ShowMessageDialog(string.Format(L.Get("update.failed"), version));
-            return;
-        }
-
-        if (!ok)
-        {
-            ShowMessageDialog(string.Format(L.Get("update.failed"), version));
-            return;
-        }
-
-        // Write update.bat that the user runs after closing the game.
-        var dllDir = GetDllDirectory();
-        var batPath = Path.Combine(dllDir, "update.bat");
-        var batContent =
-            "@echo off\r\n" +
-            "echo Stats the Spire — Applying Update...\r\n" +
-            "cd /d \"%~dp0\"\r\n" +
-            "if not exist \"sts2_statsthespire_local.dll.new\" (\r\n" +
-            "  echo No update found.\r\n" +
-            "  pause\r\n" +
-            "  exit /b 1\r\n" +
-            ")\r\n" +
-            "echo Replacing sts2_statsthespire_local.dll ...\r\n" +
-            "move /Y \"sts2_statsthespire_local.dll.new\" \"sts2_statsthespire_local.dll\"\r\n" +
-            "if %errorlevel% equ 0 (\r\n" +
-            "  echo Update applied successfully!\r\n" +
-            "  del \"%~nx0\" 2>nul\r\n" +
-            ") else (\r\n" +
-            "  echo ERROR: Could not replace DLL. Is the game still running?\r\n" +
-            ")\r\n" +
-            "pause\r\n";
-        await File.WriteAllTextAsync(batPath, batContent);
-
-        ShowMessageDialog(string.Format(L.Get("update.ready"), version));
-    }
-
-    private static void ShowMessageDialog(string message)
-    {
-        try
-        {
-            var tree = Engine.GetMainLoop() as SceneTree;
-            if (tree?.Root == null) return;
-
-            var backdrop = CreateBackdrop(tree);
-            var vbox = CreatePanel(backdrop, 400);
-
-            AddTitle(vbox, "Stats the Spire");
-            AddSeparator(vbox);
-            AddMessage(vbox, message, 360);
-
-            var btnRow = AddButtonRow(vbox);
-            var okBtn = MakeButton("OK", new Color(0.35f, 0.35f, 0.35f));
+            var okBtn = MakeButton(L.Get("update.ok"), new Color(0.2f, 0.55f, 0.2f));
             btnRow.AddChild(okBtn);
+
             okBtn.Pressed += () => backdrop.QueueFree();
             RegisterEscClose(backdrop);
             okBtn.GrabFocus();
         }
         catch (Exception ex)
         {
-            Safe.Warn($"[Updater] Failed to show message: {ex.Message}");
+            Safe.Warn($"[Updater] Failed to show dialog: {ex.Message}");
         }
     }
 
@@ -296,32 +195,6 @@ public sealed class Updater
             PropertyNameCaseInsensitive = true,
         });
     }
-
-    private static async Task<bool> DownloadDllAsync(string downloadUrl)
-    {
-        using var client = new System.Net.Http.HttpClient
-        {
-            BaseAddress = new System.Uri(ModConfig.ApiBaseUrl.TrimEnd('/') + "/"),
-            Timeout = System.TimeSpan.FromSeconds(60),
-        };
-        client.DefaultRequestHeaders.Add("X-Mod-Version", ModConfig.ModVersion);
-
-        var bytes = await client.GetByteArrayAsync(downloadUrl);
-        if (bytes.Length < 100_000)
-        {
-            Safe.Warn($"[Updater] Downloaded DLL too small ({bytes.Length} bytes), ignoring");
-            return false;
-        }
-
-        var dllDir = GetDllDirectory();
-        var newPath = Path.Combine(dllDir, "sts2_statsthespire_local.dll.new");
-        await File.WriteAllBytesAsync(newPath, bytes);
-        Safe.Info($"[Updater] Downloaded to {newPath} ({bytes.Length} bytes)");
-        return true;
-    }
-
-    private static string GetDllDirectory() =>
-        Path.GetDirectoryName(typeof(Updater).Assembly.Location)!;
 
     private class UpdateInfo
     {
