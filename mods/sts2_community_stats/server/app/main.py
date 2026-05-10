@@ -324,6 +324,10 @@ import os as _os  # noqa: E402
 
 _UPDATES_ROOT = _os.path.join(_os.path.dirname(__file__), "..", "..", "updates")
 _KNOWN_EDITIONS = {"community", "local"}
+_EDITION_DLL = {
+    "community": "sts2_community_stats.dll",
+    "local": "sts2_statsthespire_local.dll",
+}
 
 
 @app.get("/v1/meta/update-info")
@@ -335,6 +339,7 @@ async def get_update_info(
 ):
     if edition not in _KNOWN_EDITIONS:
         raise HTTPException(400, f"Unknown edition: {edition}")
+    dll_name = _EDITION_DLL[edition]
     version_path = _os.path.join(_UPDATES_ROOT, edition, "version.txt")
     try:
         with open(version_path) as f:
@@ -345,19 +350,22 @@ async def get_update_info(
         "edition": edition,
         "latest": latest,
         "update_available": latest != current,
-        "download_url": f"/v1/updates/{edition}/sts2_community_stats.dll",
+        "download_url": f"/v1/updates/{edition}/{dll_name}",
     }
 
 
-@app.get("/v1/updates/{edition}/sts2_community_stats.dll")
+@app.get("/v1/updates/{edition}/{dll_name}")
 @limiter.limit("30/minute")
 async def download_update(
     request: Request,
     edition: str,
+    dll_name: str,
 ):
     if edition not in _KNOWN_EDITIONS:
         raise HTTPException(400, f"Unknown edition: {edition}")
-    dll_path = _os.path.join(_UPDATES_ROOT, edition, "sts2_community_stats.dll")
+    if dll_name != _EDITION_DLL.get(edition, ""):
+        raise HTTPException(400, "DLL name mismatch")
+    dll_path = _os.path.join(_UPDATES_ROOT, edition, dll_name)
     if not _os.path.exists(dll_path):
         raise HTTPException(404, "Update not found")
     return FileResponse(dll_path, media_type="application/octet-stream",
