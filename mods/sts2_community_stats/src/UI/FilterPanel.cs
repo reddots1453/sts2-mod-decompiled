@@ -124,6 +124,9 @@ public partial class FilterPanel : PanelContainer
         closeBtn.Pressed += () => panel.ApplyAndClose();
         header.AddChild(closeBtn);
 
+        // Enable panel dragging via the title bar.
+        DraggablePanel.Attach(panel, header);
+
         vbox.AddChild(NewSeparator());
 
         // Scroll area for the rest of the settings (overflow-friendly).
@@ -362,12 +365,33 @@ public partial class FilterPanel : PanelContainer
             TryGetCharTitle<MegaCrit.Sts2.Core.Models.Characters.Regent>("char.REGENT"));
     }
 
+    private const int CharIconSize = 24;
+
     private static void AddCharItem(OptionButton dropdown, int id, Texture2D? icon, string label)
     {
         if (icon != null)
-            dropdown.AddIconItem(icon, label, id);
+        {
+            // Constrain icon size so the dropdown popup doesn't explode
+            // if a cosmetic mod replaces character textures with large portraits.
+            var resized = ResizeIcon(icon, CharIconSize);
+            dropdown.AddIconItem(resized, label, id);
+        }
         else
+        {
             dropdown.AddItem(label, id);
+        }
+    }
+
+    private static Texture2D ResizeIcon(Texture2D src, int maxSize)
+    {
+        if (src.GetWidth() <= maxSize && src.GetHeight() <= maxSize) return src;
+
+        var image = src.GetImage();
+        float scale = Math.Min((float)maxSize / image.GetWidth(), (float)maxSize / image.GetHeight());
+        int w = Math.Max(1, (int)(image.GetWidth() * scale));
+        int h = Math.Max(1, (int)(image.GetHeight() * scale));
+        image.Resize(w, h, Image.Interpolation.Lanczos);
+        return ImageTexture.CreateFromImage(image);
     }
 
     /// <summary>

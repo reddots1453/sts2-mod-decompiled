@@ -7,7 +7,7 @@ namespace CommunityStats.Config;
 /// </summary>
 public static class ModConfig
 {
-    public const string ModVersion = "0.16.1";
+    public const string ModVersion = "0.16.2";
 
     // Server (can be overridden via config.json for local testing)
     public static string ApiBaseUrl { get; set; } = "https://statsthespire.org.cn/v1";
@@ -61,15 +61,16 @@ public static class ModConfig
     // Active filter (mutable at runtime)
     public static FilterSettings CurrentFilter { get; set; } = new();
 
-    // Config override file path (next to the mod DLL)
+    // Config override file path (next to the mod DLL).
+    // Named .cfg so the game engine doesn't scan it as a mod manifest.
     public static string ConfigPath
     {
         get
         {
             var asmLocation = typeof(ModConfig).Assembly.Location;
             if (!string.IsNullOrEmpty(asmLocation))
-                return Path.Combine(Path.GetDirectoryName(asmLocation)!, "config.json");
-            return Path.Combine(DataDir, "config.json");
+                return Path.Combine(Path.GetDirectoryName(asmLocation)!, "settings.cfg");
+            return Path.Combine(DataDir, "settings.cfg");
         }
     }
 

@@ -27,8 +27,12 @@ public partial class ContributionPanel : PanelContainer
     private static ContributionPanel? _instance;
     private TabContainer? _tabs;
     private Label? _dpsLabel;
+    private Label? _titleLabel;
     private HBoxContainer? _header;
     private PanelContainer? _helpPanel;
+
+    /// <summary>Non-null when showing run-history replay data.</summary>
+    private static IReadOnlyDictionary<string, ContributionAccum>? _replayRunData;
 
     // Real-time refresh — round 6 dropped the debounce, see OnCombatDataUpdated.
 
@@ -83,6 +87,7 @@ public partial class ContributionPanel : PanelContainer
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         title.MouseFilter = MouseFilterEnum.Ignore; // let header receive clicks
         header.AddChild(title);
+        panel._titleLabel = title;
 
         // Help (?) button — click toggles a docked InfoModPanel with each metric.
         var helpBtn = new Button
@@ -412,6 +417,7 @@ public partial class ContributionPanel : PanelContainer
     {
         if (_instance != null)
             _instance.Visible = false;
+        _replayRunData = null;
     }
 
     /// <summary>
@@ -463,6 +469,8 @@ public partial class ContributionPanel : PanelContainer
         EnsureTabSkeletons(tabs);
 
         var currentTabIndex = tabs.CurrentTab;
+        // Keep the title label up-to-date with the current language.
+        if (panel._titleLabel != null) panel._titleLabel.Text = L.Get("contrib.title");
         Safe.Info($"[ContribPanel] RefreshTabs: combatEntries={combatData?.Count ?? 0} currentTab={currentTabIndex}");
 
         var combatScroll = (ScrollContainer)tabs.GetChild(0);
@@ -473,7 +481,7 @@ public partial class ContributionPanel : PanelContainer
             ? (Control)ContributionChart.Create(combatData, BuildCombatTabTitle(combatData))
             : EmptyPlaceholder(L.Get("contrib.empty_combat"));
 
-        var runData = RunContributionAggregator.Instance.RunTotals;
+        var runData = _replayRunData ?? RunContributionAggregator.Instance.RunTotals;
         var newRunContent = runData.Count > 0
             ? (Control)ContributionChart.Create(runData, L.Get("contrib.run_summary"), isRunLevel: true)
             : EmptyPlaceholder(L.Get("contrib.empty_run"));
@@ -481,8 +489,20 @@ public partial class ContributionPanel : PanelContainer
         ReplaceScrollContent(combatScroll, newCombatContent);
         ReplaceScrollContent(runScroll, newRunContent);
 
-        // Restore the tab the user was on so the refresh isn't disruptive.
-        try { tabs.CurrentTab = currentTabIndex; } catch { }
+        // When showing run-history replay data, hide the combat tab.
+        if (_replayRunData != null)
+        {
+            tabs.SetTabTitle(0, "");
+            tabs.SetTabHidden(0, true);
+            tabs.CurrentTab = 1;
+        }
+        else
+        {
+            tabs.SetTabTitle(0, BuildCombatTabTitle(combatData ?? new Dictionary<string, ContributionAccum>()));
+            tabs.SetTabHidden(0, false);
+            // Restore the tab the user was on so the refresh isn't disruptive.
+            try { tabs.CurrentTab = currentTabIndex; } catch { }
+        }
     }
 
     /// <summary>
@@ -537,15 +557,25 @@ public partial class ContributionPanel : PanelContainer
         if (combatData == null || combatData.Count == 0)
             return L.Get("contrib.this_combat");
 
-        var encId = CombatTracker.Instance.LastEncounterId ?? "";
+        // When combat is in progress, use the current encounter ID, not the
+        // last-finished one — otherwise "本场战斗" shows the previous fight.
+        var encId = "";
+        try
+        {
+            if (MegaCrit.Sts2.Core.Combat.CombatManager.Instance != null
+                && MegaCrit.Sts2.Core.Combat.CombatManager.Instance.IsInProgress)
+                encId = CombatTracker.Instance.CurrentEncounterId ?? "";
+        }
+        catch { }
+        if (string.IsNullOrEmpty(encId))
+            encId = CombatTracker.Instance.LastEncounterId ?? "";
         if (string.IsNullOrEmpty(encId))
             return L.Get("contrib.this_combat");
 
         try
         {
-            var loc = new LocString("encounters", encId + ".title");
-            var localized = loc.GetFormattedText();
-            if (!string.IsNullOrEmpty(localized) && localized != encId + ".title")
+            var localized = Util.NameLookup.Encounter(encId);
+            if (!string.IsNullOrEmpty(localized) && localized != encId)
                 return $"{L.Get("contrib.vs")} {localized}";
         }
         catch { /* keep raw ID */ }
@@ -559,9 +589,12 @@ public partial class ContributionPanel : PanelContainer
     /// </summary>
     private static void RefreshTabsRunOnly(IReadOnlyDictionary<string, ContributionAccum> runData)
     {
+        _replayRunData = runData;
         var panel = Instance;
         var tabs = panel._tabs;
         if (tabs == null) return;
+
+        if (panel._titleLabel != null) panel._titleLabel.Text = L.Get("contrib.title");
 
         for (int i = tabs.GetChildCount() - 1; i >= 0; i--)
         {

@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.16.2 (2026-05-10) — Bug 修复合集
+
+### 自动更新系统
+
+- 新增 `update.bat` 脚本（PowerShell），用户关游戏后双击即可下载并替换最新 DLL
+- Mod 启动时检查版本，有新版弹窗提示（F9 风格深色面板 + 金色标题）
+- `Updater.cs`：版本检查 + 自定义对话框（外观与 F9 一致）
+- 服务端 `/v1/meta/update-info` + `/v1/updates/` 端点支持
+
+### 数据加载修复
+
+- **主菜单不自动拉取社区数据**：`Initialize()` 末尾新增 `OnFilterChangedAsync` 初始调用，不再依赖 F9 筛选变更才首次加载
+- **近期对局筛选影响 Boss 战损**：`GetCached` 在 `recentCount > 0` 时跳过磁盘缓存，防止过时未过滤数据覆盖
+
+### UI 修复
+
+- **F9 菜单**：版本+分支合并为单一下拉框（版本槽），异步拉取版本列表
+- **F9 角色下拉图标过大**：角色头像限制 24×24，超过等比缩放（防止美化 mod 替换高清大图导致布局错位）
+- **F9 面板可拖动**：标题栏支持拖拽移动
+- **回放贡献图表**：收起子条目时不再退化为空面板（`_replayRunData` 保存回放数据，`RefreshTabs` 优先使用）
+- **回放贡献图表**：移除多余"本场战斗"tab，只显示"本局汇总"
+
+### 跨版本兼容
+
+- **门扉缔造者在 beta 中显示空条目**：`BetaRemovedBosses` 包含 `DOORMAKER_BOSS`，beta 分支隐藏（同时过滤历史数据中的遗留条目）
+- **Neow 遗物缺失**：`KALEIDOSCOPE` / `FISHING_ROD` / `SILKEN_TRESS` 加入 positive_pool
+- **BranchManager**：改用 `ReleaseInfo.Branch` 判断 beta（`release_info.json` 比 Steam API 更可靠），缓存结果
+- **`.xyz` / `.org` / DuckDNS 域名 GFW 阻断**：最终迁移至阿里云 `statsthespire.org.cn`（境内 DNS 不投毒，HTTPS 全链路）
+
+### 发布修复
+
+- `manifest.json` 重复 `version` key（本地版）→ 删除旧值
+- `config.json` 被引擎扫描为 mod manifest → 重命名为 `settings.cfg`（引擎不扫描 `.cfg`）
+
+---
+
+## v0.15.0 (2026-05-08) — v0.105.0 Beta 兼容 + 新功能
+
+### v0.105.0 Beta 适配
+
+- `CombatState` → `ICombatState` 接口提取：所有 `CombatHistory` / `Hook` / `CombatManager` 方法签名变更。使用 `#if STS2_GE_V105` 编译期宏 + `using` 类型别名，同一源码兼容 v0.103 和 v0.105+。构建方式：`dotnet build -p:DefineConstants=STS2_GE_V105`
+- `Creature.ShowsInfiniteHp` 移除 → 替换为 `HpDisplay.IsInfinite()`
+- `Hook.AfterCardGeneratedForCombat` 参数 `bool addedByPlayer` → `Player? creator`
+
+### 新功能：个人生涯统计"最近对局"筛选
+
+- SectionPanel 标题栏新增第三个筛选项：OptionButton（全部 / 最近N局）+ 条件可见 SpinBox（用户输入 N）
+- `RunHistoryAnalyzer` 缓存 key 扩展为三元组 `(角色, 进阶, 最近局数)`
+- `BuildSnapshot` 按 `StartTime` 降序后 `Take(N)` 筛选
+- 中英文均已适配
+
+### Bug 修复
+
+- **Infused Core** +1 闪电球伤害未归因：`PendingOrbFocusContrib` 单例 → `PendingOrbValueContribs` 列表，支持 Focus + 遗物同时修饰 orb 值
+- **荆棘/火焰屏障** 多源归因错误：`OnDamageDealt` 间接伤害分派新增 `DistributeByPowerSources` 回退逻辑，处理玩家增益的多源情况
+- **Sword Sage** Replay 1 后 `FORGE:BASE` 丢失：`FlushForgeSubBars` 改用 `+=` 累加，base 写入移至 `_forgeLog.Count == 0` 守卫外
+- **本地版** 功能开关不持久化：`Initialize()` 新增 `ModConfig.LoadOverrides()`；`SaveSettings` 写入 `%AppData%/mod_prefs.json`
+- **HydrateRunTotals** 空字典防护：`totals.Count == 0` 时跳过 Clear
+
+---
+
 ## v0.14.1 (2026-05-06) — Bug 修复
 
 ### 怪物意图状态机面板残留修复
@@ -19,12 +80,12 @@
 
 ## v0.14.0 (2026-05-04) — 网络安全加固 + 正式域名迁移
 
-> 全面审查客户端-服务端通信安全，修复多个 P0/P1 级别漏洞；从 DuckDNS 临时域名迁移到 statsthespire.org 正式域名。
+> 全面审查客户端-服务端通信安全，修复多个 P0/P1 级别漏洞；最终迁移到阿里云 `statsthespire.org.cn`（境内 DNS 不投毒，HTTPS 全链路可用）。
 
 ### 安全加固
 
 - **P0**：API 端口绑定从 `0.0.0.0:5080` 改为 `127.0.0.1:5080`，禁止外部绕过 nginx TLS 直接访问
-- **P0**：nginx `server_name` + SSL 证书路径修正，统一使用正式域名
+- **P0**：nginx 统一使用正式域名 + Let's Encrypt 证书
 - **P1**：FastAPI 层新增请求体大小限制中间件（413 on >1MB），纵深防御
 - **P1**：`/health` 端点添加限流（nginx `30r/m` + FastAPI `30r/m`）
 - **P1**：Redis 密码认证支持（`REDIS_PASSWORD` 环境变量，空值向后兼容）
@@ -36,24 +97,18 @@
 
 - `ApiClient.cs`：无条件强制 HTTPS（`AllowHttp` 作为显式 opt-in 保留）
 - 新增 `User-Agent: StatsTheSpire/x.x` 便于服务端日志追踪
-- `ModConfig.cs` 默认 URL 更新为 `https://statsthespire.org/v1`
+- `ModConfig.cs` 默认 URL 更新为 `https://statsthespire.org.cn/v1`
 
-### 域名迁移
+### 域名历程
 
-- DuckDNS (`statsthespire.duckdns.org`) → 正式域名 `statsthespire.org`
-- Let's Encrypt 证书自动签发，有效期至 2026-08-02
-- nginx 移除 `ssl_prefer_server_ciphers` 和显式 `ssl_ciphers`，使用 nginx 默认值以保证最大兼容性
-- nginx `http2` 指令从 `listen` 参数迁移为独立指令
+- DuckDNS (`duckdns.org`) → GFW DNS + TLS SNI 双重阻断（RST）
+- Dynadot `.xyz` → GFW 权威 DNS 层阻断（SERVFAIL），DoH 亦无效
+- Dynadot `.org` → 短暂可用后 GFW DNS 投毒
+- **最终方案**：阿里云 `statsthespire.org.cn` — 国内注册商 DNS 不投毒，HTTPS 全链路验证通过
 
 ### 修复
 
 - `BranchManager.cs`：修正 `PlatformUtil.GetPlatformBranch()` 返回类型（enum 非 string），用 `ToString() == "Public"` 判断分支
-
-### 已知限制
-
-- `.xyz` TLD 被 GFW 在权威 DNS 层阻断（SERVFAIL），不可用
-- `.org` TLD 国内正常解析，HTTPS 全链路可用
-- 境内用户如遇 DNS 问题可临时设 `allow_http: true` + IP 直连（游戏数据非敏感，明文可接受）
 
 ---
 

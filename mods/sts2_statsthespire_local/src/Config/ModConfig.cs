@@ -7,10 +7,10 @@ namespace CommunityStats.Config;
 /// </summary>
 public static class ModConfig
 {
-    public const string ModVersion = "0.16.1";
+    public const string ModVersion = "0.16.2";
 
     // Server (can be overridden via config.json for local testing)
-    public static string ApiBaseUrl { get; set; } = "https://statsthespire.org/v1";
+    public static string ApiBaseUrl { get; set; } = "https://statsthespire.org.cn/v1";
     public static int QueryTimeoutMs { get; set; } = 5000;
     public static int UploadTimeoutMs { get; set; } = 30000;
 
@@ -61,15 +61,16 @@ public static class ModConfig
     // Active filter (mutable at runtime)
     public static FilterSettings CurrentFilter { get; set; } = new();
 
-    // Config override file path (next to the mod DLL)
+    // Config override file path (next to the mod DLL).
+    // Named .cfg so the game engine doesn't scan it as a mod manifest.
     public static string ConfigPath
     {
         get
         {
             var asmLocation = typeof(ModConfig).Assembly.Location;
             if (!string.IsNullOrEmpty(asmLocation))
-                return Path.Combine(Path.GetDirectoryName(asmLocation)!, "config.json");
-            return Path.Combine(DataDir, "config.json");
+                return Path.Combine(Path.GetDirectoryName(asmLocation)!, "settings.cfg");
+            return Path.Combine(DataDir, "settings.cfg");
         }
     }
 
@@ -85,11 +86,14 @@ public static class ModConfig
 
     /// <summary>
     /// Load config overrides from disk. Reads shipped config.json first, then
-    /// user's mod_prefs.json from AppData (overrides take priority).
+    /// user's mod_prefs.json from AppData (overrides take priority — survives
+    /// mod updates and directory permission issues).
     /// </summary>
     public static void LoadOverrides()
     {
+        // Phase 1: shipped defaults (config.json next to the DLL)
         ApplyConfigFile(ConfigPath);
+        // Phase 2: user prefs (AppData, always writable — overrides shipped defaults)
         ApplyConfigFile(PrefsPath);
     }
 
@@ -138,11 +142,12 @@ public static class ModConfig
             if (root.TryGetProperty("history_import_completed", out var hic))
                 HistoryImportCompleted = hic.GetBoolean();
         }
-        catch { }
+        catch { /* ignore malformed config */ }
     }
 
     /// <summary>
     /// Save current settings (feature toggles, language, preferences) to AppData.
+    /// Uses PrefsPath so settings survive mod updates and directory permissions.
     /// </summary>
     public static void SaveSettings()
     {
@@ -167,6 +172,6 @@ public static class ModConfig
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(PrefsPath, json);
         }
-        catch { }
+        catch { /* ignore write failures */ }
     }
 }

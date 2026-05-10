@@ -25,10 +25,7 @@ public static class CommunityStatsMod
     {
         Safe.Info($"Stats the Spire (Local) v{ModConfig.ModVersion} initializing...");
 
-        // Apply any pending update (.new DLL downloaded last session).
         Updater.Instance.Edition = "local";
-        Safe.Info($"[Updater] Edition=local, AutoUpdate={ModConfig.AutoUpdate}, Version={ModConfig.ModVersion}");
-        Updater.TryApplyPendingUpdate();
 
         // Load saved settings (feature toggles, language, etc.) from disk.
         ModConfig.LoadOverrides();

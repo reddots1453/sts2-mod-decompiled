@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.1.0 (2026-05-08) — v0.105.0 Beta 兼容 + 新功能
+
+### v0.105.0 Beta 适配
+
+- `CombatState` → `ICombatState`：`#if STS2_GE_V105` 编译期宏，`dotnet build -p:DefineConstants=STS2_GE_V105`
+- `ShowsInfiniteHp` → `HpDisplay.IsInfinite()`；`AfterCardGeneratedForCombat` bool→Player?
+
+### 新功能：个人生涯统计"最近对局"筛选
+
+- OptionButton（全部/最近N局）+ SpinBox，按 `StartTime` 降序 `Take(N)`
+
+### Bug 修复
+
+- Infused Core orb 值修饰器追踪（列表替代单例）
+- 荆棘/火焰屏障多源归因
+- Sword Sage Replay 1 后 FORGE:BASE 修复
+- F7 功能开关持久化
+
+---
+
 ## v1.0.1 (2026-05-06) — Bug 修复
 
 ### 怪物意图状态机面板残留修复

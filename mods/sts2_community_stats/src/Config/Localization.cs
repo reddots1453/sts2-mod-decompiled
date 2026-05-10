@@ -57,7 +57,7 @@ public static class L
         ["chart.self_damage_suffix"] = "self-damage",
 
         // FilterPanel / Settings
-        ["settings.title"] = "Stats the Spire — 这是新版!",
+        ["settings.title"] = "Stats the Spire — 设置",
         ["settings.section_basic"] = "Basic Settings",
         ["settings.auto_asc"] = "Auto-match my Ascension",
         ["settings.min_asc"] = "Min Ascension:",
@@ -360,7 +360,7 @@ public static class L
         ["chart.self_damage_suffix"] = "自伤",
 
         // FilterPanel / Settings
-        ["settings.title"] = "Stats the Spire — 这是新版!",
+        ["settings.title"] = "Stats the Spire — 设置",
         ["settings.section_basic"] = "基础设置",
         ["settings.auto_asc"] = "自动匹配我的进阶",
         ["settings.min_asc"] = "最低进阶:",

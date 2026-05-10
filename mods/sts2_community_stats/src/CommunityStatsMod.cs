@@ -138,6 +138,16 @@ public static class CommunityStatsMod
         Safe.RunAsync(() => Util.OfflineQueue.DrainAsync(
             json => Api.ApiClient.Instance.PostJsonWithStatusAsync("runs", json)));
 
+        // Trigger initial community data fetch — otherwise only test data
+        // shows until the user touches the F9 filter or starts a run.
+        Safe.RunAsync(async () =>
+        {
+            var filter = ModConfig.CurrentFilter;
+            var resolvedChar = filter.ResolveCharacter();
+            Safe.Info($"[DIAG:InitPreload] resolvedChar={resolvedChar}, filter={filter.ToQueryString()}");
+            await StatsProvider.Instance.OnFilterChangedAsync(resolvedChar, filter);
+        });
+
         Safe.Info("Stats the Spire initialized successfully");
     }
 
