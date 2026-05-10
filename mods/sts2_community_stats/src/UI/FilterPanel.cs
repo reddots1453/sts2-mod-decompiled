@@ -516,11 +516,27 @@ public partial class FilterPanel : PanelContainer
         var saved = ModConfig.CurrentFilter;
         var prevIdx = _versionSlotDropdown?.Selected ?? 0;
 
-        // Append version+branch combos.
+        // Only two formal releases; all other versions are beta.
+        // Beta: show latest 3 only, rest are hidden.
+        var releaseVersions = new HashSet<string> { "0.99.1", "0.103.1" };
+        int betaCount = 0;
+        const int maxBeta = 3;
+
         foreach (var ver in versions)
         {
-            foreach (var branch in new[] { BranchManager.Release, BranchManager.Beta })
+            bool isRelease = releaseVersions.Contains(ver);
+            var branches = isRelease
+                ? new[] { BranchManager.Release }
+                : new[] { BranchManager.Beta };
+
+            foreach (var branch in branches)
             {
+                if (branch == BranchManager.Beta)
+                {
+                    if (betaCount >= maxBeta) continue;
+                    betaCount++;
+                }
+
                 var brLabel = branch == BranchManager.Release
                     ? L.Get("settings.br_release")
                     : L.Get("settings.br_beta");

@@ -2,6 +2,11 @@
 
 ## v0.16.2 (2026-05-10) — Bug 修复合集
 
+### F9 版本选择框过滤
+
+- **正式版仅保留 0.99.1 / 0.103.1**：其他版本一律归为 beta 分支
+- **Beta 分支仅显示最近 3 个**：`PopulateVersionSlotsAsync` 中限制 `betaCount <= 3`，其余隐藏
+
 ### 自动更新系统
 
 - 新增 `update.bat` 脚本（PowerShell），用户关游戏后双击即可下载并替换最新 DLL
