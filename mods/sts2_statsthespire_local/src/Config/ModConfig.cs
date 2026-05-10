@@ -7,7 +7,7 @@ namespace CommunityStats.Config;
 /// </summary>
 public static class ModConfig
 {
-    public const string ModVersion = "0.16.2";
+    public const string ModVersion = "1.3";
 
     // Server (can be overridden via config.json for local testing)
     public static string ApiBaseUrl { get; set; } = "https://statsthespire.org.cn/v1";
