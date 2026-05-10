@@ -42,9 +42,6 @@ public class FeatureToggles
         ("IntentStateMachine", "toggle.intent_state_machine"),
     };
 
-    /// <summary>
-    /// Get toggle value by property name (for UI binding).
-    /// </summary>
     public bool GetByName(string name) => name switch
     {
         "ContributionPanel"  => ContributionPanel,

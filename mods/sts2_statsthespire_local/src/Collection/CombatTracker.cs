@@ -703,6 +703,7 @@ public sealed class CombatTracker
                 }
             }
 
+            // Orb value contributions (Focus + relics like Infused Core).
             foreach (var c in ContributionMap.Instance.ConsumeOrbValueContribs())
             {
                 int amount = Math.Min(c.amount, directDamage);
@@ -759,6 +760,7 @@ public sealed class CombatTracker
                 bool distributed = false;
                 if (!hasOrbContext && _activePowerId != null && directDamage > 0)
                 {
+                    // Try debuff-layer fractions first (Poison, Doom — per-enemy stacks)
                     var fractions = ContributionMap.Instance.GetDebuffSourceFractions(
                         targetHash, _activePowerId);
                     if (fractions.Count > 1)
@@ -776,6 +778,9 @@ public sealed class CombatTracker
                         distributed = true;
                     }
 
+                    // Fall back to global power-source distribution for player
+                    // buffs with multiple sources (Thorns: BronzeScales + Abrasion,
+                    // FlameBarrier from multiple relics/cards, etc.)
                     if (!distributed)
                     {
                         var powerSources = ContributionMap.Instance.GetPowerSources(_activePowerId);
@@ -937,6 +942,7 @@ public sealed class CombatTracker
                 modifiers.Clear();
             }
 
+            // Orb value contributions (Focus + relics) for Frost orb block bonus.
             foreach (var c in ContributionMap.Instance.ConsumeOrbValueContribs())
             {
                 int amt = Math.Min(c.amount, amount);
@@ -1434,6 +1440,8 @@ public sealed class CombatTracker
     /// </summary>
     public void FlushForgeSubBars()
     {
+        // Aggregate forge sources if any. Forge log may be empty on replay
+        // (Sword Sage / Replay mechanic) — still write base damage below.
         if (_forgeLog.Count > 0)
         {
             var aggregated = new Dictionary<string, (string sourceType, int count, int totalAmount)>();
@@ -1458,6 +1466,9 @@ public sealed class CombatTracker
             }
         }
 
+        // Base damage entry — SovereignBlade starts at 10. Uses += so
+        // Replay mechanics (Sword Sage) accumulate correctly across
+        // multiple OnPlay calls within the same combat.
         const int baseDamage = 10;
         var baseAccum = GetOrCreate("FORGE:BASE", "card");
         baseAccum.OriginSourceId = "SOVEREIGN_BLADE";

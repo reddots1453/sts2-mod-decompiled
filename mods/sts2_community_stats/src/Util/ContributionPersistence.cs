@@ -190,6 +190,24 @@ public static class ContributionPersistence
         return files > 0 ? merged : null;
     }
 
+    /// <summary>
+    /// Deserialize a list of SourceDto into a dictionary, merging duplicate
+    /// SourceId entries (same-named cards from different origins have identical
+    /// SourceId but different OriginSourceId — ToDictionary would throw).
+    /// </summary>
+    private static Dictionary<string, ContributionAccum> ToDictionaryMerge(List<SourceDto> sources)
+    {
+        var result = new Dictionary<string, ContributionAccum>();
+        foreach (var s in sources)
+        {
+            if (result.TryGetValue(s.SourceId, out var existing))
+                existing.MergeFrom(FromDto(s));
+            else
+                result[s.SourceId] = FromDto(s);
+        }
+        return result;
+    }
+
     private static ContributionAccum Clone(ContributionAccum src)
     {
         var dst = new ContributionAccum
@@ -263,9 +281,9 @@ public static class ContributionPersistence
                 CombatInProgress = dto.CombatInProgress,
             };
             if (dto.CurrentCombat != null && dto.CurrentCombat.Count > 0)
-                snap.CurrentCombat = dto.CurrentCombat.ToDictionary(s => s.SourceId, FromDto);
+                snap.CurrentCombat = ToDictionaryMerge(dto.CurrentCombat);
             if (dto.RunTotals != null && dto.RunTotals.Count > 0)
-                snap.RunTotals = dto.RunTotals.ToDictionary(s => s.SourceId, FromDto);
+                snap.RunTotals = ToDictionaryMerge(dto.RunTotals);
             if (dto.Encounters != null && dto.Encounters.Count > 0)
                 snap.Encounters = dto.Encounters.Select(FromEncounterDto).ToList();
             return snap;

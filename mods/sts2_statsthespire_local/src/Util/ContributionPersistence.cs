@@ -190,6 +190,11 @@ public static class ContributionPersistence
         return files > 0 ? merged : null;
     }
 
+    /// <summary>
+    /// Deserialize a list of SourceDto into a dictionary, merging duplicate
+    /// SourceId entries (same-named cards from different origins have identical
+    /// SourceId but different OriginSourceId — ToDictionary would throw).
+    /// </summary>
     private static Dictionary<string, ContributionAccum> ToDictionaryMerge(List<SourceDto> sources)
     {
         var result = new Dictionary<string, ContributionAccum>();
