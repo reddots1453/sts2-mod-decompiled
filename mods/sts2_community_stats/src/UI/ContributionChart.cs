@@ -668,33 +668,20 @@ public partial class ContributionChart : VBoxContainer
             return string.Format(L.Get("source.forge_prefix"), variant);
         }
 
-        // Event: resolve event ID to localized name
-        if (sourceType == "event")
-        {
-            try
-            {
-                var locStr = new LocString("events", id + ".title");
-                var result = locStr.GetFormattedText();
-                if (!string.IsNullOrEmpty(result) && result != id + ".title")
-                    return result;
-            }
-            catch { /* fall through */ }
-            return id;
-        }
-
         try
         {
-            var category = sourceType switch
+            // Use NameLookup so the display name respects the mod's
+            // language setting (L.Current) rather than the game's
+            // display language.
+            var name = sourceType switch
             {
-                "relic" => "relics",
-                "potion" => "potions",
-                _ => "cards"
+                "relic" => Util.NameLookup.Relic(id),
+                "potion" => Util.NameLookup.Potion(id),
+                "event" => Util.NameLookup.Event(id),
+                _ => Util.NameLookup.Card(id)
             };
-            var locStr = new LocString(category, id + ".title");
-            var result = locStr.GetFormattedText();
-            // LocString returns the key itself if not found; fall back to raw ID
-            if (!string.IsNullOrEmpty(result) && result != id + ".title")
-                return result;
+            if (!string.IsNullOrEmpty(name) && name != id)
+                return name;
         }
         catch { /* fall through to raw ID */ }
         return id;

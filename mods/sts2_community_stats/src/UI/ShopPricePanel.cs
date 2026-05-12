@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using CommunityStats.Config;
 using Godot;
+using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Merchant;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models.Relics;
@@ -112,7 +113,7 @@ public static class ShopPricePanel
         {
             var names = player.Relics
                 .Where(r => r is MembershipCard || r is TheCourier)
-                .Select(r => r.Title?.GetFormattedText() ?? r.Id.Entry)
+                .Select(r => Util.NameLookup.Relic(r.Id.Entry))
                 .ToList();
             if (names.Count == 0) return;
             panel.AddLabel(L.Get("shop.discount_active") + " " + string.Join(", ", names), GoldColor);
@@ -135,38 +136,32 @@ public static class ShopPricePanel
     }
 
     /// <summary>
-    /// Compute the card-removal cost from the raw STS2 formula and apply
+    /// Compute the card-removal cost from the game's live formula and apply
     /// our discount multiplier exactly once.
     ///
-    /// Decompiled <see cref="MerchantCardRemovalEntry"/>:
+    /// v0.103.2 <see cref="MerchantCardRemovalEntry"/>:
     /// <code>
+    /// private static int BaseCost =>
+    ///     AscensionHelper.GetValueIfAscension(AscensionLevel.Inflation, 100, 75);
+    /// public static int PriceIncrease =>
+    ///     AscensionHelper.GetValueIfAscension(AscensionLevel.Inflation, 50, 25);
     /// public override void CalcCost() {
-    ///     _cost = 75 + 25 * _player.ExtraFields.CardShopRemovalsUsed;
-    /// }
-    /// public int Cost {
-    ///     get {
-    ///         decimal num = _cost;
-    ///         if (_player.RunState.CurrentRoom is MerchantRoom)
-    ///             num = Hook.ModifyMerchantPrice(... _cost);
-    ///         return (int)num;
-    ///     }
+    ///     _cost = BaseCost + PriceIncrease * _player.ExtraFields.CardShopRemovalsUsed;
     /// }
     /// </code>
     ///
-    /// Earlier this method called <c>entry.Cost</c> and multiplied by
-    /// <paramref name="multiplier"/>. That double-counted the discount when
-    /// the player was already inside a MerchantRoom: the getter applied
-    /// MembershipCard's ×0.5 once, then we multiplied by another ×0.5,
-    /// turning a 150 raw price into 38 (≈ 150 × 0.25) instead of 75. From
-    /// the map hover (player not in MerchantRoom) the bug was invisible
-    /// because the getter passed the cost through unchanged. Reading from
-    /// the formula directly gives a single, deterministic discount path
-    /// regardless of the player's current room.
-    /// </summary>
+    /// We read BaseCost / PriceIncrease via Traverse so the panel automatically
+    /// reflects Inflation (A15+) vs non-Inflation pricing.  Discount is then
+    /// applied once — we never call the Cost getter, which would also apply
+    /// ModifyMerchantPrice hooks and double-count the relic discount.</summary>
     private static int ComputeRemovalCost(Player? player, int cardRemovalsUsed, float multiplier)
     {
-        _ = player; // kept for signature compatibility / future use
-        int rawCost = 75 + 25 * Math.Max(0, cardRemovalsUsed);
+        _ = player;
+        int baseCost = Traverse.Create(typeof(MerchantCardRemovalEntry))
+            .Property("BaseCost").GetValue<int>();
+        int priceIncrease = Traverse.Create(typeof(MerchantCardRemovalEntry))
+            .Property("PriceIncrease").GetValue<int>();
+        int rawCost = baseCost + priceIncrease * Math.Max(0, cardRemovalsUsed);
         return (int)Math.Round(rawCost * multiplier);
     }
 

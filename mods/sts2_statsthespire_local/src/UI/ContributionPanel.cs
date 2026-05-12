@@ -31,6 +31,9 @@ public partial class ContributionPanel : PanelContainer
     private HBoxContainer? _header;
     private PanelContainer? _helpPanel;
 
+    /// <summary>Non-null when showing run-history replay data.</summary>
+    private static IReadOnlyDictionary<string, ContributionAccum>? _replayRunData;
+
     // Real-time refresh — round 6 dropped the debounce, see OnCombatDataUpdated.
 
     public static ContributionPanel Instance => _instance ??= CreatePanel();
@@ -414,6 +417,7 @@ public partial class ContributionPanel : PanelContainer
     {
         if (_instance != null)
             _instance.Visible = false;
+        _replayRunData = null;
     }
 
     /// <summary>
@@ -477,7 +481,7 @@ public partial class ContributionPanel : PanelContainer
             ? (Control)ContributionChart.Create(combatData, BuildCombatTabTitle(combatData))
             : EmptyPlaceholder(L.Get("contrib.empty_combat"));
 
-        var runData = RunContributionAggregator.Instance.RunTotals;
+        var runData = _replayRunData ?? RunContributionAggregator.Instance.RunTotals;
         var newRunContent = runData.Count > 0
             ? (Control)ContributionChart.Create(runData, L.Get("contrib.run_summary"), isRunLevel: true)
             : EmptyPlaceholder(L.Get("contrib.empty_run"));
@@ -485,8 +489,20 @@ public partial class ContributionPanel : PanelContainer
         ReplaceScrollContent(combatScroll, newCombatContent);
         ReplaceScrollContent(runScroll, newRunContent);
 
-        // Restore the tab the user was on so the refresh isn't disruptive.
-        try { tabs.CurrentTab = currentTabIndex; } catch { }
+        // When showing run-history replay data, hide the combat tab.
+        if (_replayRunData != null)
+        {
+            tabs.SetTabTitle(0, "");
+            tabs.SetTabHidden(0, true);
+            tabs.CurrentTab = 1;
+        }
+        else
+        {
+            tabs.SetTabTitle(0, BuildCombatTabTitle(combatData ?? new Dictionary<string, ContributionAccum>()));
+            tabs.SetTabHidden(0, false);
+            // Restore the tab the user was on so the refresh isn't disruptive.
+            try { tabs.CurrentTab = currentTabIndex; } catch { }
+        }
     }
 
     /// <summary>
@@ -573,6 +589,7 @@ public partial class ContributionPanel : PanelContainer
     /// </summary>
     private static void RefreshTabsRunOnly(IReadOnlyDictionary<string, ContributionAccum> runData)
     {
+        _replayRunData = runData;
         var panel = Instance;
         var tabs = panel._tabs;
         if (tabs == null) return;

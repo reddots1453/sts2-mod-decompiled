@@ -216,9 +216,7 @@ public static class MapPointPatch
             var runState = RunManager.Instance?.DebugOnlyGetState();
             var me = runState?.Players?.FirstOrDefault();
             if (me == null) return 0;
-            var used = Traverse.Create(me).Field("ExtraFields")
-                .Field("CardShopRemovalsUsed").GetValue<int>();
-            return used;
+            return me.ExtraFields.CardShopRemovalsUsed;
         }
         catch { return 0; }
     }

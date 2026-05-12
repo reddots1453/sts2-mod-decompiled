@@ -124,6 +124,11 @@ public sealed partial class RunHistoryStatsSection : VBoxContainer
     private static string ResolveCharacterName(string characterId)
     {
         if (string.IsNullOrEmpty(characterId)) return "";
+        // When the mod is in English, use the L.Get fallback names
+        // ("Ironclad" etc.) instead of the game's Title (which follows
+        // the game's display language).
+        if (Config.L.Current == Config.L.Lang.EN)
+            return Config.L.Get("char." + characterId);
         try
         {
             foreach (var c in MegaCrit.Sts2.Core.Models.ModelDb.AllCharacters)

@@ -95,7 +95,7 @@ public static class IntentStateMachinePanel
 
         if (entry == null || entry.States.Count == 0)
         {
-            panel.AddLabel("(no intent metadata)", GrayMissing);
+            panel.AddLabel(Config.L.Get("intent.no_metadata"), GrayMissing);
             return panel;
         }
 
@@ -184,7 +184,7 @@ public static class IntentStateMachinePanel
             }
             foreach (var (targetId, labels) in byTarget)
             {
-                initialLabels[targetId] = string.Join("、", labels) + "初始";
+                initialLabels[targetId] = string.Join("、", labels) + Config.L.Get("intent.initial");
             }
         }
 
@@ -198,7 +198,7 @@ public static class IntentStateMachinePanel
             && !initCell.IsHiddenInsideBox
             && !initialLabels.ContainsKey(startId))
         {
-            initialLabels[startId] = "初始";
+            initialLabels[startId] = Config.L.Get("intent.initial");
         }
 
         // `neverHide` — cells that must stay visible regardless of marking /
@@ -1458,6 +1458,11 @@ public static class IntentStateMachinePanel
 
     private static string TryName(MegaCrit.Sts2.Core.Models.MonsterModel monster, string fallback)
     {
+        // When the mod is in English, prefer NameLookup (which respects
+        // L.Current) over the game's Title (which follows the game's
+        // display language and may still be Chinese).
+        if (Config.L.Current == Config.L.Lang.EN)
+            return Util.NameLookup.Monster(fallback);
         try { return monster.Title?.GetFormattedText() ?? fallback; }
         catch { return fallback; }
     }
