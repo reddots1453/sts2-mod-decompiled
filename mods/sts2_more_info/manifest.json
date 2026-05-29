@@ -1,0 +1,11 @@
+{
+  "id": "sts2_more_info",
+  "name": "More Info",
+  "author": "CommunityStatsDev",
+  "description": "Game info panels: potion drop odds, card drop odds, unknown room encounter odds, shop price table.",
+  "version": "1.0.0",
+  "has_dll": true,
+  "has_pck": false,
+  "affects_gameplay": false,
+  "dependencies": []
+}

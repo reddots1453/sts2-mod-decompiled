@@ -1,0 +1,197 @@
+{
+  "ok": true,
+  "requestId": "01KPJ6KQDNKDERTN3SJS51WBEA",
+  "result": {
+    "status": "ok",
+    "message": "roadmap read",
+    "data": {
+      "conversationId": null,
+      "roadmap": {
+        "objective": "Stats the Spire Beta — 10模块专责 + 2监工 | Beta代码审查与加固",
+        "tasks": [
+          {
+            "id": 1,
+            "number": "M01",
+            "pinned": true,
+            "sortOrder": 1,
+            "status": "done",
+            "title": "[模块] 战斗贡献系统 — member:01KPJ60YC4SEP7QS6R1EKN0B80"
+          },
+          {
+            "id": 2,
+            "number": "M02",
+            "pinned": true,
+            "sortOrder": 2,
+            "status": "done",
+            "title": "[模块] 数据收集与上传 — member:01KPJ61BNQEKBH69PHJHCA3KCQ"
+          },
+          {
+            "id": 3,
+            "number": "M03",
+            "pinned": false,
+            "sortOrder": 3,
+            "status": "done",
+            "title": "[模块] 社区统计展示 — member:01KPJ61BNQANXW91MDAGTRQ2WW"
+          },
+          {
+            "id": 4,
+            "number": "M04",
+            "pinned": false,
+            "sortOrder": 4,
+            "status": "done",
+            "title": "[模块] 百科大全集成 — member:01KPJ61BNQT6MHQC9XYDJ82R8Z"
+          },
+          {
+            "id": 5,
+            "number": "M05",
+            "pinned": false,
+            "sortOrder": 5,
+            "status": "done",
+            "title": "[模块] 概率透视系统 — member:01KPJ61BNQ11E507M1QWW1SDQN"
+          },
+          {
+            "id": 6,
+            "number": "M06",
+            "pinned": false,
+            "sortOrder": 6,
+            "status": "done",
+            "title": "[模块] 个人生涯统计 — member:01KPJ61BNQVSJTBNY27GDK68QP"
+          },
+          {
+            "id": 7,
+            "number": "M07",
+            "pinned": false,
+            "sortOrder": 7,
+            "status": "done",
+            "title": "[模块] 局回顾增强 — member:01KPJ61BNQ0NBM3HX0B6B9JREA"
+          },
+          {
+            "id": 8,
+            "number": "M08",
+            "pinned": false,
+            "sortOrder": 8,
+            "status": "done",
+            "title": "[模块] 配置与基础设施 — member:01KPJ61BNQA15YTWGE4MV78C8D"
+          },
+          {
+            "id": 9,
+            "number": "M09",
+            "pinned": false,
+            "sortOrder": 9,
+            "status": "done",
+            "title": "[模块] UI通用组件 — member:01KPJ61BNQT8RKWHD8PG6PHP4V"
+          },
+          {
+            "id": 10,
+            "number": "M10",
+            "pinned": false,
+            "sortOrder": 10,
+            "status": "done",
+            "title": "[模块] 服务端后端 — member:01KPJ61BNQS824MBTPK2A337JD"
+          },
+          {
+            "id": 11,
+            "number": "S01",
+            "pinned": true,
+            "sortOrder": 11,
+            "status": "in-progress",
+            "title": "[监工] supervisor-client:01KPJ61JVA7SKQW308PW630E1R — 客户端M01-M09验收"
+          },
+          {
+            "id": 12,
+            "number": "S02",
+            "pinned": true,
+            "sortOrder": 12,
+            "status": "in-progress",
+            "title": "[监工] supervisor-server:01KPJ61JVA9M4WYNGM483SY8GE — 服务端M10+集成验收"
+          },
+          {
+            "id": 13,
+            "number": "B01",
+            "pinned": true,
+            "sortOrder": 13,
+            "status": "in-progress",
+            "title": "[Beta] M01 战斗贡献代码审查 — 检查Safe.Run覆盖/AsyncLocal生命周期/FIFO-LIFO边界"
+          },
+          {
+            "id": 14,
+            "number": "B02",
+            "pinned": true,
+            "sortOrder": 14,
+            "status": "in-progress",
+            "title": "[Beta] M02 数据收集代码审查 — 检查OfflineQueue重传/上传字段完整性/异常恢复"
+          },
+          {
+            "id": 15,
+            "number": "B03",
+            "pinned": false,
+            "sortOrder": 15,
+            "status": "in-progress",
+            "title": "[Beta] M03 社区统计代码审查 — 检查FilterPanel刷新/StatsCache过期策略/空数据展示"
+          },
+          {
+            "id": 16,
+            "number": "B04",
+            "pinned": false,
+            "sortOrder": 16,
+            "status": "done",
+            "title": "[Beta] M04 百科大全代码审查 — 检查未解锁卡牌/遗物不显示统计/双列数据源对齐"
+          },
+          {
+            "id": 17,
+            "number": "B05",
+            "pinned": false,
+            "sortOrder": 17,
+            "status": "in-progress",
+            "title": "[Beta] M05 概率透视代码审查 — 检查怜悯机制计算/意图状态机准确性/商店价格映射"
+          },
+          {
+            "id": 18,
+            "number": "B06",
+            "pinned": false,
+            "sortOrder": 18,
+            "status": "in-progress",
+            "title": "[Beta] M06 生涯统计代码审查 — 检查CareerStatsCache版本失效/数据聚合准确性"
+          },
+          {
+            "id": 19,
+            "number": "B07",
+            "pinned": false,
+            "sortOrder": 19,
+            "status": "in-progress",
+            "title": "[Beta] M07 局回顾代码审查 — 检查HistoryImporter启动顺序/贡献图表回看数据完整"
+          },
+          {
+            "id": 20,
+            "number": "B08",
+            "pinned": false,
+            "sortOrder": 20,
+            "status": "in-progress",
+            "title": "[Beta] M08 配置代码审查 — 检查FeatureToggles默认值/Localization完整性/版本兼容"
+          },
+          {
+            "id": 21,
+            "number": "B09",
+            "pinned": false,
+            "sortOrder": 21,
+            "status": "in-progress",
+            "title": "[Beta] M09 UI组件代码审查 — 检查DraggablePanel边界/LayoutHelper分辨率适配/重叠"
+          },
+          {
+            "id": 22,
+            "number": "B10",
+            "pinned": false,
+            "sortOrder": 22,
+            "status": "in-progress",
+            "title": "[Beta] M10 服务端代码审查 — 检查API安全/precompute性能/数据库索引/Redis缓存一致性"
+          }
+        ]
+      },
+      "source": "workspace",
+      "warning": null,
+      "workspaceId": "27f25ba3a5ce3460d875efde63e5174af49cd9256b55026f76b8b6c25f9b89d0",
+      "workspacePath": "D:/game_backup/steam/steamapps/common/Slay the Spire 2/Sts2-mod-decompiled"
+    }
+  },
+  "error": null
+}

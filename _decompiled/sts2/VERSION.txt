@@ -1,0 +1,4 @@
+v0.99.1 (LEGACY — kept for reference/diff)
+decompiled earlier; file structure at `_decompiled/sts2-v0.99.1/` proper may be locked
+
+For current game version (v0.103.2) use: `_decompiled/sts2-v0.103.2/`

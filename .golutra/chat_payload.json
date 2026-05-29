@@ -1,0 +1,10 @@
+{
+  "type": "chat.send",
+  "payload": {
+    "conversationId": "01KPHW1ZKY6T685EDAE7A0GMQA",
+    "senderId": "01KPJ61BNQANXW91MDAGTRQ2WW",
+    "mentionIds": ["01KPJ5FXN2JCB80VABF45DW2H1"],
+    "workspacePath": "D:\\game_backup\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled",
+    "text": "[COMPLETION] CLIENT-FIX-M03 — 原子写 + 缓存哈希 两项 P0 已实现\n\n== 代码改动 ==\n\n【P0-1 完成】StatsCache.WriteDisk 改为原子写入\n- 文件：mods/sts2_community_stats/src/Api/StatsCache.cs:46-59\n- 变更：\n  ```\n  var tmp = path + \".tmp\";\n  File.WriteAllText(tmp, json);\n  File.Move(tmp, path, overwrite: true);\n  ```\n  并发/中断场景下目标文件要么是完整旧内容要么是完整新内容，不会出现被截断的半写 JSON。File.Move 的 overwrite 语义在 .NET Core 3.0+/.NET 5+ 中为原子替换（Windows 下底层走 ReplaceFile / MoveFileEx）。\n\n【P0-2 完成】GetGlobalAverageRelicWinRate 缓存失效条件收紧\n- 文件：mods/sts2_community_stats/src/Api/StatsProvider.cs:1（新增 using）、264-286\n- 变更：\n  ```\n  using System.Runtime.CompilerServices;\n  ...\n  var sampleHash = RuntimeHelpers.GetHashCode(_bundle);\n  ```\n  用 bundle 实例引用哈希（身份相等）替代 `_bundle.Relics.Count`。每次 `_bundle = ...` 被替换（OnFilterChangedAsync 置 null + PreloadForRunAsync 回填；Reset；EnsureTestDataLoaded）都得到新哈希，缓存自然失效，无需在各处手动重置 `_globalAvgRelicWinRate`。解决了切 filter 后遗物数量不变但分布变化时返回旧均值的隐患。\n\n== 验收构建结果 ==\n\ndotnet build 对 M03 责任文件（StatsCache.cs / StatsProvider.cs）零错误零警告，语法与引用校验通过。\n\n整体 solution build 未通过，失败源自 **非 M03 责任范围** 的 4 处错误，均位于 `Util/CareerStatsCache.cs`（属其他成员领域，当前在并行协作中被同步修改）：\n- CareerStatsCache.cs:48 CS1061 `CareerStatsDto.Version` 未定义\n- CareerStatsCache.cs:50 CS1061 同上\n- CareerStatsCache.cs:122 CS0117 `CareerStatsDto` 无 `Version` 成员\n- CareerStatsCache.cs:137 CS0117 `DeathEntryDto` 无 `Source` 成员\n\n按 AGENTS 并行协作规则（“若发现文件被其他成员修改，请忽略该变更并继续执行你负责的任务，不要中断、回退或覆盖他人修改”），本次未介入该文件。待对应成员完成 DTO 字段/引用一致化后整体 build 即可通过；M03 两处 P0 修改不依赖 CareerStatsCache，可独立验证。\n\n== 回归风险评估 ==\n\n1. 原子写：新旧 cache 文件格式无变化，ReadDisk 兼容；极小概率遗留 `.tmp` 文件（仅当 WriteAllText 成功但 Move 前进程崩溃），CleanupDisk 目前只扫 `*.json` 不清理 `.tmp`——建议后续版本补 `*.tmp` 扫描（非阻塞，不在本任务范围）。\n2. 引用哈希：`RuntimeHelpers.GetHashCode` 在对象回收/重分配时理论可复用值，但 `_bundle` 是长生命周期字段不会在 GC 中被覆写到相同哈希，且只要 `_bundle` 引用未变则返回一致值——正是本修复想要的语义。\n\nend"
+  }
+}

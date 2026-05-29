@@ -1,0 +1,13 @@
+{"type":"roadmap.update","payload":{"conversationId":"01KPHW1ZKY6T685EDAE7A0GMQA","workspacePath":"D:\\game_backup\\steam\\steamapps\\common\\Slay the Spire 2\\Sts2-mod-decompiled","roadmap":{"objective":"Stats the Spire Beta — P0修复执行中 + 服务端部署中","tasks":[
+{"id":11,"number":"S01","pinned":false,"status":"done","title":"[监工] supervisor-client — 9/9验收通过"},
+{"id":12,"number":"S02","pinned":true,"status":"in-progress","title":"[监工] supervisor-server — P0修复验收通过,部署+集成测试进行中"},
+{"id":13,"number":"B01-B10","pinned":false,"status":"done","title":"[审查] 10/10模块全部验收通过"},
+{"id":23,"number":"B10-FIX","pinned":false,"status":"done","title":"[P0修复] 服务端4项 — 验收通过"},
+{"id":24,"number":"CF-M01","pinned":true,"status":"done","title":"[P0修复] M01 AsyncLocal清零 — CombatTracker OnCombatEnd"},
+{"id":25,"number":"CF-M02","pinned":true,"status":"done","title":"[P0修复] M02 彩色卡丢失+上传开关短路 — RunDataCollector+RunLifecyclePatch"},
+{"id":26,"number":"CF-M03","pinned":true,"status":"done","title":"[P0修复] M03 原子写+缓存哈希 — StatsCache+StatsProvider"},
+{"id":27,"number":"CF-M05","pinned":true,"status":"done","title":"[P0修复] M05 Scarcity概率+首局强制 — CardDropOdds+UnknownRoomPanel"},
+{"id":28,"number":"CF-M06","pinned":true,"status":"done","title":"[P0修复] M06 DeathSource+TopN截断 — CareerStatsCache+RunHistoryAnalyzer"},
+{"id":29,"number":"CF-M07","pinned":true,"status":"in-progress","title":"[H修复] M07 断点续传 — HistoryImporter imported_hashes"},
+{"id":30,"number":"DEPLOY","pinned":true,"status":"in-progress","title":"[部署] VPS服务端P0修复 — sql/007+aggregation+ingest+backfill"}
+]}}}

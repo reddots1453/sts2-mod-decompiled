@@ -1036,6 +1036,9 @@ public sealed class CombatTracker
             {
                 ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType, intAmount);
                 ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType, intAmount);
+                // Record source attribution for multi-source distribution
+                // (only for player buffs, NOT enemy debuffs — Fix 5.1).
+                OnPowerSourceRecorded(powerId);
             }
         }
         else

@@ -60,3 +60,9 @@ mods/**/test/uploaded_runs.json
 # ── Godot ignores ───────────────────────────────────────────
 .godot/
 dist/
+
+# --- New decompiled version (long filenames) ---
+_decompiled/sts2-v0.103.2/
+
+# --- Presentation files ---
+*.pptx

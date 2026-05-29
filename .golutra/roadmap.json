@@ -1,0 +1,42 @@
+{
+  "_roadmapMeta": {
+    "updatedAt": 1776648767699
+  },
+  "roadmap": {
+    "objective": "Stats the Spire Beta — 客户端P0闭环 + 集成测试完成 + Orb归因debug",
+    "tasks": [
+      {
+        "id": 11,
+        "number": "S01",
+        "pinned": false,
+        "sortOrder": 11,
+        "status": "done",
+        "title": "[监工] supervisor-client — 9/9审查 + 6/6修复 全部验收通过"
+      },
+      {
+        "id": 12,
+        "number": "S02",
+        "pinned": false,
+        "sortOrder": 12,
+        "status": "done",
+        "title": "[监工] supervisor-server — 部署通过,集成测试T1-T7验收通过(T5阈值偏差已知)"
+      },
+      {
+        "id": 31,
+        "number": "INT-TEST",
+        "pinned": false,
+        "sortOrder": 31,
+        "status": "done",
+        "title": "[集成测试] T1-T7端到端VPS回归 — M10验收通过(T5阈值偏差已知,T7观察窗口)"
+      },
+      {
+        "id": 32,
+        "number": "ORB-BUG",
+        "pinned": true,
+        "sortOrder": 32,
+        "status": "in-progress",
+        "title": "[BUG] Orb归因 — 9d97b28 5修复已落 / Plan A+B+MeteorStrike owner授权 dispatch 白海辰(01KPJ61BNQS824MBTPK2A337JD)"
+      }
+    ]
+  }
+}

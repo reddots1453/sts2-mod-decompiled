@@ -222,9 +222,8 @@ public static class CombatHistoryPatch
     {
         Safe.Run(() =>
         {
-            var powerId = power?.Id.Entry;
-            if (powerId == null) return;
-            CombatTracker.Instance.OnPowerSourceRecorded(powerId);
+            // OnPowerSourceRecorded is now called inside OnPowerApplied
+            // (only for player-target positive buffs, not enemy debuffs).
         });
     }
 

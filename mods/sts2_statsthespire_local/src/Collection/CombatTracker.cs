@@ -1035,6 +1035,7 @@ public sealed class CombatTracker
             {
                 ContributionMap.Instance.RecordPowerSource(powerId, sourceId, sourceType, intAmount);
                 ContributionMap.Instance.RecordPlayerBuffSource(powerId, sourceId, sourceType, intAmount);
+                OnPowerSourceRecorded(powerId);
             }
         }
         else

@@ -123,7 +123,9 @@ public static class ContributionPersistence
         {
             var json = File.ReadAllText(path);
             var dto = JsonSerializer.Deserialize<ContributionDoc>(json, JsonOpts);
-            return dto?.Sources?.ToDictionary(s => s.SourceId, FromDto);
+            return dto?.Sources != null && dto.Sources.Count > 0
+                ? ToDictionaryMerge(dto.Sources)
+                : null;
         }
         catch (Exception ex)
         {

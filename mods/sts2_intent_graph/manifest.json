@@ -1,0 +1,11 @@
+{
+  "id": "sts2_intent_graph",
+  "name": "Intent Graph",
+  "author": "CommunityStatsDev",
+  "description": "Enemy intent state machine visualization — hover any enemy to see their full AI move set.",
+  "version": "1.0.0",
+  "has_dll": true,
+  "has_pck": false,
+  "affects_gameplay": false,
+  "dependencies": []
+}
