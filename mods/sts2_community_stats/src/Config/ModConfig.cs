@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿﻿﻿﻿using System.Text.Json;
 
 namespace CommunityStats.Config;
 
@@ -34,6 +34,9 @@ public static class ModConfig
     // Panel position (null = default right side)
     public static float? PanelPositionX { get; set; }
     public static float? PanelPositionY { get; set; }
+    // Panel size (null = default anchored size)
+    public static float? PanelSizeX { get; set; }
+    public static float? PanelSizeY { get; set; }
 
     // "My Data" filter
     public static bool UseMyDataOnly { get; set; }
@@ -130,6 +133,12 @@ public static class ModConfig
                 catch { Toggles = new(); }
             }
 
+            if (root.TryGetProperty("panel_size", out var psize))
+            {
+                if (psize.TryGetProperty("x", out var sx)) PanelSizeX = sx.GetSingle();
+                if (psize.TryGetProperty("y", out var sy)) PanelSizeY = sy.GetSingle();
+            }
+
             if (root.TryGetProperty("panel_position", out var pos))
             {
                 if (pos.TryGetProperty("x", out var px)) PanelPositionX = px.GetSingle();
@@ -159,18 +168,55 @@ public static class ModConfig
                 ["feature_toggles"] = Toggles,
                 ["auto_update"] = AutoUpdate,
                 ["enable_upload"] = EnableUpload,
-                ["use_my_data_only"] = UseMyDataOnly,
-                ["history_import_completed"] = HistoryImportCompleted,
-            };
+                ["use_my_data_only"] = UseMyDataOnly
+           };
 
             if (PanelPositionX.HasValue && PanelPositionY.HasValue)
             {
                 data["panel_position"] = new { x = PanelPositionX.Value, y = PanelPositionY.Value };
+            if (PanelSizeX.HasValue && PanelSizeY.HasValue)
+            {
+                data["panel_size"] = new { x = PanelSizeX.Value, y = PanelSizeY.Value };
+            }
             }
 
             EnsureDirectories();
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(PrefsPath, json);
+        }
+        catch { /* ignore write failures */ }
+    }
+
+    /// <summary>
+    /// Persist <see cref="HistoryImportCompleted"/> to the DLL-side config
+    /// file (settings.cfg). This flag is intentionally NOT stored in AppData
+    /// (mod_prefs.json) so that replacing the shipped config with a fresh copy
+    /// resets the import state and re-triggers the consent dialog on next launch.
+    /// Existing keys in settings.cfg are preserved (merged).
+    /// </summary>
+    public static void SaveImportCompletedFlag()
+    {
+        try
+        {
+            var path = ConfigPath;
+            Dictionary<string, object?> data;
+            if (File.Exists(path))
+            {
+                var json = File.ReadAllText(path);
+                data = JsonSerializer.Deserialize<Dictionary<string, object?>>(json)
+                       ?? new Dictionary<string, object?>();
+            }
+            else
+            {
+                data = new Dictionary<string, object?>();
+            }
+
+            data["history_import_completed"] = HistoryImportCompleted;
+
+            var dir = Path.GetDirectoryName(path);
+            if (dir != null) Directory.CreateDirectory(dir);
+            var newJson = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, newJson);
         }
         catch { /* ignore write failures */ }
     }

@@ -1,4 +1,4 @@
-using CommunityStats.Api;
+﻿﻿using CommunityStats.Api;
 using CommunityStats.Config;
 using CommunityStats.Util;
 using Godot;
@@ -514,174 +514,60 @@ public partial class FilterPanel : PanelContainer
 
         // Save current selection before modifying the dropdown.
         var saved = ModConfig.CurrentFilter;
-        var prevIdx = _versionSlotDropdown?.Selected ?? 0;
 
         // Only two formal releases; all other versions are beta.
-        // Beta: show latest 3 only, rest are hidden.
         var releaseVersions = new HashSet<string> { "0.99.1", "0.103.1" };
+
+        // Find the latest release version available from the API.
+        string? latestRelease = null;
+        foreach (var ver in versions)
+        {
+            if (releaseVersions.Contains(ver))
+            {
+                if (latestRelease == null || string.CompareOrdinal(ver, latestRelease) > 0)
+                    latestRelease = ver;
+            }
+        }
+
+        // Rebuild dropdown: Auto → Release(latest) → All → Beta versions.
+        _versionSlots.Clear();
+        _versionSlotDropdown?.Clear();
+
+        // Slot 0: Auto
+        _versionSlots.Add((null, null, L.Get("settings.ver_auto")));
+        _versionSlotDropdown?.AddItem(_versionSlots[0].Label);
+
+        // Slot 1: Release (latest) — collapsed single option for all release versions.
+        if (latestRelease != null)
+        {
+            var releaseLabel = string.Format(L.Get("settings.ver_release_latest"), latestRelease);
+            _versionSlots.Add((latestRelease, BranchManager.Release, releaseLabel));
+            _versionSlotDropdown?.AddItem(releaseLabel);
+        }
+
+        // Slot 2 (or 1 if no latest): All Versions.
+        _versionSlots.Add(("all", "all", L.Get("settings.ver_all")));
+        _versionSlotDropdown?.AddItem(L.Get("settings.ver_all"));
+
+        // Beta versions only (release versions are now consolidated above).
         int betaCount = 0;
         const int maxBeta = 3;
 
         foreach (var ver in versions)
         {
-            bool isRelease = releaseVersions.Contains(ver);
-            var branches = isRelease
-                ? new[] { BranchManager.Release }
-                : new[] { BranchManager.Beta };
+            if (releaseVersions.Contains(ver)) continue;
+            if (betaCount >= maxBeta) continue;
+            betaCount++;
 
-            foreach (var branch in branches)
-            {
-                if (branch == BranchManager.Beta)
-                {
-                    if (betaCount >= maxBeta) continue;
-                    betaCount++;
-                }
-
-                var brLabel = branch == BranchManager.Release
-                    ? L.Get("settings.br_release")
-                    : L.Get("settings.br_beta");
-                var label = $"{ver} {brLabel}";
-                _versionSlots.Add((ver, branch, label));
-                _versionSlotDropdown?.AddItem(label);
-            }
+            var brLabel = L.Get("settings.br_beta");
+            var label = $"{ver} {brLabel}";
+            _versionSlots.Add((ver, BranchManager.Beta, label));
+            _versionSlotDropdown?.AddItem(label);
         }
 
         // Restore selection: find the slot that matches the saved filter.
         var newIdx = FindVersionSlotIndex(saved);
         if (newIdx >= 0 && _versionSlotDropdown != null)
             _versionSlotDropdown.Selected = newIdx;
-    }
-
-    // ── Show / hide lifecycle ───────────────────────────────
-
-    public static void Toggle()
-    {
-        // If the language changed since the panel was last built, rebuild
-        // it now so all labels pick up the new language.
-        if (_builtLanguage != L.Current)
-            RebuildForLanguage();
-
-        var panel = Instance;
-        if (panel.Visible)
-        {
-            // Round 9 round 52: apply settings on hide instead of via an
-            // explicit "应用" button. User explicitly requested this.
-            panel.ApplyAndClose();
-        }
-        else
-        {
-            // Round 14 v5: refresh the character dropdown each time the panel
-            // is shown. PreloadManager may have cached character textures since
-            // the panel was first created (e.g. user entered character select),
-            // so a re-populate gives the icons a chance to appear even if they
-            // were missing on first build.
-            if (panel._characterDropdown != null)
-            {
-                var savedMode = ModConfig.CurrentFilter.CharacterFilterMode ?? "auto";
-                var savedIdx = Array.IndexOf(_characterModes, savedMode);
-                PopulateCharacterDropdown(panel._characterDropdown);
-                panel._characterDropdown.Selected = savedIdx >= 0 ? savedIdx : 0;
-            }
-
-            // Refresh version dropdown to pick up any newly available versions.
-            if (panel._versionSlotDropdown != null)
-                RefreshVersionDropdown(panel);
-
-            panel.Visible = true;
-            panel.UpdateSampleSizeLabel();
-        }
-    }
-
-    public void UpdateSampleSizeLabel()
-    {
-        if (_sampleSizeLabel == null) return;
-        var provider = StatsProvider.Instance;
-        if (provider.HasBundle)
-        {
-            _sampleSizeLabel.Text = string.Format(L.Get("settings.sample"),
-                provider.TotalRunCount.ToString("N0"));
-        }
-        else
-        {
-            _sampleSizeLabel.Text = L.Get("settings.no_data");
-        }
-    }
-
-    private void ApplyAndClose()
-    {
-        Safe.Run(() =>
-        {
-            ModConfig.EnableUpload = _uploadCheckbox?.ButtonPressed ?? true;
-
-            var langIdx = _langDropdown?.Selected ?? 0;
-            var newLang = langIdx == 1 ? L.Lang.EN : L.Lang.CN;
-            var langChanged = newLang != L.Current;
-            if (langChanged)
-            {
-                L.Current = newLang;
-                ModConfig.Language = langIdx == 1 ? "EN" : "CN";
-            }
-
-            var filter = ModConfig.CurrentFilter;
-            // Snapshot before mutation to detect data-affecting changes.
-            var prevFilterJson = System.Text.Json.JsonSerializer.Serialize(filter);
-            filter.AutoMatchAscension = _autoMatchAscCheckbox?.ButtonPressed ?? false;
-            if (!filter.AutoMatchAscension)
-            {
-                filter.MinAscension = (int?)_minAscSpinBox?.Value;
-                filter.MaxAscension = (int?)_maxAscSpinBox?.Value;
-            }
-            var wrPercent = (int?)_minWinRateSpinBox?.Value ?? 0;
-            filter.MinPlayerWinRate = wrPercent > 0 ? wrPercent / 100f : null;
-            var slotIdx = _versionSlotDropdown?.Selected ?? 0;
-            if (slotIdx >= 0 && slotIdx < _versionSlots.Count)
-            {
-                var slot = _versionSlots[slotIdx];
-                filter.GameVersion = slot.GameVersion;
-                filter.Branch = slot.Branch;
-            }
-            else
-            {
-                filter.GameVersion = null;
-                filter.Branch = null;
-            }
-            filter.MyDataOnly = _myDataCheckbox?.ButtonPressed ?? false;
-
-            var charIdx = _characterDropdown?.Selected ?? 0;
-            if (charIdx < 0 || charIdx >= _characterModes.Length) charIdx = 0;
-            filter.CharacterFilterMode = _characterModes[charIdx];
-
-            var togglesChanged = false;
-            foreach (var (key, cb) in _toggleCheckboxes)
-            {
-                var old = ModConfig.Toggles.GetByName(key);
-                var cur = cb.ButtonPressed;
-                if (old != cur) togglesChanged = true;
-                ModConfig.Toggles.SetByName(key, cur);
-            }
-
-            var filterChanged = System.Text.Json.JsonSerializer.Serialize(filter) != prevFilterJson;
-            var dataChanged = filterChanged || togglesChanged;
-
-            Safe.Info($"[DIAG:FilterPanel] langChanged={langChanged}, dataChanged={dataChanged}, filterChanged={filterChanged}, togglesChanged={togglesChanged}");
-
-            filter.Save();
-            Safe.Run(() => ModConfig.SaveSettings());
-
-            if (dataChanged)
-            {
-                Safe.Info("[DIAG:FilterPanel] About to invoke FilterApplied event");
-                FilterApplied?.Invoke();
-                Safe.Info("[DIAG:FilterPanel] FilterApplied invoked, hiding panel");
-            }
-            else if (langChanged)
-            {
-                // Language-only change: LanguageChanged already fired via
-                // L.Current setter above. UI patches that subscribe to it
-                // re-render immediately without reloading data.
-                Safe.Info("[DIAG:FilterPanel] Language-only change, skipping data reload");
-            }
-            Visible = false;
-        });
     }
 }

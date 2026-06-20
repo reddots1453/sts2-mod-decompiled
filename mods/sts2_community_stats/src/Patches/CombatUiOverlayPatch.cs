@@ -1,4 +1,4 @@
-using System.Linq;
+﻿﻿﻿using System.Linq;
 using CommunityStats.Collection;
 using CommunityStats.Config;
 using CommunityStats.UI;
@@ -150,7 +150,7 @@ public static class CombatUiOverlayPatch
 
         if (!IsAlive(ref _potion))
         {
-            _potion = PotionOddsIndicator.Create();
+            if (ModConfig.Toggles.PotionOdds) _potion = PotionOddsIndicator.Create();
             _potion.Visible = false;
             _potion.ZIndex = 100;
             _potion.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
@@ -166,7 +166,7 @@ public static class CombatUiOverlayPatch
 
         if (!IsAlive(ref _cardDrop))
         {
-            _cardDrop = CardDropOddsIndicator.Create();
+            if (ModConfig.Toggles.CardDropOdds) _cardDrop = CardDropOddsIndicator.Create();
             _cardDrop.Visible = false;
             _cardDrop.ZIndex = 100;
             _cardDrop.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
@@ -361,7 +361,13 @@ public static class CombatUiOverlayPatch
 
     // ── Helpers ─────────────────────────────────────────────
 
-    private static void ShowAll()
+        private static void ShowAll()
+    {
+        if (IsAlive(ref _potion)) _potion!.Visible = ModConfig.Toggles.PotionOdds;
+        if (IsAlive(ref _cardDrop)) _cardDrop!.Visible = ModConfig.Toggles.CardDropOdds;
+    }
+
+    private static void _original_ShowAll()
     {
         if (IsAlive(ref _potion)) _potion!.Visible = true;
         if (IsAlive(ref _cardDrop)) _cardDrop!.Visible = true;
@@ -369,7 +375,7 @@ public static class CombatUiOverlayPatch
 
     private static void RefreshValuesFromPlayer(Player me)
     {
-        if (IsAlive(ref _potion) && _potion!.Visible)
+        if (IsAlive(ref _potion) && _potion!.Visible && ModConfig.Toggles.PotionOdds)
         {
             try
             {
@@ -378,7 +384,7 @@ public static class CombatUiOverlayPatch
             }
             catch { }
         }
-        if (IsAlive(ref _cardDrop) && _cardDrop!.Visible)
+        if (IsAlive(ref _cardDrop) && _cardDrop!.Visible && ModConfig.Toggles.CardDropOdds)
         {
             try
             {

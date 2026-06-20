@@ -1,4 +1,4 @@
-using CommunityStats.Config;
+﻿using CommunityStats.Config;
 using CommunityStats.Util;
 using Godot;
 
@@ -84,6 +84,79 @@ public static class DraggablePanel
         else
         {
             panel.GlobalPosition = defaultPosition;
+        }
+    }
+
+    // ── Resize grip ────────────────────────────────────────
+    private static bool _isResizing;
+    private static Vector2 _resizeStartPos;
+    private static Vector2 _resizeStartSize;
+    private static Control? _resizeTarget;
+
+    /// <summary>
+    /// Make the bottom-right corner of a panel into a resize grip.
+    /// When the grip is dragged, the panel's size updates and is persisted
+    /// to ModConfig.
+    /// </summary>
+    public static void AttachResizeGrip(Control panel, Control grip)
+    {
+        grip.MouseFilter = MouseFilterEnum.Stop;
+        grip.GuiInput += (InputEvent @event) =>
+        {
+            Safe.Run(() => HandleResize(panel, @event));
+        };
+    }
+
+    private static void HandleResize(Control panel, InputEvent @event)
+    {
+        if (@event is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
+        {
+            if (mb.Pressed)
+            {
+                _isResizing = true;
+                _resizeTarget = panel;
+                _resizeStartPos = mb.GlobalPosition;
+                _resizeStartSize = panel.Size;
+            }
+            else
+            {
+                if (_isResizing && _resizeTarget == panel)
+                {
+                    _isResizing = false;
+                    _resizeTarget = null;
+                    // Persist size
+                    ModConfig.PanelSizeX = panel.Size.X;
+                    ModConfig.PanelSizeY = panel.Size.Y;
+                    ModConfig.SaveSettings();
+                }
+            }
+        }
+        else if (@event is InputEventMouseMotion mm && _isResizing && _resizeTarget == panel)
+        {
+            var delta = mm.GlobalPosition - _resizeStartPos;
+            var newSize = new Vector2(
+                Mathf.Max(_resizeStartSize.X + delta.X, 320f),
+                Mathf.Max(_resizeStartSize.Y + delta.Y, 200f)
+            );
+            panel.CustomMinimumSize = newSize;
+            // Update offsets so the panel grows from top-left anchor
+            var parentSize = panel.GetParent<Control>()?.Size ?? panel.GetViewportRect().Size;
+            panel.OffsetRight = panel.OffsetLeft + newSize.X;
+            panel.OffsetBottom = panel.OffsetTop + newSize.Y;
+        }
+    }
+
+    /// <summary>
+    /// Restore panel size from saved config, or use current anchors.
+    /// </summary>
+    public static void RestoreSize(Control panel)
+    {
+        if (ModConfig.PanelSizeX.HasValue && ModConfig.PanelSizeY.HasValue)
+        {
+            var sz = new Vector2(ModConfig.PanelSizeX.Value, ModConfig.PanelSizeY.Value);
+            panel.CustomMinimumSize = sz;
+            panel.OffsetRight = panel.OffsetLeft + sz.X;
+            panel.OffsetBottom = panel.OffsetTop + sz.Y;
         }
     }
 }

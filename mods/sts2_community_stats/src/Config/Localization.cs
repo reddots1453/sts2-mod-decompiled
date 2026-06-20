@@ -1,3 +1,4 @@
+﻿﻿﻿﻿using Godot;
 namespace CommunityStats.Config;
 
 /// <summary>
@@ -28,6 +29,27 @@ public static class L
     /// need to reload data — the numbers haven't changed.
     /// </summary>
     public static event Action? LanguageChanged;
+
+    /// <summary>
+    /// Same as <see cref="Get"/> but follows the game's locale
+    /// (TranslationServer.GetLocale) instead of the mod's language setting.
+    /// Falls back to <see cref="Get"/> if the game locale is unavailable.
+    /// </summary>
+    public static string GetByGame(string key)
+    {
+        try
+        {
+            var locale = TranslationServer.GetLocale();
+            bool isChinese = locale.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+            return isChinese
+                ? (CN.TryGetValue(key, out var cn) ? cn : key)
+                : (EN.TryGetValue(key, out var en) ? en : key);
+        }
+        catch
+        {
+            return Get(key);
+        }
+    }
 
     public static string Get(string key) =>
         Current == Lang.CN
@@ -66,6 +88,7 @@ public static class L
         ["settings.version"] = "Version:",
         ["settings.ver_auto"] = "Auto (my version)",
         ["settings.ver_all"] = "All Versions",
+        ["settings.ver_release_latest"] = "Release ({0})",
         ["settings.br_release"] = "Release",
         ["settings.br_beta"] = "Beta",
         ["settings.sample"] = "Filtered data: {0} runs",
@@ -165,6 +188,8 @@ public static class L
         ["toggle.unknown_room_odds"] = "Unknown Room Encounter Odds",
         ["toggle.shop_prices"] = "Shop Price Table",
         ["toggle.intent_state_machine"] = "Enemy Intent State Machine",
+        ["toggle.potion_odds"] = "Potion Drop Odds",
+        ["toggle.card_drop_odds"] = "Card Drop Odds",
 
         // ContributionPanel v2 (§3.7, §4.5)
         ["contrib.dps"] = "Avg Damage per Turn:",
@@ -369,6 +394,7 @@ public static class L
         ["settings.version"] = "版本:",
         ["settings.ver_auto"] = "自动（当前版本）",
         ["settings.ver_all"] = "所有版本",
+        ["settings.ver_release_latest"] = "正式版 ({0})",
         ["settings.br_release"] = "正式版",
         ["settings.br_beta"] = "beta分支",
         ["settings.sample"] = "数据范围: {0} 局",
@@ -468,6 +494,8 @@ public static class L
         ["toggle.unknown_room_odds"] = "问号房间遭遇概率显示",
         ["toggle.shop_prices"] = "商店价格显示",
         ["toggle.intent_state_machine"] = "敌人意图状态机显示",
+        ["toggle.potion_odds"] = "药水掉落概率显示",
+        ["toggle.card_drop_odds"] = "卡牌掉落概率显示",
 
         // ContributionPanel v2 (§3.7, §4.5)
         ["contrib.dps"] = "每回合平均伤害:",

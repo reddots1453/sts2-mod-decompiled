@@ -1,4 +1,4 @@
-using CommunityStats.Collection;
+﻿﻿﻿﻿using CommunityStats.Collection;
 using CommunityStats.Config;
 using CommunityStats.Util;
 using Godot;
@@ -43,7 +43,20 @@ public partial class ContributionChart : VBoxContainer
     private const int MaxBarsPerSection = 10;
     private const float BarHeight = 22f;
     // Shrunk from 540 → 380 to fit the narrower 570-wide panel.
-    private const float MaxBarWidth = 380f;
+    private const float MaxBarWidth = 250f;
+    /// <summary>
+    /// Logarithmic bar width. Maps contribution ratio through
+    /// L = ln(1 + ratio*99) / ln(100) so that small contributions
+    /// (5-20%) stay clearly visible while the panel stays compact.
+    /// </summary>
+    private static float BarWidth(int value, int maxVal)
+    {
+        if (maxVal <= 0 || value <= 0) return 0;
+        float ratio = (float)value / maxVal;
+        float logVal = Mathf.Log(1f + ratio * 99f);
+        float maxLog = Mathf.Log(100f);
+        return logVal / maxLog * MaxBarWidth;
+    }
     private const int BarCornerRadius = 4;
     private static int _rowCounter; // alternating background rows
 
@@ -445,7 +458,7 @@ public partial class ContributionChart : VBoxContainer
         // Direct damage
         if (accum.DirectDamage > 0)
         {
-            var w = maxVal > 0 ? (float)accum.DirectDamage / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.DirectDamage, maxVal);
             var bar = CreateBar(w, BarHeight, baseColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -455,7 +468,7 @@ public partial class ContributionChart : VBoxContainer
         // Attributed damage (poison, vuln bonus, etc.)
         if (accum.AttributedDamage > 0)
         {
-            var w = maxVal > 0 ? (float)accum.AttributedDamage / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.AttributedDamage, maxVal);
             var bar = CreateBar(w, BarHeight, AttrBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -465,7 +478,7 @@ public partial class ContributionChart : VBoxContainer
         // Modifier damage (Strength, etc.)
         if (accum.ModifierDamage > 0)
         {
-            var w = maxVal > 0 ? (float)accum.ModifierDamage / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.ModifierDamage, maxVal);
             var bar = CreateBar(w, BarHeight, ModifierBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -475,7 +488,7 @@ public partial class ContributionChart : VBoxContainer
         // Upgrade damage bonus
         if (accum.UpgradeDamage > 0)
         {
-            var w = maxVal > 0 ? (float)accum.UpgradeDamage / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.UpgradeDamage, maxVal);
             var bar = CreateBar(w, BarHeight, UpgradeBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -495,7 +508,7 @@ public partial class ContributionChart : VBoxContainer
         {
             if (accum.SelfDamage > 0)
             {
-                var w = maxVal > 0 ? (float)accum.SelfDamage / maxVal * MaxBarWidth : MaxBarWidth * 0.2f;
+                var w = maxVal > 0 ? BarWidth(accum.SelfDamage, maxVal) : MaxBarWidth * 0.2f;
                 var bar = CreateBar(w, BarHeight, SelfDmgBarColor);
                 bar.Position = new Vector2(0, 0);
                 container.AddChild(bar);
@@ -509,7 +522,7 @@ public partial class ContributionChart : VBoxContainer
 
         if (accum.EffectiveBlock > 0)
         {
-            var w = maxVal > 0 ? (float)accum.EffectiveBlock / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.EffectiveBlock, maxVal);
             var bar = CreateBar(w, BarHeight, baseColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -518,7 +531,7 @@ public partial class ContributionChart : VBoxContainer
 
         if (accum.ModifierBlock > 0)
         {
-            var w = maxVal > 0 ? (float)accum.ModifierBlock / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.ModifierBlock, maxVal);
             var bar = CreateBar(w, BarHeight, ModifierBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -527,7 +540,7 @@ public partial class ContributionChart : VBoxContainer
 
         if (accum.MitigatedByDebuff > 0)
         {
-            var w = maxVal > 0 ? (float)accum.MitigatedByDebuff / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.MitigatedByDebuff, maxVal);
             var bar = CreateBar(w, BarHeight, MitigateBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -536,7 +549,7 @@ public partial class ContributionChart : VBoxContainer
 
         if (accum.MitigatedByBuff > 0)
         {
-            var w = maxVal > 0 ? (float)accum.MitigatedByBuff / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.MitigatedByBuff, maxVal);
             var bar = CreateBar(w, BarHeight, AttrBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -545,7 +558,7 @@ public partial class ContributionChart : VBoxContainer
 
         if (accum.MitigatedByStrReduction > 0)
         {
-            var w = maxVal > 0 ? (float)accum.MitigatedByStrReduction / maxVal * MaxBarWidth : 0;
+            var w = BarWidth(accum.MitigatedByStrReduction, maxVal);
             var bar = CreateBar(w, BarHeight, StrReduceBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -557,7 +570,7 @@ public partial class ContributionChart : VBoxContainer
         // NegativeOnly row that follows carries the self-damage visual.
         if (rowMode == RowMode.Normal && accum.SelfDamage > 0)
         {
-            var w = maxVal > 0 ? (float)accum.SelfDamage / maxVal * MaxBarWidth : MaxBarWidth * 0.2f;
+            var w = maxVal > 0 ? BarWidth(accum.SelfDamage, maxVal) : MaxBarWidth * 0.2f;
             var bar = CreateBar(w, BarHeight, SelfDmgBarColor);
             bar.Position = new Vector2(offset, 0);
             container.AddChild(bar);
@@ -569,21 +582,21 @@ public partial class ContributionChart : VBoxContainer
 
     private static void BuildStarBar(Control container, ContributionAccum accum, int value, int maxVal, bool isSub)
     {
-        var barWidth = maxVal > 0 ? (float)value / maxVal * MaxBarWidth : 0;
+        var barWidth = BarWidth(value, maxVal);
         var color = isSub ? SubBarColor : StarBarColor;
         container.AddChild(CreateBar(barWidth, BarHeight, color));
     }
 
     private static void BuildHealBar(Control container, ContributionAccum accum, int value, int maxVal, bool isSub)
     {
-        var barWidth = maxVal > 0 ? (float)value / maxVal * MaxBarWidth : 0;
+        var barWidth = BarWidth(value, maxVal);
         var color = isSub ? SubBarColor : HealBarColor;
         container.AddChild(CreateBar(barWidth, BarHeight, color));
     }
 
     private static void BuildSimpleBar(Control container, ContributionAccum accum, int value, int maxVal, bool isSub)
     {
-        var barWidth = maxVal > 0 ? (float)value / maxVal * MaxBarWidth : 0;
+        var barWidth = BarWidth(value, maxVal);
         var color = isSub ? SubBarColor : GetSourceColor(accum.SourceType);
         container.AddChild(CreateBar(barWidth, BarHeight, color));
     }

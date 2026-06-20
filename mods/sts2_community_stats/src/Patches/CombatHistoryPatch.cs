@@ -1,4 +1,4 @@
-using CommunityStats.Collection;
+﻿using CommunityStats.Collection;
 using CommunityStats.Util;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
@@ -106,6 +106,31 @@ public static class CombatHistoryPatch
         {
             if (creature.IsPlayer)
                 ContributionMap.Instance.ClearBlockPool();
+        });
+    }
+    // ── Sturdy Clamp: retained block contribution ──────────
+
+    /// <summary>
+    /// When SturdyClamp prevents block from being cleared at turn start,
+    /// record the retained amount (capped at 10) as the relic's defense
+    /// contribution.
+    /// </summary>
+    [HarmonyPatch(typeof(MegaCrit.Sts2.Core.Models.Relics.SturdyClamp),
+        nameof(MegaCrit.Sts2.Core.Models.Relics.SturdyClamp.AfterPreventingBlockClear))]
+    [HarmonyPostfix]
+    public static void AfterSturdyClampRetainsBlock(
+        MegaCrit.Sts2.Core.Entities.Creatures.Creature creature)
+    {
+        Safe.Run(() =>
+        {
+            if (creature == null || !creature.IsPlayer) return;
+            int block = creature.Block;
+            if (block > 0)
+            {
+                int retained = block > 10 ? 10 : block;
+                CombatTracker.Instance.OnBlockRetained("STURDY_CLAMP", retained);
+                Safe.Info($"[SturdyClamp] Retained {retained} block");
+            }
         });
     }
 

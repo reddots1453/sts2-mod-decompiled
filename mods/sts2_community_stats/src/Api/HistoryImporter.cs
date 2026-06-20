@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using CommunityStats.Collection;
 using CommunityStats.Config;
@@ -84,7 +84,7 @@ public static class HistoryImporter
                 {
                     Safe.Info("[HistoryImporter] User skipped history import");
                     ModConfig.HistoryImportCompleted = true;
-                    ModConfig.SaveSettings();
+                ModConfig.SaveImportCompletedFlag();
                     return;
                 }
 
@@ -103,7 +103,7 @@ public static class HistoryImporter
 
                 // Mark completed
                 ModConfig.HistoryImportCompleted = true;
-                ModConfig.SaveSettings();
+                ModConfig.SaveImportCompletedFlag();
                 Safe.Info("[HistoryImporter] Import completed, flag saved");
 
                 // Refresh CareerStats so the data loads without redundant file IO

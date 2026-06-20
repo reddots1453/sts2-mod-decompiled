@@ -1,4 +1,4 @@
-using CommunityStats.Api;
+﻿using CommunityStats.Api;
 using CommunityStats.Util;
 
 namespace CommunityStats.Collection;
@@ -844,6 +844,17 @@ public sealed class CombatTracker
     {
         if (amount <= 0 || string.IsNullOrEmpty(sourceId)) return;
         GetOrCreate(sourceId, sourceType).MitigatedByDebuff += amount;
+    }
+    // ── Sturdy Clamp: retained block ────────────────────────
+
+    /// <summary>
+    /// Records block that was retained across turns by SturdyClamp.
+    /// Called each turn start when block would normally be cleared.
+    /// </summary>
+    public void OnBlockRetained(string sourceId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrEmpty(sourceId)) return;
+        GetOrCreate(sourceId, "relic").EffectiveBlock += amount;
     }
 
     // ── Defense: Buffer / Intangible ────────────────────────

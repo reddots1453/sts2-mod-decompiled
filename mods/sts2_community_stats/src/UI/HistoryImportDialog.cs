@@ -1,4 +1,4 @@
-using CommunityStats.Config;
+﻿﻿using CommunityStats.Config;
 using Godot;
 
 namespace CommunityStats.UI;
@@ -52,6 +52,7 @@ public sealed class HistoryImportDialog : PanelContainer
         dialog.AnchorLeft = 0.5f;
         dialog.AnchorRight = 0.5f;
         dialog.AnchorTop = 0.35f;
+        dialog.AnchorBottom = 0.35f;
         dialog.OffsetLeft = -220;
         dialog.OffsetRight = 220;
         dialog.MouseFilter = MouseFilterEnum.Stop;
@@ -63,7 +64,7 @@ public sealed class HistoryImportDialog : PanelContainer
         dialog.AddChild(vbox);
 
         // Title
-        var title = new Label { Text = L.Get("import.dialog_title") };
+        var title = new Label { Text = L.GetByGame("import.dialog_title") };
         title.AddThemeColorOverride("font_color", Gold);
         title.AddThemeFontSizeOverride("font_size", 16);
         title.HorizontalAlignment = HorizontalAlignment.Center;
@@ -72,7 +73,7 @@ public sealed class HistoryImportDialog : PanelContainer
         // Description
         var desc = new Label
         {
-            Text = L.Get("import.dialog_desc"),
+            Text = L.GetByGame("import.dialog_desc"),
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         desc.AddThemeColorOverride("font_color", Cream);
@@ -89,11 +90,11 @@ public sealed class HistoryImportDialog : PanelContainer
         btnRow.Alignment = BoxContainer.AlignmentMode.Center;
         vbox.AddChild(btnRow);
 
-        var confirmBtn = MakeButton(L.Get("import.confirm"), BtnBg, BtnBorder, Gold);
+        var confirmBtn = MakeButton(L.GetByGame("import.confirm"), BtnBg, BtnBorder, Gold);
         confirmBtn.Pressed += () => dialog.OnChoice(true);
         btnRow.AddChild(confirmBtn);
 
-        var skipBtn = MakeButton(L.Get("import.skip"), SkipBg, SkipBorder, Cream);
+        var skipBtn = MakeButton(L.GetByGame("import.skip"), SkipBg, SkipBorder, Cream);
         skipBtn.Pressed += () => dialog.OnChoice(false);
         btnRow.AddChild(skipBtn);
 

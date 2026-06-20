@@ -1,4 +1,4 @@
-using CommunityStats.Collection;
+﻿using CommunityStats.Collection;
 using CommunityStats.Config;
 using CommunityStats.Util;
 using Godot;
@@ -135,7 +135,32 @@ public partial class ContributionPanel : PanelContainer
         DraggablePanel.Attach(panel, header);
 
         // Restore saved position if present
-        panel.Ready += () => DraggablePanel.RestorePosition(panel, panel.GlobalPosition);
+                panel.Ready += () =>
+        {
+            DraggablePanel.RestorePosition(panel, panel.GlobalPosition);
+            DraggablePanel.RestoreSize(panel);
+        };
+
+        // Resize grip (bottom-right corner)
+        var resizeGrip = new PanelContainer
+        {
+            Name = "ResizeGrip",
+            CustomMinimumSize = new Vector2(16, 16),
+            MouseFilter = MouseFilterEnum.Stop,
+            AnchorLeft = 1.0f, AnchorRight = 1.0f,
+            AnchorTop = 1.0f, AnchorBottom = 1.0f,
+            OffsetLeft = -16, OffsetRight = 0,
+            OffsetTop = -16, OffsetBottom = 0,
+        };
+        var gripStyle = new StyleBoxFlat
+        {
+            BgColor = new Color(0.4f, 0.5f, 0.7f, 0.5f),
+            CornerRadiusBottomLeft = 3, CornerRadiusBottomRight = 3,
+            CornerRadiusTopLeft = 3, CornerRadiusTopRight = 3,
+        };
+        resizeGrip.AddThemeStyleboxOverride("panel", gripStyle);
+        panel.AddChild(resizeGrip);
+        DraggablePanel.AttachResizeGrip(panel, resizeGrip);
 
         // Subscribe to real-time updates (PRD 3.6)
         CombatTracker.Instance.CombatDataUpdated += panel.OnCombatDataUpdated;

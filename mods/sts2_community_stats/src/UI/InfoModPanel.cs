@@ -1,4 +1,4 @@
-using CommunityStats.Config;
+﻿﻿﻿﻿using CommunityStats.Config;
 using Godot;
 
 namespace CommunityStats.UI;
@@ -28,9 +28,9 @@ public class InfoModPanel : PanelContainer
     private static readonly Color Gold = new("#EFC851");
 
     // Font sizes
-    private const int TitleSize = 14;
-    private const int SubtitleSize = 11;
-    private const int ContentSize = 12;
+    private int _titleSize = 14;
+    private int _subtitleSize = 11;
+    private int _contentSize = 12;
 
     protected VBoxContainer Content { get; private set; } = null!;
 
@@ -39,10 +39,13 @@ public class InfoModPanel : PanelContainer
     /// <summary>
     /// Create a new InfoMod-style panel with title and optional subtitle.
     /// </summary>
-    public static InfoModPanel Create(string title, string? subtitle = null)
+    public static InfoModPanel Create(string title, string? subtitle = null, int titleSize = 14, int subtitleSize = 11, int contentSize = 12)
     {
         var panel = new InfoModPanel();
         panel.Name = "InfoModPanel";
+        panel._titleSize = titleSize;
+        panel._subtitleSize = subtitleSize;
+        panel._contentSize = contentSize;
         panel.MouseFilter = MouseFilterEnum.Ignore;
 
         // StyleBoxFlat for the panel background
@@ -73,7 +76,7 @@ public class InfoModPanel : PanelContainer
         // Title label
         var titleLabel = new Label();
         titleLabel.Text = title;
-        titleLabel.AddThemeFontSizeOverride("font_size", TitleSize);
+        titleLabel.AddThemeFontSizeOverride("font_size", _titleSize);
         titleLabel.AddThemeColorOverride("font_color", White);
         vbox.AddChild(titleLabel);
 
@@ -82,7 +85,7 @@ public class InfoModPanel : PanelContainer
         {
             var subLabel = new Label();
             subLabel.Text = subtitle;
-            subLabel.AddThemeFontSizeOverride("font_size", SubtitleSize);
+            subLabel.AddThemeFontSizeOverride("font_size", _subtitleSize);
             subLabel.AddThemeColorOverride("font_color", Gray);
             vbox.AddChild(subLabel);
         }
@@ -110,14 +113,14 @@ public class InfoModPanel : PanelContainer
 
         var lbl = new Label();
         lbl.Text = label;
-        lbl.AddThemeFontSizeOverride("font_size", ContentSize);
+        lbl.AddThemeFontSizeOverride("font_size", _contentSize);
         lbl.AddThemeColorOverride("font_color", labelColor ?? Cream);
         lbl.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         hbox.AddChild(lbl);
 
         var val = new Label();
         val.Text = value;
-        val.AddThemeFontSizeOverride("font_size", ContentSize);
+        val.AddThemeFontSizeOverride("font_size", _contentSize);
         val.AddThemeColorOverride("font_color", valueColor ?? Cream);
         val.HorizontalAlignment = HorizontalAlignment.Right;
         hbox.AddChild(val);
@@ -128,11 +131,11 @@ public class InfoModPanel : PanelContainer
     /// <summary>
     /// Add a single label row (no value column).
     /// </summary>
-    public void AddLabel(string text, Color? color = null, int fontSize = ContentSize)
+    public void AddLabel(string text, Color? color = null, int? fontSize = null)
     {
         var lbl = new Label();
         lbl.Text = text;
-        lbl.AddThemeFontSizeOverride("font_size", fontSize);
+        lbl.AddThemeFontSizeOverride("font_size", fontSize ?? _contentSize);
         lbl.AddThemeColorOverride("font_color", color ?? Cream);
         Content.AddChild(lbl);
     }

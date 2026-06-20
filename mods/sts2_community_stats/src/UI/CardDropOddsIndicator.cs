@@ -1,4 +1,4 @@
-using CommunityStats.Config;
+﻿﻿﻿using CommunityStats.Config;
 using Godot;
 
 namespace CommunityStats.UI;
@@ -35,7 +35,7 @@ public partial class CardDropOddsIndicator : Control
             // Round 9 round 3: +10% per user feedback (the icon is harder
             // to recognise than the potion bottle so it benefits from a
             // bit more pixel area). 64 → 72.
-            CustomMinimumSize = new Vector2(72, 72),
+            CustomMinimumSize = new Vector2(108, 108),
         };
         node.BuildUi();
         return node;
@@ -60,7 +60,7 @@ public partial class CardDropOddsIndicator : Control
             iconNode = new TextureRect
             {
                 Texture = icon,
-                CustomMinimumSize = new Vector2(62, 62),
+                CustomMinimumSize = new Vector2(93, 93),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
@@ -70,7 +70,7 @@ public partial class CardDropOddsIndicator : Control
         else
         {
             var lbl = new Label { Text = "🃏" };
-            lbl.AddThemeFontSizeOverride("font_size", 28);
+            lbl.AddThemeFontSizeOverride("font_size", 42);
             lbl.AddThemeColorOverride("font_color", GoldColor);
             lbl.HorizontalAlignment = HorizontalAlignment.Center;
             iconNode = lbl;
@@ -112,7 +112,7 @@ public partial class CardDropOddsIndicator : Control
     {
         if (_hoverPanel != null) return;
 
-        _hoverPanel = InfoModPanel.Create(L.Get("carddrop.title"), L.Get("carddrop.subtitle"));
+        _hoverPanel = InfoModPanel.Create(L.Get("carddrop.title"), L.Get("carddrop.subtitle"), titleSize: 21, subtitleSize: 17, contentSize: 18);
         _hoverPanel.AddSeparator();
 
         // Header row (rarity | regular | elite)
@@ -134,8 +134,8 @@ public partial class CardDropOddsIndicator : Control
     }
 
     private static readonly Color HeaderColor = new(0.62f, 0.62f, 0.72f);
-    private const float NameColumnWidth = 70f;
-    private const float ValueColumnWidth = 80f;
+    private const float NameColumnWidth = 105f;
+    private const float ValueColumnWidth = 120f;
 
     private void AddHeaderRow()
     {
@@ -143,20 +143,20 @@ public partial class CardDropOddsIndicator : Control
         hbox.AddThemeConstantOverride("separation", 12);
 
         var spacer = new Label { Text = "" };
-        spacer.AddThemeFontSizeOverride("font_size", 12);
+        spacer.AddThemeFontSizeOverride("font_size", 18);
         spacer.CustomMinimumSize = new Vector2(NameColumnWidth, 0);
         spacer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         hbox.AddChild(spacer);
 
         var reg = new Label { Text = L.Get("carddrop.col_regular") };
-        reg.AddThemeFontSizeOverride("font_size", 12);
+        reg.AddThemeFontSizeOverride("font_size", 18);
         reg.AddThemeColorOverride("font_color", HeaderColor);
         reg.CustomMinimumSize = new Vector2(ValueColumnWidth, 0);
         reg.HorizontalAlignment = HorizontalAlignment.Right;
         hbox.AddChild(reg);
 
         var eli = new Label { Text = L.Get("carddrop.col_elite") };
-        eli.AddThemeFontSizeOverride("font_size", 12);
+        eli.AddThemeFontSizeOverride("font_size", 18);
         eli.AddThemeColorOverride("font_color", HeaderColor);
         eli.CustomMinimumSize = new Vector2(ValueColumnWidth, 0);
         eli.HorizontalAlignment = HorizontalAlignment.Right;
@@ -171,21 +171,21 @@ public partial class CardDropOddsIndicator : Control
         hbox.AddThemeConstantOverride("separation", 12);
 
         var name = new Label { Text = rarityLabel };
-        name.AddThemeFontSizeOverride("font_size", 12);
+        name.AddThemeFontSizeOverride("font_size", 18);
         name.AddThemeColorOverride("font_color", color);
         name.CustomMinimumSize = new Vector2(NameColumnWidth, 0);
         name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         hbox.AddChild(name);
 
         var reg = new Label { Text = (regular * 100f).ToString("F1") + "%" };
-        reg.AddThemeFontSizeOverride("font_size", 12);
+        reg.AddThemeFontSizeOverride("font_size", 18);
         reg.AddThemeColorOverride("font_color", color);
         reg.CustomMinimumSize = new Vector2(ValueColumnWidth, 0);
         reg.HorizontalAlignment = HorizontalAlignment.Right;
         hbox.AddChild(reg);
 
         var eli = new Label { Text = (elite * 100f).ToString("F1") + "%" };
-        eli.AddThemeFontSizeOverride("font_size", 12);
+        eli.AddThemeFontSizeOverride("font_size", 18);
         eli.AddThemeColorOverride("font_color", color);
         eli.CustomMinimumSize = new Vector2(ValueColumnWidth, 0);
         eli.HorizontalAlignment = HorizontalAlignment.Right;

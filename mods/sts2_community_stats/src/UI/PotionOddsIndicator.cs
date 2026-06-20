@@ -1,4 +1,4 @@
-using System.Linq;
+﻿﻿﻿using System.Linq;
 using CommunityStats.Config;
 using Godot;
 
@@ -25,7 +25,7 @@ public partial class PotionOddsIndicator : Control
             MouseFilter = MouseFilterEnum.Stop,
             // Round 9 round 2: enlarged to match native top-bar buttons
             // (~56×56 icon + 18 px text + spacing → ~120×64 total).
-            CustomMinimumSize = new Vector2(120, 64),
+            CustomMinimumSize = new Vector2(180, 96),
         };
         node.BuildUi();
         return node;
@@ -51,7 +51,7 @@ public partial class PotionOddsIndicator : Control
             {
                 Texture = icon,
                 // Round 9 round 2: 40 → 56 to match native button size.
-                CustomMinimumSize = new Vector2(56, 56),
+                CustomMinimumSize = new Vector2(84, 84),
                 ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
                 StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
                 SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
@@ -70,7 +70,7 @@ public partial class PotionOddsIndicator : Control
 
         _percentLabel = new Label { Text = "—" };
         // Round 9 round 2: 12 → 18 to match native top-bar text scale.
-        _percentLabel.AddThemeFontSizeOverride("font_size", 18);
+        _percentLabel.AddThemeFontSizeOverride("font_size", 27);
         _percentLabel.AddThemeColorOverride("font_color", CreamColor);
         _percentLabel.HorizontalAlignment = HorizontalAlignment.Left;
         _percentLabel.VerticalAlignment = VerticalAlignment.Center;
@@ -133,7 +133,7 @@ public partial class PotionOddsIndicator : Control
     {
         if (_hoverPanel != null) return;
 
-        _hoverPanel = InfoModPanel.Create(L.Get("potion.title"), L.Get("potion.subtitle"));
+        _hoverPanel = InfoModPanel.Create(L.Get("potion.title"), L.Get("potion.subtitle"), titleSize: 21, subtitleSize: 17, contentSize: 18);
         _hoverPanel.AddSeparator();
 
         // Round 9 round 2 PRD §3.9 #3: first row in the hover panel is the
