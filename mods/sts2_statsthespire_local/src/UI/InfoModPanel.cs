@@ -27,10 +27,11 @@ public class InfoModPanel : PanelContainer
     private static readonly Color Cream = new("#FFF6E2");
     private static readonly Color Gold = new("#EFC851");
 
-    // Font sizes
-    private const int TitleSize = 14;
-    private const int SubtitleSize = 11;
-    private const int ContentSize = 12;
+    // Font sizes (base). Potion/card hover panels currently feel偏小;
+    // bump everything by ~50% for better readability.
+    private const int TitleSize = 21;      // 14 → 21
+    private const int SubtitleSize = 17;   // 11 → 17 (~+55%)
+    private const int ContentSize = 18;    // 12 → 18
 
     protected VBoxContainer Content { get; private set; } = null!;
 

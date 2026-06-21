@@ -100,7 +100,7 @@ public static class DraggablePanel
     /// </summary>
     public static void AttachResizeGrip(Control panel, Control grip)
     {
-        grip.MouseFilter = MouseFilterEnum.Stop;
+        grip.MouseFilter = Control.MouseFilterEnum.Stop;
         grip.GuiInput += (InputEvent @event) =>
         {
             Safe.Run(() => HandleResize(panel, @event));

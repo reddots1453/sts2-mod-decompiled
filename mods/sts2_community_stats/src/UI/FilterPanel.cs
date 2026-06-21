@@ -570,4 +570,83 @@ public partial class FilterPanel : PanelContainer
         if (newIdx >= 0 && _versionSlotDropdown != null)
             _versionSlotDropdown.Selected = newIdx;
     }
+
+    // ── Show / hide lifecycle ───────────────────────────────
+
+    public static void Toggle()
+    {
+        if (_builtLanguage != L.Current)
+            RebuildForLanguage();
+
+        var panel = Instance;
+        if (panel.Visible)
+        {
+            panel.ApplyAndClose();
+        }
+        else
+        {
+            RefreshVersionDropdown(panel);
+            panel.UpdateSampleSizeLabel();
+            panel.Visible = true;
+        }
+    }
+
+    private void ApplyAndClose()
+    {
+        Safe.Run(() =>
+        {
+            var langIdx = _langDropdown?.Selected ?? 0;
+            var newLang = langIdx == 1 ? L.Lang.EN : L.Lang.CN;
+            ModConfig.Language = newLang == L.Lang.EN ? "EN" : "CN";
+
+            var filter = ModConfig.CurrentFilter;
+
+            var charIdx = _characterDropdown?.Selected ?? 0;
+            if (charIdx < 0 || charIdx >= _characterModes.Length) charIdx = 0;
+            filter.CharacterFilterMode = _characterModes[charIdx];
+            filter.Character = null;
+
+            var slotIdx = _versionSlotDropdown?.Selected ?? 0;
+            if (slotIdx >= 0 && slotIdx < _versionSlots.Count)
+            {
+                var slot = _versionSlots[slotIdx];
+                filter.GameVersion = slot.GameVersion;
+                filter.Branch = slot.Branch;
+            }
+
+            filter.AutoMatchAscension = _autoMatchAscCheckbox?.ButtonPressed ?? false;
+            filter.MinAscension = (int)(_minAscSpinBox?.Value ?? 0);
+            filter.MaxAscension = (int)(_maxAscSpinBox?.Value ?? 10);
+            if (filter.MinAscension > filter.MaxAscension)
+                (filter.MinAscension, filter.MaxAscension) = (filter.MaxAscension, filter.MinAscension);
+            filter.MinPlayerWinRate = (float)((_minWinRateSpinBox?.Value ?? 0) / 100.0);
+            filter.MyDataOnly = _myDataCheckbox?.ButtonPressed ?? false;
+
+            ModConfig.EnableUpload = _uploadCheckbox?.ButtonPressed ?? ModConfig.EnableUpload;
+            ModConfig.UseMyDataOnly = filter.MyDataOnly;
+
+            foreach (var (key, cb) in _toggleCheckboxes)
+                ModConfig.Toggles.SetByName(key, cb.ButtonPressed);
+
+            filter.Save();
+            ModConfig.SaveSettings();
+
+            Visible = false;
+
+            if (newLang != L.Current)
+                L.Current = newLang;
+
+            FilterApplied?.Invoke();
+        });
+    }
+
+    public void UpdateSampleSizeLabel()
+    {
+        if (_sampleSizeLabel == null) return;
+
+        var total = StatsProvider.Instance.TotalRunCount;
+        _sampleSizeLabel.Text = total > 0
+            ? string.Format(L.Get("settings.sample"), total)
+            : L.Get("settings.no_data");
+    }
 }

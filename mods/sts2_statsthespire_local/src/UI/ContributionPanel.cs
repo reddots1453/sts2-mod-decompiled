@@ -420,6 +420,14 @@ public partial class ContributionPanel : PanelContainer
         _replayRunData = null;
     }
 
+    /// <summary>Safe hide that doesn't create the panel instance. For use from
+    /// patches that fire frequently (card reward selection, etc.).</summary>
+    public static void HideIfVisible()
+    {
+        if (_instance != null && GodotObject.IsInstanceValid(_instance) && _instance.Visible)
+            _instance.Visible = false;
+    }
+
     /// <summary>
     /// When showing after combat end, if the rewards screen is already visible,
     /// shift the panel slightly to minimize overlap. Users can still drag freely.

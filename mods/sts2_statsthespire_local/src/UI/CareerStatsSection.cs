@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using CommunityStats.Collection;
 using CommunityStats.Config;
@@ -8,7 +8,7 @@ namespace CommunityStats.UI;
 
 /// <summary>
 /// "Stats the Spire" career stats block injected into the game's
-/// 百科大全 → 角色数据 → 统计 page (PRD §3.11).
+/// 鐧剧澶у叏 鈫?瑙掕壊鏁版嵁 鈫?缁熻 page (PRD 搂3.11).
 ///
 /// Layout sections (top to bottom):
 ///   - Title row "Stats the Spire" + total runs/wins summary
@@ -23,7 +23,7 @@ namespace CommunityStats.UI;
 /// </summary>
 public sealed partial class CareerStatsSection : VBoxContainer
 {
-    // ── Style ───────────────────────────────────────────────
+    // 鈹€鈹€ Style 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     private static readonly Color Gold      = new("#EFC851");
     private static readonly Color Cream     = new("#FFF6E2");
     private static readonly Color Gray      = new(0.6f, 0.6f, 0.65f);
@@ -86,7 +86,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         if (data.MinAscension != _minAscension) return;
         if (data.RecentRunsCount != _recentRunsCount) return;
         // Round 9 round 49: CallDeferred(string) routes through Godot's
-        // reflection, which can't see private C# methods like Rebuild —
+        // reflection, which can't see private C# methods like Rebuild 鈥?
         // the call silently failed with "Method not found" and the screen
         // froze on "loading". Use Callable.From(Rebuild) instead so the
         // dispatch goes through the C# delegate path.
@@ -97,7 +97,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         });
     }
 
-    // ── Build ───────────────────────────────────────────────
+    // 鈹€鈹€ Build 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private void Rebuild()
     {
@@ -119,8 +119,8 @@ public sealed partial class CareerStatsSection : VBoxContainer
             return;
         }
 
-        // Round 9 round 49: merged 数据汇总 + 胜率趋势 into a single
-        // 胜率汇总卡片 panel with the min-ascension selector on top.
+        // Round 9 round 49: merged 鏁版嵁姹囨€?+ 鑳滅巼瓒嬪娍 into a single
+        // 鑳滅巼姹囨€诲崱鐗?panel with the min-ascension selector on top.
         AddChild(BuildWinRateSummaryCard());
         AddChild(BuildDeathCauses());
         AddChild(BuildDeckTable());
@@ -141,7 +141,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         v.AddChild(BuildSummaryNStatGrid());
 
         // Row 2: rolling-window cells (10 / 50 / 100 / all).
-        // Round 9 round 52: horizontal separation bumped 24 → 72 (3×) so the
+        // Round 9 round 52: horizontal separation bumped 24 鈫?72 (3脳) so the
         // four window cells aren't bunched up against each other.
         if (_data != null)
         {
@@ -153,6 +153,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             AppendWindowCell(grid, 50, _data.WinRateByWindow);
             AppendWindowCell(grid, 100, _data.WinRateByWindow);
             AppendWindowCell(grid, int.MaxValue, _data.WinRateByWindow);
+
         }
 
         return panel;
@@ -170,16 +171,16 @@ public sealed partial class CareerStatsSection : VBoxContainer
     /// <summary>
     /// Round 9 round 46: top summary now has only 3 cards in a single row,
     /// all driven by the current ascension filter:
-    ///   1. 数据范围: 64 局     (run count for current filter)
-    ///   2. 进阶N 胜利/失败     (W/L count at ascension >= N)
-    ///   3. 进阶N 胜率           (win rate at ascension >= N)
+    ///   1. 鏁版嵁鑼冨洿: 64 灞€     (run count for current filter)
+    ///   2. 杩涢樁N 鑳滃埄/澶辫触     (W/L count at ascension >= N)
+    ///   3. 杩涢樁N 鑳滅巼           (win rate at ascension >= N)
     /// The bottom rows of avg cards-gained / removed / upgraded were dropped
-    /// per user feedback — they belong in the per-Act path stats panel.
+    /// per user feedback 鈥?they belong in the per-Act path stats panel.
     /// </summary>
     private Control BuildSummaryNStatGrid()
     {
         // Round 9 round 49: 4 cards on a single row pushed the panel beyond
-        // the screen width — wrap into a 2×2 grid instead.
+        // the screen width 鈥?wrap into a 2脳2 grid instead.
         var grid = new GridContainer { Columns = 2 };
         grid.AddThemeConstantOverride("h_separation", 18);
         grid.AddThemeConstantOverride("v_separation", 12);
@@ -190,13 +191,14 @@ public sealed partial class CareerStatsSection : VBoxContainer
         int losses = total - wins;
         float overall = total > 0 ? (float)wins / total : 0f;
 
-        // Card 1: data scope — only the bottom line "数据范围: N 局".
-        AddSummaryCard(grid, IconClock,
+        // Card 1: data scope 鈥?only the bottom line "鏁版嵁鑼冨洿: N 灞€".
+        // Use the same icon style as the native unlocked/discovered cards entry.
+        AddSummaryCard(grid, IconCards,
             "",
             string.Format(L.Get("settings.sample"), total));
 
         // Cards 2 + 3: ascension-filtered W/L and win rate. The label uses
-        // the currently selected min ascension; ascension 0 falls back to "全部".
+        // the currently selected min ascension; ascension 0 falls back to "鍏ㄩ儴".
         string ascLabel = _minAscension > 0
             ? string.Format(L.Get("career.ascension_n"), _minAscension)
             : L.Get("career.ascension_all");
@@ -217,6 +219,17 @@ public sealed partial class CareerStatsSection : VBoxContainer
             string.Format(L.Get("career.asc_max_streak"), ascLabel),
             $"[right]{curStreak}  /  {bestStreak}[/right]");
 
+        // User request: add avg-time card under the "all ascension win rate" card.
+        float avgSecs = _data?.AverageRunTimeSeconds ?? 0f;
+        int avgMin = (int)(avgSecs / 60);
+        int avgRem = (int)(avgSecs % 60);
+        string timeText = L.Current == L.Lang.CN
+            ? $"{avgMin}分钟{avgRem}秒"
+            : $"{avgMin} min {avgRem} s";
+        AddSummaryCard(grid, IconClock,
+            L.Get("career.avg_time"),
+            $"[right]{timeText}[/right]");
+
         return grid;
     }
 
@@ -236,7 +249,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             // (which lazily resolves _topLabel / _bottomLabel via %-syntax)
             // is guaranteed to have run.
             // Round 9 round 49: skip SetTopText when topText is empty so the
-            // native NStatEntry leaves _topLabel hidden — that lets the
+            // native NStatEntry leaves _topLabel hidden 鈥?that lets the
             // remaining bottom label vertically center inside the card.
             if (!string.IsNullOrEmpty(topText))
             {
@@ -258,7 +271,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         }
     }
 
-    // PRD §3.18.3 — independent character dropdown for CareerStats. Order
+    // PRD 搂3.18.3 鈥?independent character dropdown for CareerStats. Order
     // mirrors the F9 dropdown but without "auto" (this view is character-
     // agnostic by design and defaults to All Characters).
     private static readonly string?[] _careerCharacters = new string?[]
@@ -375,10 +388,10 @@ public sealed partial class CareerStatsSection : VBoxContainer
     }
 
     /// <summary>
-    /// Add icon+name items for "全部角色" + the 5 characters. Uses
+    /// Add icon+name items for "鍏ㄩ儴瑙掕壊" + the 5 characters. Uses
     /// CharacterModel.IconTexture (the small top-panel character icon) and
     /// CharacterModel.Title.GetFormattedText() for the localized name.
-    /// "全部角色" reuses RandomCharacter's icon (the same one that appears
+    /// "鍏ㄩ儴瑙掕壊" reuses RandomCharacter's icon (the same one that appears
     /// on the character-select random button).
     /// </summary>
     private static void PopulateCharacterDropdown(OptionButton dropdown)
@@ -431,7 +444,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
     }
 
     /// <summary>
-    /// Build a SectionPanel that visually matches the native 总体数据 panel:
+    /// Build a SectionPanel that visually matches the native 鎬讳綋鏁版嵁 panel:
     /// dark rounded background, gold header label at the top, content VBox
     /// underneath. The first child is the VBox so callers can grab it via
     /// `panel.GetChild(0)` and append rows.
@@ -472,7 +485,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         var header = MakeLabel(headerText, Gold, TitleSize);
         v.AddChild(header);
 
-        // Subtle separator under the header to mimic the native 总体数据 panel.
+        // Subtle separator under the header to mimic the native 鎬讳綋鏁版嵁 panel.
         var sep = new HSeparator();
         sep.AddThemeConstantOverride("separation", 4);
         v.AddChild(sep);
@@ -571,8 +584,8 @@ public sealed partial class CareerStatsSection : VBoxContainer
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 12);
 
-        // Icon column — fixed width so labels line up. Round 9 round 49:
-        // bumped from 36×28 → 44×36 and centered vertically with the label.
+        // Icon column 鈥?fixed width so labels line up. Round 9 round 49:
+        // bumped from 36脳28 鈫?44脳36 and centered vertically with the label.
         var iconWrap = new Control { CustomMinimumSize = new Vector2(44, 36) };
         iconWrap.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         var iconNode = BuildDeathIcon(src, encounterId);
@@ -602,7 +615,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
     // Round 9 round 49: ancient elder ids that should render an Ancient
     // portrait icon instead of the generic Combat / Event one. NEOW shows up
     // as a Combat death (engine attributes it to KilledByEncounter) but the
-    // user expects the elder portrait — same for the other elders.
+    // user expects the elder portrait 鈥?same for the other elders.
     private static readonly HashSet<string> AncientElderIds = new()
     {
         "NEOW", "PAEL", "TEZCATARA", "OROBAS", "VAKUU", "TANX", "NONUPEIPE", "DARV",
@@ -610,7 +623,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
 
     private static Control? BuildDeathIcon(DeathSource src, string encounterId)
     {
-        // 1. Ancient elder portrait — game stores per-elder PNGs at
+        // 1. Ancient elder portrait 鈥?game stores per-elder PNGs at
         //    ui/run_history/{lowercase_id}.png (see AncientEventModel).
         if (!string.IsNullOrEmpty(encounterId) && AncientElderIds.Contains(encounterId))
         {
@@ -633,12 +646,12 @@ public sealed partial class CareerStatsSection : VBoxContainer
             if (tex != null) return MakeIconRect(tex);
         }
 
-        // 3. Abandoned: render a colored "←" glyph as the return arrow.
-        //    "←" (U+2190) is supported by the screen-theme font; "↩" was
+        // 3. Abandoned: render a colored arrow glyph.
+        //    "<-" keeps this robust across fonts and avoids tofu fallbacks.
         //    rendering as a tofu / fallback emoji on the user's setup.
-        string glyph = src == DeathSource.Abandoned ? "←"
+        string glyph = src == DeathSource.Abandoned ? "<-"
                      : src == DeathSource.Event ? "?"
-                     : "⚔";
+                     : "*";
         var lbl = new Label { Text = glyph };
         lbl.HorizontalAlignment = HorizontalAlignment.Center;
         lbl.VerticalAlignment = VerticalAlignment.Center;
@@ -675,7 +688,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
     };
 
-    // ── Deck construction table (round 5 — split from path stats) ──
+    // 鈹€鈹€ Deck construction table (round 5 鈥?split from path stats) 鈹€鈹€
 
     private static readonly Color[] DeckColors = new[]
     {
@@ -684,15 +697,15 @@ public sealed partial class CareerStatsSection : VBoxContainer
         new Color(0.90f, 0.30f, 0.30f),     // red
         new Color(0.30f, 0.85f, 0.40f),     // green
     };
-    // Round 9 round 49: recolored per user spec — monsters yellow, elite orange,
+    // Round 9 round 49: recolored per user spec 鈥?monsters yellow, elite orange,
     // ? lavender (kept), shops blue, campfire red.
     private static readonly Color[] PathColors = new[]
     {
-        new Color("#EFC851"),               // yellow — monsters
-        new Color(0.95f, 0.55f, 0.25f),     // orange — elite
-        new Color(0.74f, 0.55f, 0.95f),     // lavender — ?
-        new Color(0.36f, 0.66f, 0.98f),     // blue — shop
-        new Color(0.90f, 0.30f, 0.30f),     // red — campfire
+        new Color("#EFC851"),               // yellow 鈥?monsters
+        new Color(0.95f, 0.55f, 0.25f),     // orange 鈥?elite
+        new Color(0.74f, 0.55f, 0.95f),     // lavender 鈥??
+        new Color(0.36f, 0.66f, 0.98f),     // blue 鈥?shop
+        new Color(0.90f, 0.30f, 0.30f),     // red 鈥?campfire
     };
 
     private Control BuildDeckTable()
@@ -705,6 +718,33 @@ public sealed partial class CareerStatsSection : VBoxContainer
             v.AddChild(MakeLabel(L.Get("career.no_data_short"), Gray, LabelSize));
             return panel;
         }
+
+        // Each average metric on its own row: icon + label + value on one line.
+        const int avgIconSize = 28;
+        var avgRow = new VBoxContainer();
+        avgRow.AddThemeConstantOverride("separation", 8);
+        avgRow.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        avgRow.AddChild(BuildDeckAvgCell(
+            "atlases/ui_atlas.sprites/top_bar/top_bar_deck.tres",
+            L.Get("career.avg_deck_size"),
+            $"{_data.AverageDeckSize:F1}",
+            avgIconSize));
+        avgRow.AddChild(BuildDeckAvgCell(
+            "atlases/stats_screen_atlas.sprites/stats_chest.tres",
+            L.Get("career.avg_relics"),
+            $"{_data.AverageRelicCount:F1}",
+            avgIconSize));
+        avgRow.AddChild(BuildDeckAvgCell(
+            "ui/reward_screen/reward_icon_card.png",
+            L.Get("career.avg_types"),
+            $"{_data.AverageAttackCount:F1}/{_data.AverageSkillCount:F1}/{_data.AveragePowerCount:F1}",
+            avgIconSize));
+        avgRow.AddChild(BuildDeckAvgCell(
+            "ui/reward_screen/reward_icon_card.png",
+            L.Get("career.avg_rarities"),
+            $"{_data.AverageCommonCount:F1}/{_data.AverageUncommonCount:F1}/{_data.AverageRareCount:F1}",
+            avgIconSize));
+        v.AddChild(avgRow);
 
         var acts = _data.PathStatsByAct.Keys.OrderBy(k => k).ToList();
         var grid = NewActGrid(acts);
@@ -719,6 +759,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             iconPath: "ui/reward_screen/reward_icon_card_removal.png");
         AddPathRow(grid, acts, "career.cards_upgraded", DeckColors[3], s => s.CardsUpgraded,
             iconPath: "ui/rest_site/option_smith.png");
+
         return panel;
     }
 
@@ -809,8 +850,28 @@ public sealed partial class CareerStatsSection : VBoxContainer
         }
     }
 
+    private Control BuildDeckAvgCell(string iconPath, string label, string value, int iconSize = 28)
+    {
+        var hb = new HBoxContainer();
+        hb.AddThemeConstantOverride("separation", 8);
+        hb.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+
+        var icon = TryLoadIconRect(iconPath, iconSize);
+        if (icon != null)
+            hb.AddChild(icon);
+
+        var labelNode = MakeLabel(label, Cream, LabelSize);
+        labelNode.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        labelNode.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        hb.AddChild(labelNode);
+
+        var valueNode = MakeLabel(value, Cream, ValueSize);
+        hb.AddChild(valueNode);
+        return hb;
+    }
+
     /// <summary>
-    /// PRD §3.11 round 5: Ancient panel — dropdown of elders prefixed with
+    /// PRD 搂3.11 round 5: Ancient panel 鈥?dropdown of elders prefixed with
     /// their Act and a small icon. Each elder is split into 1-3 option pools
     /// (from `AncientPoolMap`); the per-pool list shows every relic with its
     /// pick rate / pick count / win rate / delta. Pulled icons via
@@ -928,7 +989,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
             var spacer = new Control { CustomMinimumSize = new Vector2(0, 14) };
             parent.AddChild(spacer);
 
-            var poolHeader = MakeLabel("• " + L.Get(pool.DisplayKey), Gold, LabelSize);
+            var poolHeader = MakeLabel("·" + L.Get(pool.DisplayKey), Gold, LabelSize);
             parent.AddChild(poolHeader);
 
             int totalPicksInPool = pool.RelicIds.Sum(rid =>
@@ -963,7 +1024,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
     {
         // icon column spacer
         grid.AddChild(new Control { CustomMinimumSize = new Vector2(20, 0) });
-        // name column header (empty — name doesn't need a label)
+        // name column header (empty 鈥?name doesn't need a label)
         var nameSpacer = MakeLabel("", Gray, LabelSize);
         nameSpacer.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         grid.AddChild(nameSpacer);
@@ -1024,7 +1085,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
                         : stats.WinRate >= 0.4f ? Cream : Red;
             AppendNumericCell(grid, $"{stats.WinRate * 100:F1}%", winColor);
 
-            // Round 9 round 49: delta = relic win rate − overall career win
+            // Round 9 round 49: delta = relic win rate 鈭?overall career win
             // rate (under the same character + ascension filter), NOT vs the
             // pool average. Pool average was a poor baseline because it shifts
             // when one relic dominates picks.
@@ -1055,7 +1116,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
     }
 
     /// <summary>
-    /// PRD §3.11 round 5: Boss panel — dropdown listing bosses with the act
+    /// PRD 搂3.11 round 5: Boss panel 鈥?dropdown listing bosses with the act
     /// prefix, encounter count and full localized name. The selected boss
     /// expands to a small detail card with avg damage / death rate / encounters.
     /// Boss icons are sourced from the encounter model when available.
@@ -1070,7 +1131,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         var statsByEnc = _data?.BossStats ?? new Dictionary<string, BossEncounterStats>();
         var allIds = AllKnownBossEncounterIds();
         // Add any extra ids the player has data for that aren't in ModelDb
-        // (paranoid catch — modded encounters etc.). On beta, also filter out
+        // (paranoid catch 鈥?modded encounters etc.). On beta, also filter out
         // bosses that were removed from beta (historical data still has them).
         var isBeta = CommunityStats.Config.BranchManager.CurrentBranch
             == CommunityStats.Config.BranchManager.Beta;
@@ -1183,8 +1244,8 @@ public sealed partial class CareerStatsSection : VBoxContainer
     /// <summary>
     /// Round 9 round 49: ActModel order in code is Overgrowth(0)/Hive(1)/
     /// Glory(2)/Underdocks(3), but Underdocks is actually an alternate Act 1
-    /// (暗港), not Act 4. This struct exposes a sort key + display label so
-    /// the boss dropdown groups Overgrowth and Underdocks together as "第1幕".
+    /// (鏆楁腐), not Act 4. This struct exposes a sort key + display label so
+    /// the boss dropdown groups Overgrowth and Underdocks together as "绗?骞?.
     /// </summary>
     private readonly record struct BossActInfo(int SortKey, string Label);
 
@@ -1262,7 +1323,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
         return result;
     }
 
-    // ── UI helpers ──────────────────────────────────────────
+    // 鈹€鈹€ UI helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     /// <summary>
     /// Best-effort load an image at `ui/...` and wrap in a sized TextureRect.
@@ -1292,7 +1353,7 @@ public sealed partial class CareerStatsSection : VBoxContainer
     {
         // Round 9 round 44: re-enable explicit font_size override. The screen
         // theme's default Label font is much smaller than the native MegaLabel
-        // sizes used in the 总体数据 panel; without this override our content
+        // sizes used in the 鎬讳綋鏁版嵁 panel; without this override our content
         // looks tiny next to the surrounding game UI.
         var l = new Label();
         l.Text = text;
@@ -1326,3 +1387,4 @@ public sealed partial class CareerStatsSection : VBoxContainer
         return panel;
     }
 }
+

@@ -2858,7 +2858,7 @@ public static class EnemyStrReductionPatch
 // ═══════════════════════════════════════════════════════════
 // TemporaryStrengthPower revert — mark source around the revert window
 //
-// TemporaryStrengthPower.AfterTurnEnd fires on each player/enemy turn end;
+// TemporaryStrengthPower.AfterSideTurnEnd fires on each player/enemy turn end;
 // when `side == Owner.Side`, it `await PowerCmd.Apply<StrengthPower>(+Amount)`
 // to undo the temp strength. That fires StrengthPower.SetAmount with delta
 // > 0 which our EnemyStrReductionPatch postfix interprets as "revert,
@@ -2882,7 +2882,7 @@ public static class EnemyStrReductionPatch
 [HarmonyPatch]
 public static class TempStrengthRevertPatch
 {
-    [HarmonyPatch(typeof(TemporaryStrengthPower), nameof(TemporaryStrengthPower.AfterTurnEnd))]
+    [HarmonyPatch(typeof(TemporaryStrengthPower), nameof(TemporaryStrengthPower.AfterSideTurnEnd))]
     [HarmonyPrefix]
     public static void BeforeTempStrRevert(TemporaryStrengthPower __instance)
     {
@@ -2904,7 +2904,7 @@ public static class TempStrengthRevertPatch
         });
     }
 
-    [HarmonyPatch(typeof(TemporaryStrengthPower), nameof(TemporaryStrengthPower.AfterTurnEnd))]
+    [HarmonyPatch(typeof(TemporaryStrengthPower), nameof(TemporaryStrengthPower.AfterSideTurnEnd))]
     [HarmonyPostfix]
     public static void AfterTempStrRevert()
     {

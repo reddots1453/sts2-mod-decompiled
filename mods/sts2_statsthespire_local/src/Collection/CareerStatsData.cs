@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace CommunityStats.Collection;
@@ -11,7 +11,7 @@ namespace CommunityStats.Collection;
 /// All counts are per-character (or "all" when CharacterFilter is null).
 /// "Per-Act averages" are means across all completed Acts in matching runs.
 ///
-/// PRD-04 §3.11 (career stats display) + §3.12 (per-run stats display).
+/// PRD-04 搂3.11 (career stats display) + 搂3.12 (per-run stats display).
 /// </summary>
 public sealed class CareerStatsData
 {
@@ -29,6 +29,25 @@ public sealed class CareerStatsData
 
     /// <summary>0 = all runs; >0 = only the most recent N runs.</summary>
     public int RecentRunsCount { get; init; }
+
+    /// <summary>Average run duration in seconds.</summary>
+    public float AverageRunTimeSeconds { get; init; }
+    /// <summary>Average final deck size across filtered runs.</summary>
+    public float AverageDeckSize { get; init; }
+    /// <summary>Average final relic count across filtered runs.</summary>
+    public float AverageRelicCount { get; init; }
+    /// <summary>Average number of attack cards in final deck.</summary>
+    public float AverageAttackCount { get; init; }
+    /// <summary>Average number of skill cards in final deck.</summary>
+    public float AverageSkillCount { get; init; }
+    /// <summary>Average number of power cards in final deck.</summary>
+    public float AveragePowerCount { get; init; }
+    /// <summary>Average number of common cards in final deck.</summary>
+    public float AverageCommonCount { get; init; }
+    /// <summary>Average number of uncommon cards in final deck.</summary>
+    public float AverageUncommonCount { get; init; }
+    /// <summary>Average number of rare cards in final deck.</summary>
+    public float AverageRareCount { get; init; }
 
     /// <summary>How many runs were considered (after character filter).</summary>
     public int TotalRuns { get; init; }
@@ -65,13 +84,13 @@ public sealed class CareerStatsData
         = new Dictionary<int, IReadOnlyList<DeathEntry>>();
 
     /// <summary>
-    /// Average path counts per Act (1..4). PRD §3.11.
+    /// Average path counts per Act (1..4). PRD 搂3.11.
     /// </summary>
     public IReadOnlyDictionary<int, ActPathStats> PathStatsByAct { get; init; }
         = new Dictionary<int, ActPathStats>();
 
     /// <summary>
-    /// Ancient relic pick rates (PRD §3.11 ancient option choice).
+    /// Ancient relic pick rates (PRD 搂3.11 ancient option choice).
     /// Key: option text key (from AncientChoiceHistoryEntry.TextKey).
     /// Value: pick rate (0..1) computed as picks / opportunities.
     /// </summary>
@@ -86,8 +105,8 @@ public sealed class CareerStatsData
         = new Dictionary<string, BossEncounterStats>();
 
     /// <summary>
-    /// Per-Elder breakdown of Ancient relic encounters. PRD §3.11 dropdown structure:
-    /// elder → list of options → list of relics with picks/wins/delta.
+    /// Per-Elder breakdown of Ancient relic encounters. PRD 搂3.11 dropdown structure:
+    /// elder 鈫?list of options 鈫?list of relics with picks/wins/delta.
     /// Key: elder encounter id (from RunHistoryPlayer.AncientChoices grouping).
     /// </summary>
     public IReadOnlyDictionary<string, ElderEntry> AncientByElder { get; init; }
@@ -101,6 +120,15 @@ public sealed class CareerStatsData
         CharacterFilter = characterFilter,
         MinAscension = minAscension,
         RecentRunsCount = recentCount,
+        AverageRunTimeSeconds = 0f,
+        AverageDeckSize = 0f,
+        AverageRelicCount = 0f,
+        AverageAttackCount = 0f,
+        AverageSkillCount = 0f,
+        AveragePowerCount = 0f,
+        AverageCommonCount = 0f,
+        AverageUncommonCount = 0f,
+        AverageRareCount = 0f,
         TotalRuns = 0,
         Wins = 0,
     };
@@ -190,7 +218,7 @@ public sealed class ElderRelicStats
 
 /// <summary>
 /// Single-run statistics for the Run History detail screen.
-/// PRD §3.12.
+/// PRD 搂3.12.
 /// </summary>
 public sealed class SingleRunStatsData
 {
@@ -207,3 +235,4 @@ public sealed class SingleRunStatsData
     public IReadOnlyDictionary<string, int> BossDamageTaken { get; init; }
         = new Dictionary<string, int>();
 }
+

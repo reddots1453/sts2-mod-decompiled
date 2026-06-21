@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,7 +15,7 @@ namespace CommunityStats.Util;
 /// One file per character filter ("" = all). Invalidated by RunHistoryAnalyzer
 /// after a new run finishes.
 ///
-/// PRD-04 §3.11 — manual feedback "加载时间过长，应将这些信息存放本地".
+/// PRD-04 搂3.11 鈥?manual feedback "鍔犺浇鏃堕棿杩囬暱锛屽簲灏嗚繖浜涗俊鎭瓨鏀炬湰鍦?.
 /// </summary>
 public static class CareerStatsCache
 {
@@ -37,13 +37,10 @@ public static class CareerStatsCache
             var json = File.ReadAllText(path);
             var dto = JsonSerializer.Deserialize<CareerStatsDto>(json, JsonOpts);
             if (dto == null) return null;
-            // Round 9 round 49: reject snapshots written by an older schema
-            // (no MaxWinStreak). If the player has any wins but the field is
-            // 0, the cache predates the field — force a rebuild rather than
-            // showing a wrong "0 best streak".
-            if (dto.Wins > 0 && dto.MaxWinStreak == 0)
+            // Reject snapshots written by an older schema.
+            if ((dto.Wins > 0 && dto.MaxWinStreak == 0) || (dto.TotalRuns > 0 && dto.AverageDeckSize <= 0f))
             {
-                Safe.Info("CareerStatsCache.Load: stale cache (no MaxWinStreak) — discarding");
+                Safe.Info("CareerStatsCache.Load: stale cache schema, discarding");
                 return null;
             }
             return FromDto(dto);
@@ -104,13 +101,22 @@ public static class CareerStatsCache
         return new string(arr);
     }
 
-    // ── DTO mapping ─────────────────────────────────────────
+    // 鈹€鈹€ DTO mapping 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private static CareerStatsDto ToDto(CareerStatsData d) => new()
     {
         CharacterFilter = d.CharacterFilter,
         TotalRuns = d.TotalRuns,
         Wins = d.Wins,
+        AverageRunTimeSeconds = d.AverageRunTimeSeconds,
+        AverageDeckSize = d.AverageDeckSize,
+        AverageRelicCount = d.AverageRelicCount,
+        AverageAttackCount = d.AverageAttackCount,
+        AverageSkillCount = d.AverageSkillCount,
+        AveragePowerCount = d.AveragePowerCount,
+        AverageCommonCount = d.AverageCommonCount,
+        AverageUncommonCount = d.AverageUncommonCount,
+        AverageRareCount = d.AverageRareCount,
         MaxWinStreak = d.MaxWinStreak,
         CurrentWinStreak = d.CurrentWinStreak,
         WinRateByWindow = d.WinRateByWindow.ToDictionary(kv => kv.Key, kv => kv.Value),
@@ -179,6 +185,15 @@ public static class CareerStatsCache
         CharacterFilter = d.CharacterFilter,
         TotalRuns = d.TotalRuns,
         Wins = d.Wins,
+        AverageRunTimeSeconds = d.AverageRunTimeSeconds,
+        AverageDeckSize = d.AverageDeckSize,
+        AverageRelicCount = d.AverageRelicCount,
+        AverageAttackCount = d.AverageAttackCount,
+        AverageSkillCount = d.AverageSkillCount,
+        AveragePowerCount = d.AveragePowerCount,
+        AverageCommonCount = d.AverageCommonCount,
+        AverageUncommonCount = d.AverageUncommonCount,
+        AverageRareCount = d.AverageRareCount,
         MaxWinStreak = d.MaxWinStreak,
         CurrentWinStreak = d.CurrentWinStreak,
         WinRateByWindow = d.WinRateByWindow ?? new(),
@@ -242,13 +257,22 @@ public static class CareerStatsCache
             }),
     };
 
-    // ── DTOs (snake_case JSON) ──────────────────────────────
+    // 鈹€鈹€ DTOs (snake_case JSON) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private sealed class CareerStatsDto
     {
         [JsonPropertyName("char")]   public string? CharacterFilter { get; set; }
         [JsonPropertyName("runs")]   public int TotalRuns { get; set; }
         [JsonPropertyName("wins")]   public int Wins { get; set; }
+        [JsonPropertyName("arts")]   public float AverageRunTimeSeconds { get; set; }
+        [JsonPropertyName("ads")]    public float AverageDeckSize { get; set; }
+        [JsonPropertyName("arl")]    public float AverageRelicCount { get; set; }
+        [JsonPropertyName("aat")]    public float AverageAttackCount { get; set; }
+        [JsonPropertyName("ask")]    public float AverageSkillCount { get; set; }
+        [JsonPropertyName("apw")]    public float AveragePowerCount { get; set; }
+        [JsonPropertyName("acm")]    public float AverageCommonCount { get; set; }
+        [JsonPropertyName("auc")]    public float AverageUncommonCount { get; set; }
+        [JsonPropertyName("are")]    public float AverageRareCount { get; set; }
         [JsonPropertyName("mws")]    public int MaxWinStreak { get; set; }
         [JsonPropertyName("cws")]    public int CurrentWinStreak { get; set; }
         [JsonPropertyName("wr")]     public Dictionary<int, float> WinRateByWindow { get; set; } = new();
@@ -316,3 +340,4 @@ public static class CareerStatsCache
         [JsonPropertyName("w")]  public int Wins { get; set; }
     }
 }
+

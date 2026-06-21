@@ -1,0 +1,23 @@
+Slay the Spire 2 decompile snapshot
+
+Game version: v0.107.1
+Branch: v0.107.1
+Commit: 59260271
+Release date: 2026-06-18T15:43:56-07:00
+Main assembly hash: -1555940892
+
+Source assembly:
+D:\Games\steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\sts2.dll
+
+Source assembly timestamp:
+2026-06-19 13:47:14
+
+Decompiler:
+ilspycmd 9.1.0.7988
+ICSharpCode.Decompiler 9.1.0.7988
+
+Command:
+DOTNET_ROLL_FORWARD=LatestMajor ilspycmd -p -o "_decompiled\sts2-v0.107.1" "D:\Games\steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\sts2.dll"
+
+Generated C# files:
+3425

@@ -35,13 +35,13 @@ public static class ShopPricePanel
     private static readonly Color GreenColor  = new(0.45f, 0.88f, 0.50f);
     private static readonly Color DimColor    = new(0.45f, 0.45f, 0.50f);
 
-    private const int LabelSize  = 13;
-    private const int HeaderSize = 12;
-    private const int ValueSize  = 12;
+    private const int LabelSize  = 20;
+    private const int HeaderSize = 18;
+    private const int ValueSize  = 18;
 
     public static InfoModPanel Create(Player? player = null, int cardRemovalsUsed = 0)
     {
-        var panel = InfoModPanel.Create(L.Get("shop.title"), L.Get("shop.subtitle"));
+        var panel = InfoModPanel.Create(L.Get("shop.title"));
         panel.AddSeparator();
 
         // Compute the multiplier from the player's active discount relics.

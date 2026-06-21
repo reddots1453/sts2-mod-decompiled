@@ -7,6 +7,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefineConstants>STS2_GE_V105</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!-- Output directly to mod folder (STS2 expects DLL next to manifest.json) -->
@@ -22,8 +23,7 @@
 
     <!--
       Game version target:
-        Stable (v0.103.x):  dotnet build
-        Beta   (v0.105.x+): dotnet build -p:DefineConstants=STS2_GE_V105
+        Current target is v0.107.1, so STS2_GE_V105 is defined by default.
     -->
   </PropertyGroup>
 

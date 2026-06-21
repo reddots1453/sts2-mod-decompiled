@@ -32,13 +32,40 @@ public static class ContributionPersistence
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
     };
 
+    // Cached run context – avoids silent save failures when RunManager.Instance
+    // is not available (shutdown, thread switch, etc.). Set at run start,
+    // cleared at run end.
+    private static string? _activeSeed;
+    private static int _activeFloor;
+
+    /// <summary>Set by RunLifecyclePatch at run start (new / resume).</summary>
+    public static void SetActiveSeed(string seed)
+    {
+        _activeSeed = seed;
+    }
+
+    /// <summary>Set by CombatLifecyclePatch at combat start.</summary>
+    public static void SetActiveFloor(int floor)
+    {
+        _activeFloor = floor;
+    }
+
+    /// <summary>Called at run end so stale context doesn't leak into the next run.</summary>
+    public static void ClearRunContext()
+    {
+        _activeSeed = null;
+        _activeFloor = 0;
+    }
+
     // ── Public API ──────────────────────────────────────────
 
     /// <summary>
-    /// Resolve the seed of the active run, or null if no run is active.
+    /// Resolve the seed of the active run, preferring cached value.
+    /// Falls back to RunManager query (may return null on non-main thread / shutdown).
     /// </summary>
     public static string? GetActiveSeed()
     {
+        if (!string.IsNullOrEmpty(_activeSeed)) return _activeSeed;
         try
         {
             var state = RunManager.Instance?.DebugOnlyGetState();
@@ -53,6 +80,7 @@ public static class ContributionPersistence
 
     /// <summary>
     /// Persist a single combat snapshot. Called from CombatLifecyclePatch.AfterCombatEnded.
+    /// Uses cached seed + floor so the write succeeds even when RunManager is unavailable.
     /// </summary>
     public static void SaveCombat(int floor, IReadOnlyDictionary<string, ContributionAccum>? data)
     {
@@ -60,14 +88,17 @@ public static class ContributionPersistence
         var seed = GetActiveSeed();
         if (string.IsNullOrEmpty(seed)) return;
 
+        // Prefer cached floor when the caller's floor is 0 (RunManager unavailable).
+        int effectiveFloor = floor > 0 ? floor : _activeFloor;
+
         Safe.Run(() =>
         {
             ModConfig.EnsureDirectories();
-            var path = CombatPath(seed, floor);
+            var path = CombatPath(seed, effectiveFloor);
             var dto = new ContributionDoc
             {
                 Seed = seed,
-                Floor = floor,
+                Floor = effectiveFloor,
                 Kind = "combat",
                 SavedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 Sources = data.Values.Select(ToDto).ToList(),

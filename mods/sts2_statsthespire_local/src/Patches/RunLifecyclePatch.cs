@@ -14,15 +14,17 @@ namespace CommunityStats.Patches;
 [HarmonyPatch]
 public static class RunLifecyclePatch
 {
-    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpNewSinglePlayer))]
+    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpNewSingleplayer))]
     [HarmonyPostfix]
     public static void OnRunStartSP(RunManager __instance, RunState state)
     {
         Safe.Run(() =>
         {
             Safe.Info("[DIAG:RunLifecycle] SetUpNewSinglePlayer Postfix fired");
+            var seed = state?.Rng?.StringSeed;
+            if (!string.IsNullOrEmpty(seed)) ContributionPersistence.SetActiveSeed(seed!);
             RunDataCollector.OnRunStart();
-            TryHydrateLiveState(state?.Rng?.StringSeed);
+            TryHydrateLiveState(seed);
             // PRD §3.9 / §3.17 round 9: top-bar indicators get built once
             // per run (lifetime mirrors NTopBar's). Defer one frame so
             // NRun.GlobalUi.TopBar is fully laid out by the time we attach.
@@ -40,40 +42,46 @@ public static class RunLifecyclePatch
     /// `_potion / _cardDrop` stayed null → `AfterSetUpCombat` fallback tried
     /// to lazy-create them mid-combat-init and AV'd inside the Godot binding.
     /// </summary>
-    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpSavedSinglePlayer))]
+    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpSavedSingleplayer))]
     [HarmonyPostfix]
     public static void OnRunResumeSP(RunManager __instance, RunState state)
     {
         Safe.Run(() =>
         {
             Safe.Info("[DIAG:RunLifecycle] SetUpSavedSinglePlayer Postfix fired");
+            var seed = state?.Rng?.StringSeed;
+            if (!string.IsNullOrEmpty(seed)) ContributionPersistence.SetActiveSeed(seed!);
             RunDataCollector.OnRunStart();
-            TryHydrateLiveState(state?.Rng?.StringSeed);
+            TryHydrateLiveState(seed);
             CommunityStats.Patches.CombatUiOverlayPatch.OnRunStarted();
         });
     }
 
-    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpSavedMultiPlayer))]
+    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpSavedMultiplayer))]
     [HarmonyPostfix]
     public static void OnRunResumeMP(RunManager __instance, RunState state)
     {
         Safe.Run(() =>
         {
             Safe.Info("[DIAG:RunLifecycle] SetUpSavedMultiPlayer Postfix fired");
+            var seed = state?.Rng?.StringSeed;
+            if (!string.IsNullOrEmpty(seed)) ContributionPersistence.SetActiveSeed(seed!);
             RunDataCollector.OnRunStart();
-            TryHydrateLiveState(state?.Rng?.StringSeed);
+            TryHydrateLiveState(seed);
             CommunityStats.Patches.CombatUiOverlayPatch.OnRunStarted();
         });
     }
 
-    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpNewMultiPlayer))]
+    [HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpNewMultiplayer))]
     [HarmonyPostfix]
     public static void OnRunStartMP(RunManager __instance, RunState state)
     {
         Safe.Run(() =>
         {
+            var seed = state?.Rng?.StringSeed;
+            if (!string.IsNullOrEmpty(seed)) ContributionPersistence.SetActiveSeed(seed!);
             RunDataCollector.OnRunStart();
-            TryHydrateLiveState(state?.Rng?.StringSeed);
+            TryHydrateLiveState(seed);
             CommunityStats.Patches.CombatUiOverlayPatch.OnRunStarted();
         });
     }

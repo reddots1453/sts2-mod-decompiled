@@ -28,6 +28,12 @@ public class FeatureToggles
     [JsonPropertyName("intent_state_machine")]
     public bool IntentStateMachine { get; set; } = true;
 
+    [JsonPropertyName("potion_odds")]
+    public bool PotionOdds { get; set; } = true;
+
+    [JsonPropertyName("card_drop_odds")]
+    public bool CardDropOdds { get; set; } = true;
+
     /// <summary>
     /// Labels for each toggle, used by FilterPanel UI.
     /// Returns (propertyName, localizedLabel) pairs.
@@ -40,6 +46,8 @@ public class FeatureToggles
         ("UnknownRoomOdds",    "toggle.unknown_room_odds"),
         ("ShopPrices",         "toggle.shop_prices"),
         ("IntentStateMachine", "toggle.intent_state_machine"),
+        ("PotionOdds",         "toggle.potion_odds"),
+        ("CardDropOdds",       "toggle.card_drop_odds"),
     };
 
     public bool GetByName(string name) => name switch
@@ -50,6 +58,8 @@ public class FeatureToggles
         "UnknownRoomOdds"    => UnknownRoomOdds,
         "ShopPrices"         => ShopPrices,
         "IntentStateMachine" => IntentStateMachine,
+        "PotionOdds"         => PotionOdds,
+        "CardDropOdds"       => CardDropOdds,
         _ => true
     };
 
@@ -63,6 +73,8 @@ public class FeatureToggles
             case "UnknownRoomOdds":    UnknownRoomOdds = value; break;
             case "ShopPrices":         ShopPrices = value; break;
             case "IntentStateMachine": IntentStateMachine = value; break;
+            case "PotionOdds":         PotionOdds = value; break;
+            case "CardDropOdds":       CardDropOdds = value; break;
         }
     }
 }

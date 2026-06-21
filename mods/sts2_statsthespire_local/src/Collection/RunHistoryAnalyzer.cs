@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -21,14 +21,14 @@ namespace CommunityStats.Collection;
 ///   - Results delivered via the awaited Task; UI subscribes via CareerStatsLoaded event
 ///   - Reentrancy guarded by SemaphoreSlim
 ///
-/// PRD-04 §3.11. Phase 6 task 1.
+/// PRD-04 搂3.11. Phase 6 task 1.
 /// </summary>
 public sealed class RunHistoryAnalyzer
 {
     public static RunHistoryAnalyzer Instance { get; } = new();
 
-    // ── Cache ───────────────────────────────────────────────
-    // (characterFilter, minAscension, recentCount) → cached snapshot
+    // 鈹€鈹€ Cache 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // (characterFilter, minAscension, recentCount) 鈫?cached snapshot
     private readonly Dictionary<(string, int, int), CareerStatsData> _cache = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -47,13 +47,13 @@ public sealed class RunHistoryAnalyzer
     private LocalCardStatsBundle _cardBundle = LocalCardStatsBundle.Empty;
     public LocalCardStatsBundle LocalCards => _cardBundle;
 
-    // Per-relic local aggregations (PRD §3.3 round 6).
+    // Per-relic local aggregations (PRD 搂3.3 round 6).
     private LocalRelicStatsBundle _relicBundle = LocalRelicStatsBundle.Empty;
     public LocalRelicStatsBundle LocalRelics => _relicBundle;
 
     private RunHistoryAnalyzer() { }
 
-    // ── Public API ──────────────────────────────────────────
+    // 鈹€鈹€ Public API 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     /// <summary>
     /// Returns the cached snapshot if present in memory or on disk; otherwise null.
@@ -69,7 +69,7 @@ public sealed class RunHistoryAnalyzer
         }
 
         // Disk fallback only for the unfiltered (asc=0, no recent cap) snapshot
-        // — we don't persist per-ascension or recent-count snapshots. If the
+        // 鈥?we don't persist per-ascension or recent-count snapshots. If the
         // caller requests a recentCount filter, skip disk so we don't return
         // stale unfiltered data.
         if (minAscension == 0 && recentCount == 0)
@@ -112,19 +112,19 @@ public sealed class RunHistoryAnalyzer
             // from a failed BuildSnapshot (signaled by `_lastBuildFailed`).
             // Otherwise we poison the in-memory cache with TotalRuns=0 from a
             // pre-profile-init startup load, and every subsequent LoadAllAsync
-            // hits that empty entry until a run end forces invalidation —
+            // hits that empty entry until a run end forces invalidation 鈥?
             // which is exactly the bug the user reported.
             if (_lastBuildFailed)
             {
                 _lastBuildFailed = false;
-                Safe.Warn("[RunHistoryAnalyzer] BuildSnapshot reported failure — not caching empty snapshot");
+                Safe.Warn("[RunHistoryAnalyzer] BuildSnapshot reported failure 鈥?not caching empty snapshot");
                 return snapshot;
             }
 
             lock (_cache) { _cache[key] = snapshot; }
 
             // Persist only the asc=0 snapshot (per-ascension snapshots aren't
-            // worth caching to disk — they're cheap to recompute).
+            // worth caching to disk 鈥?they're cheap to recompute).
             if (minAscension == 0)
             {
                 try { CareerStatsCache.Save(snapshot); }
@@ -142,7 +142,7 @@ public sealed class RunHistoryAnalyzer
     /// <summary>
     /// Invalidate all cached snapshots. Call when a run finishes so the next read reloads.
     /// Removes both in-memory and on-disk caches AND the per-card / per-relic
-    /// bundles — without resetting the bundles, the lazy reload in
+    /// bundles 鈥?without resetting the bundles, the lazy reload in
     /// CardLibraryPatch / RelicLibraryPatch (which checks `TotalRuns == 0`)
     /// would never re-trigger after a run end.
     /// </summary>
@@ -155,7 +155,7 @@ public sealed class RunHistoryAnalyzer
         Safe.Info("[RunHistoryAnalyzer] InvalidateAll: cache + bundles cleared");
     }
 
-    // ── Worker ──────────────────────────────────────────────
+    // 鈹€鈹€ Worker 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     private CareerStatsData BuildSnapshot(string? characterFilter, int minAscension, int recentCount, CancellationToken ct)
     {
@@ -206,7 +206,7 @@ public sealed class RunHistoryAnalyzer
         {
             loaded.Sort((a, b) => b.StartTime.CompareTo(a.StartTime));
             loaded = loaded.Take(recentCount).ToList();
-            Godot.GD.Print($"[StatsTheSpire] BuildSnapshot: recent filter applied, trimmed {loaded.Count + (loaded.Count < recentCount ? 0 : 0)} → {loaded.Count}");
+            Godot.GD.Print($"[StatsTheSpire] BuildSnapshot: recent filter applied, trimmed {loaded.Count + (loaded.Count < recentCount ? 0 : 0)} 鈫?{loaded.Count}");
         }
 
         Safe.Info($"[RunHistoryAnalyzer] BuildSnapshot: loaded {loaded.Count} histories (filter={characterFilter ?? "all"}, minAsc={minAscension}, recent={recentCount})");
@@ -226,12 +226,22 @@ public sealed class RunHistoryAnalyzer
         // re-walking files.
         _cardBundle = ComputeLocalCardBundle(loaded);
         _relicBundle = ComputeLocalRelicBundle(loaded);
+        var avg = ComputeDeckAverages(loaded);
 
         return new CareerStatsData
         {
             CharacterFilter = characterFilter,
             MinAscension = minAscension,
             RecentRunsCount = recentCount,
+            AverageRunTimeSeconds = avg.runTimeSeconds,
+            AverageDeckSize = avg.deckSize,
+            AverageRelicCount = avg.relicCount,
+            AverageAttackCount = avg.attackCount,
+            AverageSkillCount = avg.skillCount,
+            AveragePowerCount = avg.powerCount,
+            AverageCommonCount = avg.commonCount,
+            AverageUncommonCount = avg.uncommonCount,
+            AverageRareCount = avg.rareCount,
             TotalRuns = loaded.Count,
             Wins = loaded.Count(r => r.Win),
             MaxWinStreak = ComputeMaxWinStreak(loaded),
@@ -245,7 +255,87 @@ public sealed class RunHistoryAnalyzer
         };
     }
 
-    // ── Aggregations ────────────────────────────────────────
+    private static (float runTimeSeconds, float deckSize, float relicCount, float attackCount, float skillCount, float powerCount, float commonCount, float uncommonCount, float rareCount)
+        ComputeDeckAverages(List<RunHistory> runs)
+    {
+        if (runs.Count == 0) return (0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f);
+
+        double runTime = 0;
+        double deck = 0;
+        double relics = 0;
+        double atk = 0;
+        double skill = 0;
+        double power = 0;
+        double common = 0;
+        double uncommon = 0;
+        double rare = 0;
+
+        foreach (var run in runs)
+        {
+            runTime += run.RunTime;
+
+            var player = run.Players?.FirstOrDefault();
+            if (player == null) continue;
+
+            var runDeck = player.Deck?.ToList() ?? new List<MegaCrit.Sts2.Core.Saves.Runs.SerializableCard>();
+            var runRelics = player.Relics?.ToList() ?? new List<MegaCrit.Sts2.Core.Saves.Runs.SerializableRelic>();
+
+            deck += runDeck.Count;
+            relics += runRelics.Count;
+
+            foreach (var card in runDeck)
+            {
+                var id = card?.Id;
+                if (id == null) continue;
+
+                CardModel? model = null;
+                try { model = ModelDb.GetByIdOrNull<CardModel>(id); }
+                catch { }
+                if (model == null) continue;
+
+                switch (model.Type)
+                {
+                    case MegaCrit.Sts2.Core.Entities.Cards.CardType.Attack:
+                        atk++;
+                        break;
+                    case MegaCrit.Sts2.Core.Entities.Cards.CardType.Skill:
+                        skill++;
+                        break;
+                    case MegaCrit.Sts2.Core.Entities.Cards.CardType.Power:
+                        power++;
+                        break;
+                }
+
+                switch (model.Rarity)
+                {
+                    case MegaCrit.Sts2.Core.Entities.Cards.CardRarity.Common:
+                        common++;
+                        break;
+                    case MegaCrit.Sts2.Core.Entities.Cards.CardRarity.Uncommon:
+                        uncommon++;
+                        break;
+                    case MegaCrit.Sts2.Core.Entities.Cards.CardRarity.Rare:
+                        rare++;
+                        break;
+                }
+            }
+        }
+
+        var n = runs.Count;
+        return (
+            (float)(runTime / n),
+            (float)(deck / n),
+            (float)(relics / n),
+            (float)(atk / n),
+            (float)(skill / n),
+            (float)(power / n),
+            (float)(common / n),
+            (float)(uncommon / n),
+            (float)(rare / n)
+        );
+    }
+
+    // 鈹€鈹€ Aggregations 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     /// <summary>
     /// When KilledBy* fields are both unset, look at the deepest visited floor.
@@ -279,7 +369,7 @@ public sealed class RunHistoryAnalyzer
 
     /// <summary>
     /// Round 9 round 49: longest consecutive-win streak among the filtered
-    /// runs. Walks chronologically (oldest → newest), counting consecutive
+    /// runs. Walks chronologically (oldest 鈫?newest), counting consecutive
     /// Win=true and resetting on a loss.
     /// </summary>
     private static int ComputeMaxWinStreak(List<RunHistory> sortedNewestFirst)
@@ -332,7 +422,7 @@ public sealed class RunHistoryAnalyzer
 
     private static IReadOnlyDictionary<int, IReadOnlyList<DeathEntry>> ComputeDeathCauses(List<RunHistory> runs)
     {
-        // Per-Act bucket: actIndex → (encounterId, source) → count
+        // Per-Act bucket: actIndex 鈫?(encounterId, source) 鈫?count
         var bucket = new Dictionary<int, Dictionary<(string, DeathSource), int>>();
 
         foreach (var run in runs)
@@ -524,7 +614,7 @@ public sealed class RunHistoryAnalyzer
 
     private static IReadOnlyDictionary<string, BossEncounterStats> ComputeBossStats(List<RunHistory> runs)
     {
-        // bossId → (totalDmg, encounters, deaths)
+        // bossId 鈫?(totalDmg, encounters, deaths)
         var bucket = new Dictionary<string, (long Damage, int Encounters, int Deaths)>();
 
         foreach (var run in runs)
@@ -576,13 +666,13 @@ public sealed class RunHistoryAnalyzer
     }
 
     /// <summary>
-    /// Aggregate per-Elder breakdown for the PRD §3.11 dropdown.
+    /// Aggregate per-Elder breakdown for the PRD 搂3.11 dropdown.
     /// Walks every Ancient floor in the run history and groups offered relics
     /// under their parent elder encounter id.
     /// </summary>
     private static IReadOnlyDictionary<string, ElderEntry> ComputeAncientByElder(List<RunHistory> runs)
     {
-        // elderId → optionRelicId → (picks, wins)
+        // elderId 鈫?optionRelicId 鈫?(picks, wins)
         var bucket = new Dictionary<string, Dictionary<string, (int picks, int wins)>>();
         var elderEncounters = new Dictionary<string, int>();
 
@@ -670,7 +760,7 @@ public sealed class RunHistoryAnalyzer
         {
             var key = choice.Title?.LocEntryKey;
             if (string.IsNullOrEmpty(key)) return "";
-            // "RELIC_ID.title" → "RELIC_ID". Anything else: return as-is.
+            // "RELIC_ID.title" 鈫?"RELIC_ID". Anything else: return as-is.
             int dot = key!.LastIndexOf('.');
             return dot > 0 ? key.Substring(0, dot) : key;
         }
@@ -680,27 +770,27 @@ public sealed class RunHistoryAnalyzer
     /// <summary>
     /// Walk every loaded RunHistory and compute per-card sample / win rates.
     /// Round 9 round 38: a card's RunsWith is the **union** of two signals:
-    ///   1. `PlayerMapPointHistoryEntry.CardsGained` — every card added to
+    ///   1. `PlayerMapPointHistoryEntry.CardsGained` 鈥?every card added to
     ///      PileType.Deck mid-run (rewards, events, shops, transforms).
-    ///   2. `RunHistoryPlayer.Deck` — the final deck snapshot at run end.
+    ///   2. `RunHistoryPlayer.Deck` 鈥?the final deck snapshot at run end.
     ///
     /// Why both? `CardsGained` is **only written when adding to Deck**, so
-    /// starter cards (Strike/Defend ×N seeded into the player's initial deck
+    /// starter cards (Strike/Defend 脳N seeded into the player's initial deck
     /// before any MapPointHistoryEntry exists) are never recorded there.
     /// Without the Deck-snapshot fallback, every player would see 0 samples
     /// for basic strikes/defends. Conversely `Deck` alone misses cards that
-    /// were picked then removed/transformed — using both gives us "any card
+    /// were picked then removed/transformed 鈥?using both gives us "any card
     /// the player ever had in this run" which matches user intent.
     ///
     /// Counts:
-    ///   Offered  — # CardChoiceHistoryEntry rows mentioning the card
-    ///   Picks    — subset of Offered where wasPicked == true
-    ///   RunsWith — # distinct runs that contained the card via either path
-    ///   WinsAfter — # of those runs where run.Win == true
+    ///   Offered  鈥?# CardChoiceHistoryEntry rows mentioning the card
+    ///   Picks    鈥?subset of Offered where wasPicked == true
+    ///   RunsWith 鈥?# distinct runs that contained the card via either path
+    ///   WinsAfter 鈥?# of those runs where run.Win == true
     /// </summary>
     private static LocalCardStatsBundle ComputeLocalCardBundle(List<RunHistory> runs)
     {
-        // cardId → (offered, picks, runsWith, winsAfter, upgraded, removed, bought)
+        // cardId 鈫?(offered, picks, runsWith, winsAfter, upgraded, removed, bought)
         var bucket = new Dictionary<string,
             (int offered, int picks, int runsWith, int winsAfter,
              int upgraded, int removed, int bought)>();
@@ -817,7 +907,7 @@ public sealed class RunHistoryAnalyzer
                     }
                 }
             }
-            catch { /* malformed save — skip silently */ }
+            catch { /* malformed save 鈥?skip silently */ }
             if (runCards.Count > beforeDeck) diagRunsWithDeck++;
             if (runUpgraded.Count > 0) diagRunsWithUpgraded++;
             if (runRemoved.Count > 0)  diagRunsWithRemoved++;
@@ -864,7 +954,7 @@ public sealed class RunHistoryAnalyzer
 
     /// <summary>
     /// Walk every loaded RunHistory and compute per-relic win rates.
-    /// PRD §3.3 round 6: feeds the "我的数据" column of the relic library.
+    /// PRD 搂3.3 round 6: feeds the "鎴戠殑鏁版嵁" column of the relic library.
     ///
     /// "Owned a relic" is detected from `RunHistoryPlayer.Relics` (the final
     /// inventory snapshot). For older saves that don't have that field we
@@ -952,11 +1042,11 @@ public sealed class RunHistoryAnalyzer
         };
     }
 
-    // ── Single-run analysis ─────────────────────────────────
+    // 鈹€鈹€ Single-run analysis 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
     /// <summary>
-    /// Build per-Act stats for a SINGLE run (used by Run History detail view, PRD §3.12).
-    /// Synchronous — input data is already loaded.
+    /// Build per-Act stats for a SINGLE run (used by Run History detail view, PRD 搂3.12).
+    /// Synchronous 鈥?input data is already loaded.
     /// </summary>
     public SingleRunStatsData BuildSingleRunStats(RunHistory run)
     {
@@ -968,7 +1058,7 @@ public sealed class RunHistoryAnalyzer
         // card buys. Colored shop buys (Ironclad buys Strike+ at a shop, etc.)
         // never land in that list, so CardsBought was always undercounted. We
         // record every shop card purchase via ShopPatch.BeforeCardPurchaseVisual
-        // → RunDataCollector.RecordShopPurchase → ShopPurchasePersistence; here
+        // 鈫?RunDataCollector.RecordShopPurchase 鈫?ShopPurchasePersistence; here
         // we load by seed and bucket by act. Falls back to BoughtColorless for
         // runs imported before this fix (no persistence file).
         var perActBuys = BuildPerActShopCardBuys(run);
@@ -1063,7 +1153,7 @@ public sealed class RunHistoryAnalyzer
     /// Load <see cref="ShopPurchasePersistence"/> for this run's seed and
     /// bucket card purchases by act. Stored <c>Floor</c> is the game's running
     /// <c>RunState.TotalFloor</c> at purchase time, so act N contains
-    /// purchases with <c>floor ∈ (startFloor, startFloor + |MapPointHistory[N-1]|]</c>.
+    /// purchases with <c>floor 鈭?(startFloor, startFloor + |MapPointHistory[N-1]|]</c>.
     /// Returns null when no persistence file exists (historical / pre-fix runs);
     /// caller falls back to <c>BoughtColorless</c>.
     /// </summary>
@@ -1094,3 +1184,4 @@ public sealed class RunHistoryAnalyzer
         return result;
     }
 }
+

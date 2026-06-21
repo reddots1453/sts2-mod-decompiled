@@ -43,6 +43,7 @@ public static class CombatLifecyclePatch
             IntentHoverPatch.ForceHideAll();
 
             CombatTracker.Instance.OnCombatStart(encounterId, encounterType, floor);
+            ContributionPersistence.SetActiveFloor(floor);
             Safe.Info($"Combat started: {encounterId} ({encounterType}) on floor {floor}");
 
             // Round 9 round 6: retry the intent-metadata eager bake here. At

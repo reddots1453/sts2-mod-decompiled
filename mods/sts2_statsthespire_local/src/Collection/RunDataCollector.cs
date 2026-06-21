@@ -102,6 +102,9 @@ public static class RunDataCollector
             // Invalidate cached career snapshot so the next stats screen
             // open re-aggregates the latest data.
             RunHistoryAnalyzer.Instance.InvalidateAll();
+
+            // Clear cached run context so stale seed doesn't leak into next run.
+            ContributionPersistence.ClearRunContext();
         });
     }
 }

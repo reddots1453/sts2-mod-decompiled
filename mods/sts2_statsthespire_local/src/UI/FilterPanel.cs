@@ -134,6 +134,17 @@ public partial class FilterPanel : PanelContainer
         {
             var cb = NewCheckbox(L.Get(labelKey), ModConfig.Toggles.GetByName(key));
             panel._toggleCheckboxes[key] = cb;
+            // Apply toggle changes immediately without waiting for panel close.
+            var capturedKey = key;
+            cb.Toggled += (pressed) =>
+            {
+                Safe.Run(() =>
+                {
+                    ModConfig.Toggles.SetByName(capturedKey, pressed);
+                    ModConfig.SaveSettings();
+                    CommunityStats.Patches.CombatUiOverlayPatch.RefreshVisibility();
+                });
+            };
             AddToggleRow(togglesGrid, L.Get(labelKey), cb);
         }
 
@@ -241,6 +252,9 @@ public partial class FilterPanel : PanelContainer
                 ModConfig.Toggles.SetByName(key, cb.ButtonPressed);
 
             ModConfig.SaveSettings();
+
+            // Refresh top-bar indicator visibility (potion / card-drop toggles).
+            CommunityStats.Patches.CombatUiOverlayPatch.RefreshVisibility();
 
             Visible = false;
         });

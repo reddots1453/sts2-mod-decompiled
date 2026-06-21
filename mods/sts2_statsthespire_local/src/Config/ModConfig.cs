@@ -9,23 +9,7 @@ public static class ModConfig
 {
     public const string ModVersion = "1.3";
 
-    // Server (can be overridden via config.json for local testing)
-    public static string ApiBaseUrl { get; set; } = "https://statsthespire.org.cn/v1";
-    public static int QueryTimeoutMs { get; set; } = 5000;
-    public static int UploadTimeoutMs { get; set; } = 30000;
-
-    /// <summary>
-    /// Security: explicitly allow HTTP (non-TLS) API connections. Default
-    /// false — only HTTPS is accepted. Set to true in config.json when
-    /// HTTPS is unavailable (e.g. GFW SNI blocking forces HTTP fallback
-    /// via bare IP). ApiClient checks this flag at init and refuses to
-    /// send data over HTTP unless explicitly opted-in.
-    /// </summary>
-    public static bool AllowHttp { get; set; } = false;
-    public static bool AutoUpdate { get; set; } = true;
-
     // User preferences
-    public static bool EnableUpload { get; set; } = true;
     public static string Language { get; set; } = "CN"; // "CN" | "EN"
 
     // Feature toggles
@@ -38,13 +22,6 @@ public static class ModConfig
     // "My Data" filter
     public static bool UseMyDataOnly { get; set; }
 
-    // History import (PRD §3.19)
-    public static bool HistoryImportCompleted { get; set; }
-
-    // Offline queue limits
-    public static int MaxPendingCount { get; set; } = 10;
-    public static int MaxPendingAgeDays { get; set; } = 7;
-
     // Cache
     public static int MemoryCacheTtlSeconds { get; set; } = 900;   // 15 min
     public static int DiskCacheTtlHours { get; set; } = 24;
@@ -54,7 +31,6 @@ public static class ModConfig
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "sts2_community_stats");
     public static string CacheDir => Path.Combine(DataDir, "cache");
-    public static string PendingDir => Path.Combine(DataDir, "pending");
     public static string ContributionsDir => Path.Combine(DataDir, "contributions");
     public static string SettingsPath => Path.Combine(DataDir, "settings.json");
 
@@ -80,7 +56,6 @@ public static class ModConfig
     public static void EnsureDirectories()
     {
         Directory.CreateDirectory(CacheDir);
-        Directory.CreateDirectory(PendingDir);
         Directory.CreateDirectory(ContributionsDir);
     }
 
@@ -106,18 +81,6 @@ public static class ModConfig
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            if (root.TryGetProperty("api_base_url", out var url))
-                ApiBaseUrl = url.GetString() ?? ApiBaseUrl;
-            if (root.TryGetProperty("query_timeout_ms", out var qt))
-                QueryTimeoutMs = qt.GetInt32();
-            if (root.TryGetProperty("upload_timeout_ms", out var ut))
-                UploadTimeoutMs = ut.GetInt32();
-            if (root.TryGetProperty("allow_http", out var ah))
-                AllowHttp = ah.GetBoolean();
-            if (root.TryGetProperty("auto_update", out var au))
-                AutoUpdate = au.GetBoolean();
-            if (root.TryGetProperty("enable_upload", out var eu))
-                EnableUpload = eu.GetBoolean();
             if (root.TryGetProperty("language", out var lang))
                 Language = lang.GetString() ?? Language;
 
@@ -139,8 +102,6 @@ public static class ModConfig
             if (root.TryGetProperty("use_my_data_only", out var myData))
                 UseMyDataOnly = myData.GetBoolean();
 
-            if (root.TryGetProperty("history_import_completed", out var hic))
-                HistoryImportCompleted = hic.GetBoolean();
         }
         catch { /* ignore malformed config */ }
     }
@@ -157,10 +118,7 @@ public static class ModConfig
             {
                 ["language"] = Language,
                 ["feature_toggles"] = Toggles,
-                ["auto_update"] = AutoUpdate,
-                ["enable_upload"] = EnableUpload,
                 ["use_my_data_only"] = UseMyDataOnly,
-                ["history_import_completed"] = HistoryImportCompleted,
             };
 
             if (PanelPositionX.HasValue && PanelPositionY.HasValue)

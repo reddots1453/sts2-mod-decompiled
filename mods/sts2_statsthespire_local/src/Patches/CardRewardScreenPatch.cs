@@ -8,12 +8,23 @@ using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 namespace CommunityStats.Patches;
 
 /// <summary>
-/// Patches card reward screen to record card picks.
-/// Community stat labels removed (local edition).
+/// Patches card reward screen: auto-closes contribution panel when the
+/// reward overlay opens, and records card picks. Community stat labels
+/// removed (local edition).
 /// </summary>
 [HarmonyPatch]
 public static class CardRewardScreenPatch
 {
+    /// <summary>Auto-close contribution panel when the reward overlay opens.
+    /// This covers both card-pick and skip paths.</summary>
+    [HarmonyPatch(typeof(NCardRewardSelectionScreen), "AfterOverlayOpened")]
+    [HarmonyPostfix]
+    public static void AfterOverlayOpened()
+    {
+        Safe.Run(() => UI.ContributionPanel.HideIfVisible());
+    }
+
+    /// <summary>Record card picks for local stats.</summary>
     [HarmonyPatch(typeof(NCardRewardSelectionScreen), "SelectCard")]
     [HarmonyPostfix]
     public static void AfterSelectCard(NCardRewardSelectionScreen __instance,

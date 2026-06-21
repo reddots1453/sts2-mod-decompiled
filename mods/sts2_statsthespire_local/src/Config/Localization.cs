@@ -1,3 +1,4 @@
+﻿﻿﻿﻿using Godot;
 namespace CommunityStats.Config;
 
 /// <summary>
@@ -28,6 +29,27 @@ public static class L
     /// need to reload data — the numbers haven't changed.
     /// </summary>
     public static event Action? LanguageChanged;
+
+    /// <summary>
+    /// Same as <see cref="Get"/> but follows the game's locale
+    /// (TranslationServer.GetLocale) instead of the mod's language setting.
+    /// Falls back to <see cref="Get"/> if the game locale is unavailable.
+    /// </summary>
+    public static string GetByGame(string key)
+    {
+        try
+        {
+            var locale = TranslationServer.GetLocale();
+            bool isChinese = locale.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+            return isChinese
+                ? (CN.TryGetValue(key, out var cn) ? cn : key)
+                : (EN.TryGetValue(key, out var en) ? en : key);
+        }
+        catch
+        {
+            return Get(key);
+        }
+    }
 
     public static string Get(string key) =>
         Current == Lang.CN
@@ -66,6 +88,7 @@ public static class L
         ["settings.version"] = "Version:",
         ["settings.ver_auto"] = "Auto (my version)",
         ["settings.ver_all"] = "All Versions",
+        ["settings.ver_release_latest"] = "Release ({0})",
         ["settings.br_release"] = "Release",
         ["settings.br_beta"] = "Beta",
         ["settings.sample"] = "Filtered data: {0} runs",
@@ -165,6 +188,8 @@ public static class L
         ["toggle.unknown_room_odds"] = "Unknown Room Encounter Odds",
         ["toggle.shop_prices"] = "Shop Price Table",
         ["toggle.intent_state_machine"] = "Enemy Intent State Machine",
+        ["toggle.potion_odds"] = "Potion Drop Odds",
+        ["toggle.card_drop_odds"] = "Card Drop Odds",
 
         // ContributionPanel v2 (§3.7, §4.5)
         ["contrib.dps"] = "Avg Damage per Turn:",
@@ -229,7 +254,7 @@ public static class L
         ["intent.no_metadata"] = "(no intent metadata)",
 
         // Career stats (§3.11)
-        ["career.title"] = "Career Statistics",
+        ["career.title"] = "career stats",
         ["career.summary_title"] = "Summary",
         ["career.character"] = "Character",
         ["career.recent_runs"] = "Recent Runs",
@@ -283,6 +308,12 @@ public static class L
         ["career.encounters"] = "encounters",
         ["career.no_data_short"] = "—",
         ["career.deck_section"] = "Deck Construction",
+        ["career.deck_avg_title"] = "Per-run averages",
+        ["career.avg_time"] = "Avg run time",
+        ["career.avg_deck_size"] = "Avg deck size",
+        ["career.avg_relics"] = "Avg relics",
+        ["career.avg_types"] = "Avg card types (Attack/Skill/Power)",
+        ["career.avg_rarities"] = "Avg card rarities (Common/Uncommon/Rare)",
         ["career.path_section"] = "Path Stats",
         ["ancient.pool_1"] = "Option 1 Pool",
         ["ancient.pool_2"] = "Option 2 Pool",
@@ -369,6 +400,7 @@ public static class L
         ["settings.version"] = "版本:",
         ["settings.ver_auto"] = "自动（当前版本）",
         ["settings.ver_all"] = "所有版本",
+        ["settings.ver_release_latest"] = "正式版 ({0})",
         ["settings.br_release"] = "正式版",
         ["settings.br_beta"] = "beta分支",
         ["settings.sample"] = "数据范围: {0} 局",
@@ -468,6 +500,8 @@ public static class L
         ["toggle.unknown_room_odds"] = "问号房间遭遇概率显示",
         ["toggle.shop_prices"] = "商店价格显示",
         ["toggle.intent_state_machine"] = "敌人意图状态机显示",
+        ["toggle.potion_odds"] = "药水掉落概率显示",
+        ["toggle.card_drop_odds"] = "卡牌掉落概率显示",
 
         // ContributionPanel v2 (§3.7, §4.5)
         ["contrib.dps"] = "每回合平均伤害:",
@@ -586,6 +620,12 @@ public static class L
         ["career.encounters"] = "遭遇次数",
         ["career.no_data_short"] = "—",
         ["career.deck_section"] = "卡组构筑",
+        ["career.deck_avg_title"] = "生涯平均",
+        ["career.avg_time"] = "平均用时",
+        ["career.avg_deck_size"] = "平均卡组大小",
+        ["career.avg_relics"] = "平均遗物数量",
+        ["career.avg_types"] = "平均卡牌类型（攻击/技能/能力）",
+        ["career.avg_rarities"] = "平均卡牌稀有度（普通/罕见/稀有）",
         ["career.path_section"] = "路线统计",
         ["ancient.pool_1"] = "选项一池",
         ["ancient.pool_2"] = "选项二池",
@@ -640,3 +680,4 @@ public static class L
         ["upload.run_rejected"] = "上传被拒绝（服务器校验失败）",
     };
 }
+

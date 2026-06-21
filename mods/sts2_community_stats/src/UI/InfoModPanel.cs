@@ -76,7 +76,7 @@ public class InfoModPanel : PanelContainer
         // Title label
         var titleLabel = new Label();
         titleLabel.Text = title;
-        titleLabel.AddThemeFontSizeOverride("font_size", _titleSize);
+        titleLabel.AddThemeFontSizeOverride("font_size", panel._titleSize);
         titleLabel.AddThemeColorOverride("font_color", White);
         vbox.AddChild(titleLabel);
 
@@ -85,7 +85,7 @@ public class InfoModPanel : PanelContainer
         {
             var subLabel = new Label();
             subLabel.Text = subtitle;
-            subLabel.AddThemeFontSizeOverride("font_size", _subtitleSize);
+            subLabel.AddThemeFontSizeOverride("font_size", panel._subtitleSize);
             subLabel.AddThemeColorOverride("font_color", Gray);
             vbox.AddChild(subLabel);
         }

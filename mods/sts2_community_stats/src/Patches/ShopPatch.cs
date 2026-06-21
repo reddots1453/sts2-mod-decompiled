@@ -223,7 +223,7 @@ public static class ShopPatch
     {
         Safe.Run(() =>
         {
-            var inventory = __instance.Inventory;
+            var inventory = __instance.GetLocalInventory();
             if (inventory == null) return;
 
             var floor = RunDataCollector.CurrentFloor;

@@ -363,8 +363,19 @@ public static class CombatUiOverlayPatch
 
     private static void ShowAll()
     {
-        if (IsAlive(ref _potion)) _potion!.Visible = true;
-        if (IsAlive(ref _cardDrop)) _cardDrop!.Visible = true;
+        if (IsAlive(ref _potion)) _potion!.Visible = ModConfig.Toggles.PotionOdds;
+        if (IsAlive(ref _cardDrop)) _cardDrop!.Visible = ModConfig.Toggles.CardDropOdds;
+    }
+
+    /// <summary>Called from FilterPanel after toggles are saved so the top-bar
+    /// indicators appear/disappear without needing a map-screen reopen.</summary>
+    public static void RefreshVisibility()
+    {
+        Safe.Run(() =>
+        {
+            if (IsAlive(ref _potion)) _potion!.Visible = ModConfig.Toggles.PotionOdds;
+            if (IsAlive(ref _cardDrop)) _cardDrop!.Visible = ModConfig.Toggles.CardDropOdds;
+        });
     }
 
     private static void RefreshValuesFromPlayer(Player me)
