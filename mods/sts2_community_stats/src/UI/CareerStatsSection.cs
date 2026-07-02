@@ -1181,10 +1181,9 @@ public sealed partial class CareerStatsSection : VBoxContainer
     }
 
     /// <summary>
-    /// Round 9 round 49: ActModel order in code is Overgrowth(0)/Hive(1)/
-    /// Glory(2)/Underdocks(3), but Underdocks is actually an alternate Act 1
-    /// (暗港), not Act 4. This struct exposes a sort key + display label so
-    /// the boss dropdown groups Overgrowth and Underdocks together as "第1幕".
+    /// Round 9 round 49: ModelDb.Acts order is Overgrowth(0)/Underdocks(1)/
+    /// Hive(2)/Glory(3). Overgrowth and Underdocks are alternate Act-1 routes
+    /// (繁茂 / 暗港). Sort keys group them together before Hive/Glory.
     /// </summary>
     private readonly record struct BossActInfo(int SortKey, string Label);
 
@@ -1195,9 +1194,9 @@ public sealed partial class CareerStatsSection : VBoxContainer
         return actIdx0 switch
         {
             0 => new BossActInfo(10, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_overgrowth")),
-            3 => new BossActInfo(15, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_underdocks")),
-            1 => new BossActInfo(20, string.Format(L.Get("career.act_n"), 2)),
-            2 => new BossActInfo(30, string.Format(L.Get("career.act_n"), 3)),
+            1 => new BossActInfo(15, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_underdocks")),
+            2 => new BossActInfo(20, string.Format(L.Get("career.act_n"), 2)),
+            3 => new BossActInfo(30, string.Format(L.Get("career.act_n"), 3)),
             _ => new BossActInfo(99, ""),
         };
     }

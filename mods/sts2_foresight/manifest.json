@@ -1,0 +1,13 @@
+{
+  "id": "sts2_foresight",
+  "name": "预见之眼 (Foresight Eye)",
+  "author": "reddots",
+  "description": "预知未来的遗物：查看接下来的卡牌、遗物、遭遇、事件、Boss 和药水。同时提供冻结之眼效果（抽牌堆按实际顺序排列）。",
+  "version": "0.1.0",
+  "has_dll": true,
+  "has_pck": false,
+  "affects_gameplay": false,
+  "dependencies": [
+    { "id": "STS2-RitsuLib", "min_version": "0.3.10" }
+  ]
+}

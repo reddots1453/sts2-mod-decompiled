@@ -1256,9 +1256,9 @@ public sealed partial class CareerStatsSection : VBoxContainer
         return actIdx0 switch
         {
             0 => new BossActInfo(10, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_overgrowth")),
-            3 => new BossActInfo(15, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_underdocks")),
-            1 => new BossActInfo(20, string.Format(L.Get("career.act_n"), 2)),
-            2 => new BossActInfo(30, string.Format(L.Get("career.act_n"), 3)),
+            1 => new BossActInfo(15, string.Format(L.Get("career.act_n"), 1) + L.Get("career.act_underdocks")),
+            2 => new BossActInfo(20, string.Format(L.Get("career.act_n"), 2)),
+            3 => new BossActInfo(30, string.Format(L.Get("career.act_n"), 3)),
             _ => new BossActInfo(99, ""),
         };
     }
